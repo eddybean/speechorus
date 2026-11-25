@@ -57,14 +57,86 @@ impl ModelAdapter for IrodoriAdapter {
     }
     fn option_schema(&self) -> Vec<OptionSpec> {
         vec![
-            OptionSpec::num("speed", "話速", "float", json!(1.0), 0.25, 4.0, 0.05, "長さを割る値（1.2で速く）"),
-            OptionSpec::num("steps", "ステップ数", "int", json!(4), 1.0, 100.0, 1.0, "MFは4、通常版は40が既定"),
-            OptionSpec::num("duration_scale", "長さ倍率", "float", json!(1.0), 0.1, 4.0, 0.05, "予測長に掛ける（secondsとは併用不可）"),
-            OptionSpec::num("seconds", "固定秒数", "float", Value::Null, 0.5, 30.0, 0.1, "予測の代わりに長さを固定"),
-            OptionSpec { name: "keep_tail", label: "末尾を残す", kind: "bool", default: json!(false), min: None, max: None, step: None, help: "無音で切らず全長を残す" },
-            OptionSpec::num("cfg_scale_text", "CFG テキスト", "float", json!(3.0), 0.0, 10.0, 0.1, "通常版/Largeのみ"),
-            OptionSpec::num("cfg_scale_speaker", "CFG 話者", "float", json!(5.0), 0.0, 10.0, 0.1, "通常版/Largeのみ"),
-            OptionSpec::num("speaker_kv_scale", "話者追従", "float", json!(1.0), 0.0, 4.0, 0.05, "1より大きいと参照音声に近づく（通常版/Large）"),
+            OptionSpec::num(
+                "speed",
+                "話速",
+                "float",
+                json!(1.0),
+                0.25,
+                4.0,
+                0.05,
+                "長さを割る値（1.2で速く）",
+            ),
+            OptionSpec::num(
+                "steps",
+                "ステップ数",
+                "int",
+                json!(4),
+                1.0,
+                100.0,
+                1.0,
+                "MFは4、通常版は40が既定",
+            ),
+            OptionSpec::num(
+                "duration_scale",
+                "長さ倍率",
+                "float",
+                json!(1.0),
+                0.1,
+                4.0,
+                0.05,
+                "予測長に掛ける（secondsとは併用不可）",
+            ),
+            OptionSpec::num(
+                "seconds",
+                "固定秒数",
+                "float",
+                Value::Null,
+                0.5,
+                30.0,
+                0.1,
+                "予測の代わりに長さを固定",
+            ),
+            OptionSpec {
+                name: "keep_tail",
+                label: "末尾を残す",
+                kind: "bool",
+                default: json!(false),
+                min: None,
+                max: None,
+                step: None,
+                help: "無音で切らず全長を残す",
+            },
+            OptionSpec::num(
+                "cfg_scale_text",
+                "CFG テキスト",
+                "float",
+                json!(3.0),
+                0.0,
+                10.0,
+                0.1,
+                "通常版/Largeのみ",
+            ),
+            OptionSpec::num(
+                "cfg_scale_speaker",
+                "CFG 話者",
+                "float",
+                json!(5.0),
+                0.0,
+                10.0,
+                0.1,
+                "通常版/Largeのみ",
+            ),
+            OptionSpec::num(
+                "speaker_kv_scale",
+                "話者追従",
+                "float",
+                json!(1.0),
+                0.0,
+                4.0,
+                0.05,
+                "1より大きいと参照音声に近づく（通常版/Large）",
+            ),
         ]
     }
     fn build_request(&self, req: &LineRequest) -> Result<BuiltRequest, AdapterError> {
@@ -76,7 +148,10 @@ impl ModelAdapter for IrodoriAdapter {
         let mut msg = Map::new();
         msg.insert("type".into(), "synthesize".into());
         msg.insert("text".into(), text.into());
-        msg.insert("voice".into(), Value::from(req.voice.clone().unwrap_or_else(|| "none".into())));
+        msg.insert(
+            "voice".into(),
+            Value::from(req.voice.clone().unwrap_or_else(|| "none".into())),
+        );
         if let Some(s) = req.seed {
             msg.insert("seed".into(), s.into());
         }
@@ -90,7 +165,12 @@ impl ModelAdapter for IrodoriAdapter {
                 msg.insert("instructions".into(), s.trim().into());
             }
         }
-        if let Some(p) = req.design_prompt.as_deref().map(str::trim).filter(|p| !p.is_empty()) {
+        if let Some(p) = req
+            .design_prompt
+            .as_deref()
+            .map(str::trim)
+            .filter(|p| !p.is_empty())
+        {
             msg.insert("instructions".into(), p.into());
         }
         // `seconds` and `duration_scale` contradict each other; `seconds` wins.
@@ -98,7 +178,11 @@ impl ModelAdapter for IrodoriAdapter {
             opts.remove("duration_scale");
         }
         let dropped = apply_options(&self.option_schema(), &opts, &mut msg);
-        warnings.extend(dropped.into_iter().map(|d| format!("Irodori は `{d}` を受け付けないため無視しました")));
+        warnings.extend(
+            dropped
+                .into_iter()
+                .map(|d| format!("Irodori は `{d}` を受け付けないため無視しました")),
+        );
         Ok(BuiltRequest { msg, warnings })
     }
     fn prepare_voice(&self, b: &VoiceBuild) -> Result<Vec<String>, AdapterError> {
@@ -106,7 +190,9 @@ impl ModelAdapter for IrodoriAdapter {
             return Err(AdapterError::Unsupported("参照音声がありません".into()));
         }
         if b.inputs.iter().any(|i| i.speaker.is_some()) {
-            return Err(AdapterError::Unsupported("Irodori-TTS は複数話者ボイスを作れません".into()));
+            return Err(AdapterError::Unsupported(
+                "Irodori-TTS は複数話者ボイスを作れません".into(),
+            ));
         }
         let mut args = vec!["voice".to_string(), b.model.clone()];
         args.extend(b.inputs.iter().map(|i| path_str(&i.path)));
@@ -122,9 +208,18 @@ mod tests {
 
     #[test]
     fn strips_cues_keeps_emoji() {
-        assert_eq!(strip_bracket_cues("[笑い]🤭ふふ、[小声で]そうなんだ。"), ("🤭ふふ、そうなんだ。".to_string(), 2));
-        assert_eq!(strip_bracket_cues("<|speaker:1|> こんにちは"), ("こんにちは".to_string(), 1));
-        assert_eq!(strip_bracket_cues("閉じない[括弧"), ("閉じない[括弧".to_string(), 0));
+        assert_eq!(
+            strip_bracket_cues("[笑い]🤭ふふ、[小声で]そうなんだ。"),
+            ("🤭ふふ、そうなんだ。".to_string(), 2)
+        );
+        assert_eq!(
+            strip_bracket_cues("<|speaker:1|> こんにちは"),
+            ("こんにちは".to_string(), 1)
+        );
+        assert_eq!(
+            strip_bracket_cues("閉じない[括弧"),
+            ("閉じない[括弧".to_string(), 0)
+        );
     }
 
     #[test]
@@ -132,7 +227,10 @@ mod tests {
         let r = LineRequest {
             text: "😮‍💨はあ、疲れた。".into(),
             design_prompt: Some("低く落ち着いた男性の声で".into()),
-            options: serde_json::from_str(r#"{"speed":1.25,"steps":8,"top_k":5,"seconds":3,"duration_scale":2}"#).unwrap(),
+            options: serde_json::from_str(
+                r#"{"speed":1.25,"steps":8,"top_k":5,"seconds":3,"duration_scale":2}"#,
+            )
+            .unwrap(),
             seed: Some(7),
             ..Default::default()
         };
@@ -151,9 +249,16 @@ mod tests {
     fn voice_args() {
         let b = VoiceBuild {
             model: "iro.gguf".into(),
-            inputs: vec![VoiceInput { path: PathBuf::from("a.wav"), transcript: Some("ignored".into()), speaker: None }],
+            inputs: vec![VoiceInput {
+                path: PathBuf::from("a.wav"),
+                transcript: Some("ignored".into()),
+                speaker: None,
+            }],
             out: PathBuf::from("a.voice.gguf"),
         };
-        assert_eq!(IrodoriAdapter.prepare_voice(&b).unwrap(), ["voice", "iro.gguf", "a.wav", "a.voice.gguf"]);
+        assert_eq!(
+            IrodoriAdapter.prepare_voice(&b).unwrap(),
+            ["voice", "iro.gguf", "a.wav", "a.voice.gguf"]
+        );
     }
 }

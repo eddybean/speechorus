@@ -62,3 +62,19 @@ ASR of the Drama-3 outputs returned the input text (tags removed), so synthesis 
 The throwaway clients used (Python, not part of the app) are described here so the measurements can be repeated:
 - a worker client that waits for `ready`, sends `count_tokens`, a request with a bad member, N `synthesize` requests (writing the chunks to WAV), a `cancel` 0.3 s into a long request, and `info`;
 - a wrapper that runs a subcommand and reads its `PeakWorkingSetSize` with `GetProcessMemoryInfo` after it exits.
+
+## E2E results (release build, 2026-11-26)
+
+Driven through the real GUI (`voice-studio.exe` release build) over the WebView2 DevTools protocol, and through the `real_engine` integration test (`cargo test --test real_engine`).
+
+| Check | Result |
+|---|---|
+| Load Drama-3 Q4_K on Vulkan0 from the toolbar | ready in 5.7–6.7 s (file in the OS cache) |
+| 3 lines with tags (typed, Enter for a new line, pasting 2 sentences auto-split them into 2 lines), 2 takes per line, sequential seeds 42/43 | 6 takes in 8.9 s; ASR of every take matches its text (the cues are acted, not read aloud) |
+| Playback | `<audio>` via the asset protocol plays the takes (duration 4.88 s, currentTime advancing) |
+| Voice from a reference WAV with automatic transcription | ASR 1.6 s (text correct), `speech voice` 3.3 s; generating with that voice works |
+| 2-speaker scene, single request (`<|speaker:N|>`) | the cast voice is merged automatically (2 speakers); **only speaker 0 speaks** (known limitation, see above). Per-line scenes work |
+| Combined WAV + SRT + txt export (pre 0.2 s / post 0.5 s) | SRT 0.200→5.076, 5.776→7.912, 8.612→11.585; WAV 12.085 s = Σ(pre+take+post); one WAV per line with the template `{index}_{cast}_{text8}`, a second export of the same name became `_2` |
+| Save `.vsproj` → reopen | takes copied to `e2e.takes/`; the reopened project matches the saved one |
+| Switch to Irodori-TTS-mf from the toolbar | ready in 4.7 s; the palette switches to emoji; `🤭ふふ、[笑い]そうなんだ。😮‍💨` + instructions + speed 1.2 → 48 kHz take; the `[笑い]` cue is stripped with a notice; a Drama-3 voice is flagged as not for this model |
+| **GUI memory** (Drama-3 resident, after all of the above) | `voice-studio.exe` working set **28.7 MB** (private 6.7 MB). The WebView2 child processes are separate (renderer about 110–140 MB working set each, GPU process 143 MB) and `speech.exe` 113 MB working set (the model lives in VRAM) |

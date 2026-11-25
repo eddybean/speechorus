@@ -41,7 +41,17 @@ async fn wait_done(h: &Harness, n: usize) -> Vec<TakeResult> {
     loop {
         {
             let ev = h.events.lock().unwrap();
-            let terminal: Vec<&QueueEvent> = ev.iter().filter(|e| matches!(e, QueueEvent::Done { .. } | QueueEvent::Failed { .. } | QueueEvent::Cancelled { .. })).collect();
+            let terminal: Vec<&QueueEvent> = ev
+                .iter()
+                .filter(|e| {
+                    matches!(
+                        e,
+                        QueueEvent::Done { .. }
+                            | QueueEvent::Failed { .. }
+                            | QueueEvent::Cancelled { .. }
+                    )
+                })
+                .collect();
             if terminal.len() >= n {
                 return terminal
                     .into_iter()
@@ -61,7 +71,12 @@ fn job(id: &str, text: &str, out: &std::path::Path, seed: u64, opts: &str) -> Jo
     JobSpec {
         job_id: id.into(),
         line_id: Some(id.into()),
-        request: LineRequest { text: text.into(), seed: Some(seed), options: serde_json::from_str(opts).unwrap(), ..Default::default() },
+        request: LineRequest {
+            text: text.into(),
+            seed: Some(seed),
+            options: serde_json::from_str(opts).unwrap(),
+            ..Default::default()
+        },
         out_dir: out.to_path_buf(),
         file_stem: id.into(),
         ..Default::default()
@@ -70,7 +85,9 @@ fn job(id: &str, text: &str, out: &std::path::Path, seed: u64, opts: &str) -> Jo
 
 #[tokio::test(flavor = "multi_thread")]
 async fn drama_then_irodori_switch() {
-    let Some(exe) = env("VS_SPEECH_EXE") else { return eprintln!("VS_SPEECH_EXE not set; skipped") };
+    let Some(exe) = env("VS_SPEECH_EXE") else {
+        return eprintln!("VS_SPEECH_EXE not set; skipped");
+    };
     let out = tempfile::tempdir().unwrap();
     let h = harness();
     let mut expected = 0;
@@ -79,15 +96,36 @@ async fn drama_then_irodori_switch() {
         let t = std::time::Instant::now();
         h.sup.start(&p, model.clone()).await.expect("drama start");
         eprintln!("drama ready in {:.1}s", t.elapsed().as_secs_f64());
-        assert!(matches!(h.sup.state(), EngineState::Ready { sample_rate: 44100, .. }));
+        assert!(matches!(
+            h.sup.state(),
+            EngineState::Ready {
+                sample_rate: 44100,
+                ..
+            }
+        ));
         h.queue.enqueue(vec![
-            job("d1", "[驚いて]本当に？[明るく]それは楽しみだね。", out.path(), 1, r#"{"temperature":0.9}"#),
-            job("d2", "[囁き]ねえ、こっちに来て。", out.path(), 2, r#"{"speed":2.0}"#),
+            job(
+                "d1",
+                "[驚いて]本当に？[明るく]それは楽しみだね。",
+                out.path(),
+                1,
+                r#"{"temperature":0.9}"#,
+            ),
+            job(
+                "d2",
+                "[囁き]ねえ、こっちに来て。",
+                out.path(),
+                2,
+                r#"{"speed":2.0}"#,
+            ),
         ]);
         expected += 2;
         let takes = wait_done(&h, expected).await;
         for t in &takes {
-            eprintln!("{} {:.2}s seed {:?} {}", t.file, t.duration, t.seed, t.stop_reason);
+            eprintln!(
+                "{} {:.2}s seed {:?} {}",
+                t.file, t.duration, t.seed, t.stop_reason
+            );
             assert!(t.duration > 0.5);
             assert_eq!(t.sample_rate, 44100);
             assert!(out.path().join(&t.file).exists());
@@ -98,7 +136,13 @@ async fn drama_then_irodori_switch() {
         let t = std::time::Instant::now();
         h.sup.start(&p, model.clone()).await.expect("irodori start");
         eprintln!("switched to irodori in {:.1}s", t.elapsed().as_secs_f64());
-        let mut j = job("i1", "🤭ふふ、[笑い]そうなんだ。", out.path(), 3, r#"{"speed":1.1,"steps":6,"top_k":5}"#);
+        let mut j = job(
+            "i1",
+            "🤭ふふ、[笑い]そうなんだ。",
+            out.path(),
+            3,
+            r#"{"speed":1.1,"steps":6,"top_k":5}"#,
+        );
         j.request.design_prompt = Some("明るく元気な若い女性の声で".into());
         h.queue.enqueue(vec![j]);
         expected += 1;
@@ -106,7 +150,10 @@ async fn drama_then_irodori_switch() {
         let t = takes.last().unwrap();
         eprintln!("{} {:.2}s {:?}", t.file, t.duration, t.options_snapshot);
         assert_eq!(t.sample_rate, 48000);
-        assert_eq!(t.options_snapshot["instructions"], "明るく元気な若い女性の声で");
+        assert_eq!(
+            t.options_snapshot["instructions"],
+            "明るく元気な若い女性の声で"
+        );
         assert_eq!(t.text, "🤭ふふ、そうなんだ。");
         assert!(t.options_snapshot.get("top_k").is_none());
     }

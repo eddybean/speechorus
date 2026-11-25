@@ -143,7 +143,8 @@ export const useApp = create<AppStore>()((set, get) => ({
     try {
       await ipc.engineStart(profileId);
     } catch (e) {
-      get().notify("error", String(e));
+      // A failure after the process started is reported by the engine's "failed" event.
+      if (get().engine.state !== "failed") get().notify("error", String(e));
     }
   },
   stopEngine: async () => {

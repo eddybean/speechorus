@@ -37,13 +37,22 @@ pub struct VoiceLibrary {
 
 impl VoiceLibrary {
     pub fn open(dir: &Path) -> Self {
-        let voices = std::fs::read_to_string(dir.join("voices.json")).ok().and_then(|s| serde_json::from_str(&s).ok()).unwrap_or_default();
-        VoiceLibrary { dir: dir.to_path_buf(), voices }
+        let voices = std::fs::read_to_string(dir.join("voices.json"))
+            .ok()
+            .and_then(|s| serde_json::from_str(&s).ok())
+            .unwrap_or_default();
+        VoiceLibrary {
+            dir: dir.to_path_buf(),
+            voices,
+        }
     }
 
     pub fn save(&self) -> std::io::Result<()> {
         std::fs::create_dir_all(&self.dir)?;
-        crate::project::write_atomic(&self.dir.join("voices.json"), serde_json::to_string_pretty(&self.voices)?.as_bytes())
+        crate::project::write_atomic(
+            &self.dir.join("voices.json"),
+            serde_json::to_string_pretty(&self.voices)?.as_bytes(),
+        )
     }
 
     pub fn get(&self, id: &str) -> Option<&Voice> {
@@ -51,13 +60,24 @@ impl VoiceLibrary {
     }
 
     /// Plans a new voice: copies the references into the library and returns the build and the record to keep once it is made.
-    pub fn plan(&self, adapter: &dyn ModelAdapter, model: &str, name: &str, inputs: Vec<VoiceInput>) -> std::io::Result<(VoiceBuild, Voice)> {
+    pub fn plan(
+        &self,
+        adapter: &dyn ModelAdapter,
+        model: &str,
+        name: &str,
+        inputs: Vec<VoiceInput>,
+    ) -> std::io::Result<(VoiceBuild, Voice)> {
         let id = uuid::Uuid::new_v4().to_string();
         let refs = self.dir.join("refs");
         std::fs::create_dir_all(&refs)?;
         let mut kept = Vec::new();
         for (n, i) in inputs.into_iter().enumerate() {
-            let ext = i.path.extension().and_then(|e| e.to_str()).unwrap_or("wav").to_string();
+            let ext = i
+                .path
+                .extension()
+                .and_then(|e| e.to_str())
+                .unwrap_or("wav")
+                .to_string();
             let dst = refs.join(format!("{id}-{n}.{ext}"));
             std::fs::copy(&i.path, &dst)?;
             kept.push(VoiceInput { path: dst, ..i });
@@ -70,24 +90,44 @@ impl VoiceLibrary {
             file: file.to_string_lossy().into_owned(),
             speakers: 1,
             sources: kept.clone(),
-            created_at: std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_millis() as u64).unwrap_or(0),
+            created_at: std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_millis() as u64)
+                .unwrap_or(0),
             ..Default::default()
         };
-        Ok((VoiceBuild { model: model.into(), inputs: kept, out: file }, voice))
+        Ok((
+            VoiceBuild {
+                model: model.into(),
+                inputs: kept,
+                out: file,
+            },
+            voice,
+        ))
     }
 
     /// Plans a cast voice whose speaker N is `ids[N]` (a None leaves that speaker to the model).
     /// An existing combination of the same voices is reused.
-    pub fn plan_combined(&self, model: &str, ids: &[Option<String>]) -> Result<CombinePlan, String> {
+    pub fn plan_combined(
+        &self,
+        model: &str,
+        ids: &[Option<String>],
+    ) -> Result<CombinePlan, String> {
         let mut inputs = Vec::new();
         let mut from = Vec::new();
         for (n, id) in ids.iter().enumerate() {
             let Some(id) = id else { continue };
-            let v = self.get(id).ok_or_else(|| format!("ボイス {id} がありません"))?;
+            let v = self
+                .get(id)
+                .ok_or_else(|| format!("ボイス {id} がありません"))?;
             if v.family != "drama3" {
                 return Err(format!("{} は Drama-3 のボイスではありません", v.name));
             }
-            inputs.push(VoiceInput { path: PathBuf::from(&v.file), transcript: None, speaker: Some(n as u32) });
+            inputs.push(VoiceInput {
+                path: PathBuf::from(&v.file),
+                transcript: None,
+                speaker: Some(n as u32),
+            });
             from.push(format!("{n}:{id}"));
         }
         if inputs.is_empty() {
@@ -100,7 +140,15 @@ impl VoiceLibrary {
         }
         let id = uuid::Uuid::new_v4().to_string();
         let file = self.dir.join(format!("{id}.voice.gguf"));
-        let names: Vec<String> = ids.iter().map(|i| i.as_ref().and_then(|i| self.get(i)).map(|v| v.name.clone()).unwrap_or_else(|| "-".into())).collect();
+        let names: Vec<String> = ids
+            .iter()
+            .map(|i| {
+                i.as_ref()
+                    .and_then(|i| self.get(i))
+                    .map(|v| v.name.clone())
+                    .unwrap_or_else(|| "-".into())
+            })
+            .collect();
         let voice = Voice {
             id,
             name: format!("キャスト: {}", names.join(" / ")),
@@ -110,7 +158,14 @@ impl VoiceLibrary {
             combined_from: from,
             ..Default::default()
         };
-        Ok(CombinePlan::Build(VoiceBuild { model: model.into(), inputs, out: file }, voice))
+        Ok(CombinePlan::Build(
+            VoiceBuild {
+                model: model.into(),
+                inputs,
+                out: file,
+            },
+            voice,
+        ))
     }
 
     pub fn insert(&mut self, v: Voice) -> std::io::Result<()> {
@@ -150,7 +205,18 @@ mod tests {
         let wav = d.path().join("me.wav");
         std::fs::write(&wav, b"RIFF").unwrap();
         let mut lib = VoiceLibrary::open(&d.path().join("lib"));
-        let (b, v) = lib.plan(&Drama3Adapter, "m.gguf", "私", vec![VoiceInput { path: wav, transcript: Some("こんにちは".into()), speaker: None }]).unwrap();
+        let (b, v) = lib
+            .plan(
+                &Drama3Adapter,
+                "m.gguf",
+                "私",
+                vec![VoiceInput {
+                    path: wav,
+                    transcript: Some("こんにちは".into()),
+                    speaker: None,
+                }],
+            )
+            .unwrap();
         assert!(b.inputs[0].path.starts_with(&lib.dir));
         assert!(b.inputs[0].path.exists());
         let args = Drama3Adapter.prepare_voice(&b).unwrap();
@@ -161,15 +227,24 @@ mod tests {
         lib.insert(v).unwrap();
         assert!(VoiceLibrary::open(&lib.dir).get(&vid).is_some());
 
-        let plan = lib.plan_combined("m.gguf", &[None, Some(vid.clone())]).unwrap();
-        let CombinePlan::Build(b, cv) = plan else { panic!() };
+        let plan = lib
+            .plan_combined("m.gguf", &[None, Some(vid.clone())])
+            .unwrap();
+        let CombinePlan::Build(b, cv) = plan else {
+            panic!()
+        };
         assert_eq!(b.inputs[0].speaker, Some(1));
         assert_eq!(cv.speakers, 2);
         std::fs::write(&cv.file, b"GGUF").unwrap();
         let cid = cv.id.clone();
         lib.insert(cv).unwrap();
-        assert!(matches!(lib.plan_combined("m.gguf", &[None, Some(vid.clone())]).unwrap(), CombinePlan::Existing(v) if v.id == cid));
-        assert!(matches!(lib.plan_combined("m.gguf", &[None, None]).unwrap(), CombinePlan::NoneNeeded));
+        assert!(
+            matches!(lib.plan_combined("m.gguf", &[None, Some(vid.clone())]).unwrap(), CombinePlan::Existing(v) if v.id == cid)
+        );
+        assert!(matches!(
+            lib.plan_combined("m.gguf", &[None, None]).unwrap(),
+            CombinePlan::NoneNeeded
+        ));
         lib.remove(&vid).unwrap();
         assert!(lib.get(&vid).is_none());
     }

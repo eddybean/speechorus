@@ -62,11 +62,21 @@ impl WorkerConnection {
                 continue;
             }
             match WorkerMsg::parse(&line)? {
-                WorkerMsg::Ready { protocol, version, defaults, model } => {
+                WorkerMsg::Ready {
+                    protocol,
+                    version,
+                    defaults,
+                    model,
+                } => {
                     if protocol != PROTOCOL {
                         return Err(EngineError::Protocol(protocol));
                     }
-                    break ReadyInfo { protocol, version, defaults, model };
+                    break ReadyInfo {
+                        protocol,
+                        version,
+                        defaults,
+                        model,
+                    };
                 }
                 WorkerMsg::Fatal { error } => return Err(EngineError::Fatal(error)),
                 other => on_orphan(format!("before ready: {other:?}")),
@@ -99,12 +109,21 @@ impl WorkerConnection {
             for (id, tx) in map.drain() {
                 let _ = tx.send(WorkerMsg::Error {
                     id: Some(id),
-                    error: WorkerError { code: "engine_exit".into(), option: None, message: reason.clone() },
+                    error: WorkerError {
+                        code: "engine_exit".into(),
+                        option: None,
+                        message: reason.clone(),
+                    },
                 });
             }
             let _ = alive_tx.send(false);
         });
-        Ok(Arc::new(WorkerConnection { writer: AsyncMutex::new(Box::new(writer)), pending, ready, alive: alive_rx }))
+        Ok(Arc::new(WorkerConnection {
+            writer: AsyncMutex::new(Box::new(writer)),
+            pending,
+            ready,
+            alive: alive_rx,
+        }))
     }
 
     pub fn ready(&self) -> &ReadyInfo {
@@ -135,7 +154,11 @@ impl WorkerConnection {
 
     /// Sends a request (an object with `type`, members and options) under `id`
     /// and returns the stream of its answers, ending with its terminal message.
-    pub async fn request(&self, id: &str, mut msg: Map<String, Value>) -> Result<mpsc::UnboundedReceiver<WorkerMsg>, EngineError> {
+    pub async fn request(
+        &self,
+        id: &str,
+        mut msg: Map<String, Value>,
+    ) -> Result<mpsc::UnboundedReceiver<WorkerMsg>, EngineError> {
         if !self.is_alive() {
             return Err(EngineError::NotRunning);
         }
@@ -150,7 +173,11 @@ impl WorkerConnection {
     }
 
     /// Sends a request and waits for its terminal message, ignoring anything before it.
-    pub async fn call(&self, id: &str, msg: Map<String, Value>) -> Result<Map<String, Value>, EngineError> {
+    pub async fn call(
+        &self,
+        id: &str,
+        msg: Map<String, Value>,
+    ) -> Result<Map<String, Value>, EngineError> {
         let mut rx = self.request(id, msg).await?;
         while let Some(m) = rx.recv().await {
             match m {

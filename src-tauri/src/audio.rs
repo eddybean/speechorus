@@ -45,10 +45,19 @@ pub fn read_mono(path: &Path) -> Result<(Vec<f32>, u32), AudioError> {
         hound::SampleFormat::Float => r.samples::<f32>().collect::<Result<_, _>>().map_err(werr)?,
         hound::SampleFormat::Int => {
             let scale = (1i64 << (spec.bits_per_sample - 1)) as f32;
-            r.samples::<i32>().map(|s| s.map(|v| v as f32 / scale)).collect::<Result<_, _>>().map_err(werr)?
+            r.samples::<i32>()
+                .map(|s| s.map(|v| v as f32 / scale))
+                .collect::<Result<_, _>>()
+                .map_err(werr)?
         }
     };
-    let mono = if ch == 1 { raw } else { raw.chunks(ch).map(|c| c.iter().sum::<f32>() / ch as f32).collect() };
+    let mono = if ch == 1 {
+        raw
+    } else {
+        raw.chunks(ch)
+            .map(|c| c.iter().sum::<f32>() / ch as f32)
+            .collect()
+    };
     Ok((mono, spec.sample_rate))
 }
 
@@ -73,10 +82,16 @@ pub fn resample_linear(x: &[f32], from: u32, to: u32) -> Vec<f32> {
 
 pub fn write_mono_i16(path: &Path, x: &[f32], sr: u32) -> Result<(), AudioError> {
     let werr = |e| AudioError::Wav(path.display().to_string(), e);
-    let spec = hound::WavSpec { channels: 1, sample_rate: sr, bits_per_sample: 16, sample_format: hound::SampleFormat::Int };
+    let spec = hound::WavSpec {
+        channels: 1,
+        sample_rate: sr,
+        bits_per_sample: 16,
+        sample_format: hound::SampleFormat::Int,
+    };
     let mut w = hound::WavWriter::create(path, spec).map_err(werr)?;
     for &s in x {
-        w.write_sample((s.clamp(-1.0, 1.0) * 32767.0).round() as i16).map_err(werr)?;
+        w.write_sample((s.clamp(-1.0, 1.0) * 32767.0).round() as i16)
+            .map_err(werr)?;
     }
     w.finalize().map_err(werr)
 }
@@ -87,7 +102,11 @@ fn secs_to_samples(s: f64, sr: u32) -> usize {
 
 /// Joins the items with each one's silence before and after; returns the cues of the spoken parts.
 /// The output rate is `sample_rate`, or the first item's when None.
-pub fn concat(items: &[ExportItem], out: &Path, sample_rate: Option<u32>) -> Result<Vec<Cue>, AudioError> {
+pub fn concat(
+    items: &[ExportItem],
+    out: &Path,
+    sample_rate: Option<u32>,
+) -> Result<Vec<Cue>, AudioError> {
     if items.is_empty() {
         return Err(AudioError::Nothing);
     }
@@ -105,7 +124,12 @@ pub fn concat(items: &[ExportItem], out: &Path, sample_rate: Option<u32>) -> Res
         buf.extend_from_slice(&x);
         let end = buf.len() as f64 / sr as f64;
         buf.resize(buf.len() + secs_to_samples(it.post_silence, sr), 0.0);
-        cues.push(Cue { start, end, text: it.text.clone(), cast: it.cast.clone() });
+        cues.push(Cue {
+            start,
+            end,
+            text: it.text.clone(),
+            cast: it.cast.clone(),
+        });
     }
     write_mono_i16(out, &buf, sr)?;
     Ok(cues)
@@ -118,7 +142,12 @@ pub fn cues_from_durations(items: &[(f64, f64, f64, String, String)]) -> Vec<Cue
         .iter()
         .map(|(pre, dur, post, text, cast)| {
             t += pre;
-            let c = Cue { start: t, end: t + dur, text: text.clone(), cast: cast.clone() };
+            let c = Cue {
+                start: t,
+                end: t + dur,
+                text: text.clone(),
+                cast: cast.clone(),
+            };
             t += dur + post;
             c
         })
@@ -127,7 +156,13 @@ pub fn cues_from_durations(items: &[(f64, f64, f64, String, String)]) -> Vec<Cue
 
 pub fn srt_time(s: f64) -> String {
     let ms = (s.max(0.0) * 1000.0).round() as u64;
-    format!("{:02}:{:02}:{:02},{:03}", ms / 3_600_000, (ms / 60_000) % 60, (ms / 1000) % 60, ms % 1000)
+    format!(
+        "{:02}:{:02}:{:02},{:03}",
+        ms / 3_600_000,
+        (ms / 60_000) % 60,
+        (ms / 1000) % 60,
+        ms % 1000
+    )
 }
 
 /// Text without `[cues]` and `<|speaker:N|>`, for subtitles and file names.
@@ -166,19 +201,47 @@ pub fn srt(cues: &[Cue], with_cast: bool) -> String {
     let mut s = String::new();
     for (i, c) in cues.iter().enumerate() {
         let text = plain_text(&c.text);
-        let text = if with_cast && !c.cast.is_empty() { format!("{}: {}", c.cast, text) } else { text };
-        s.push_str(&format!("{}\n{} --> {}\n{}\n\n", i + 1, srt_time(c.start), srt_time(c.end), text));
+        let text = if with_cast && !c.cast.is_empty() {
+            format!("{}: {}", c.cast, text)
+        } else {
+            text
+        };
+        s.push_str(&format!(
+            "{}\n{} --> {}\n{}\n\n",
+            i + 1,
+            srt_time(c.start),
+            srt_time(c.end),
+            text
+        ));
     }
     s
 }
 
 /// `キャラ,テキスト` lines, the form txt import reads back.
 pub fn script_text(items: &[ExportItem]) -> String {
-    items.iter().map(|i| if i.cast.is_empty() { format!("{}\n", i.text) } else { format!("{},{}\n", i.cast, i.text) }).collect()
+    items
+        .iter()
+        .map(|i| {
+            if i.cast.is_empty() {
+                format!("{}\n", i.text)
+            } else {
+                format!("{},{}\n", i.cast, i.text)
+            }
+        })
+        .collect()
 }
 
 pub fn sanitize_file_name(s: &str) -> String {
-    let t: String = s.chars().map(|c| if "\\/:*?\"<>|".contains(c) || c.is_control() { '_' } else { c }).collect();
+    let t: String = s
+        .chars()
+        .map(|c| {
+            if "\\/:*?\"<>|".contains(c) || c.is_control() {
+                '_'
+            } else {
+                c
+            }
+        })
+        .collect();
     let t = t.trim().trim_end_matches('.').to_string();
     if t.is_empty() {
         "_".into()
@@ -195,12 +258,20 @@ pub fn render_template(tpl: &str, index: usize, pad: usize, item: &ExportItem) -
         .replace("{cast}", &item.cast)
         .replace("{text8}", &plain.chars().take(8).collect::<String>())
         .replace("{text}", &plain.chars().take(32).collect::<String>())
-        .replace("{seed}", &item.seed.map(|s| s.to_string()).unwrap_or_default());
+        .replace(
+            "{seed}",
+            &item.seed.map(|s| s.to_string()).unwrap_or_default(),
+        );
     sanitize_file_name(&out)
 }
 
 /// Copies each item's take to `dir` under the template's name (a serial is added when the name is taken).
-pub fn export_each(items: &[ExportItem], dir: &Path, tpl: &str, write_txt: bool) -> Result<Vec<PathBuf>, AudioError> {
+pub fn export_each(
+    items: &[ExportItem],
+    dir: &Path,
+    tpl: &str,
+    write_txt: bool,
+) -> Result<Vec<PathBuf>, AudioError> {
     if items.is_empty() {
         return Err(AudioError::Nothing);
     }
@@ -210,10 +281,12 @@ pub fn export_each(items: &[ExportItem], dir: &Path, tpl: &str, write_txt: bool)
     for (i, it) in items.iter().enumerate() {
         let stem = render_template(tpl, i + 1, pad, it);
         let dst = crate::jobs::unique_path(dir, &stem, "wav");
-        std::fs::copy(&it.path, &dst).map_err(|e| AudioError::Io(it.path.display().to_string(), e))?;
+        std::fs::copy(&it.path, &dst)
+            .map_err(|e| AudioError::Io(it.path.display().to_string(), e))?;
         if write_txt {
             let t = dst.with_extension("txt");
-            std::fs::write(&t, plain_text(&it.text)).map_err(|e| AudioError::Io(t.display().to_string(), e))?;
+            std::fs::write(&t, plain_text(&it.text))
+                .map_err(|e| AudioError::Io(t.display().to_string(), e))?;
         }
         out.push(dst);
     }
@@ -235,12 +308,34 @@ mod tests {
     fn concat_inserts_silences_and_times_cues() {
         let d = tempfile::tempdir().unwrap();
         let items = vec![
-            ExportItem { path: tone(d.path(), "a.wav", 1.0, 1000), text: "[明るく]一".into(), cast: "A".into(), pre_silence: 0.5, post_silence: 0.25, seed: None },
-            ExportItem { path: tone(d.path(), "b.wav", 2.0, 1000), text: "二".into(), cast: "B".into(), pre_silence: 0.0, post_silence: 1.0, seed: None },
+            ExportItem {
+                path: tone(d.path(), "a.wav", 1.0, 1000),
+                text: "[明るく]一".into(),
+                cast: "A".into(),
+                pre_silence: 0.5,
+                post_silence: 0.25,
+                seed: None,
+            },
+            ExportItem {
+                path: tone(d.path(), "b.wav", 2.0, 1000),
+                text: "二".into(),
+                cast: "B".into(),
+                pre_silence: 0.0,
+                post_silence: 1.0,
+                seed: None,
+            },
         ];
         let out = d.path().join("all.wav");
         let cues = concat(&items, &out, None).unwrap();
-        assert_eq!(cues[0], Cue { start: 0.5, end: 1.5, text: "[明るく]一".into(), cast: "A".into() });
+        assert_eq!(
+            cues[0],
+            Cue {
+                start: 0.5,
+                end: 1.5,
+                text: "[明るく]一".into(),
+                cast: "A".into()
+            }
+        );
         assert_eq!((cues[1].start, cues[1].end), (1.75, 3.75));
         let (x, sr) = read_mono(&out).unwrap();
         assert_eq!(sr, 1000);
@@ -248,7 +343,10 @@ mod tests {
         assert!(x[..500].iter().all(|v| *v == 0.0));
         assert!((x[500] - 0.5).abs() < 1e-3);
         // Same as computing from durations alone.
-        let est = cues_from_durations(&[(0.5, 1.0, 0.25, "[明るく]一".into(), "A".into()), (0.0, 2.0, 1.0, "二".into(), "B".into())]);
+        let est = cues_from_durations(&[
+            (0.5, 1.0, 0.25, "[明るく]一".into(), "A".into()),
+            (0.0, 2.0, 1.0, "二".into(), "B".into()),
+        ]);
         assert_eq!(est, cues);
     }
 
@@ -256,8 +354,14 @@ mod tests {
     fn concat_resamples_mixed_rates() {
         let d = tempfile::tempdir().unwrap();
         let items = vec![
-            ExportItem { path: tone(d.path(), "a.wav", 1.0, 44100), ..Default::default() },
-            ExportItem { path: tone(d.path(), "b.wav", 1.0, 48000), ..Default::default() },
+            ExportItem {
+                path: tone(d.path(), "a.wav", 1.0, 44100),
+                ..Default::default()
+            },
+            ExportItem {
+                path: tone(d.path(), "b.wav", 1.0, 48000),
+                ..Default::default()
+            },
         ];
         let out = d.path().join("all.wav");
         let cues = concat(&items, &out, None).unwrap();
@@ -268,23 +372,63 @@ mod tests {
     #[test]
     fn srt_format_and_plain_text() {
         assert_eq!(srt_time(3725.0456), "01:02:05,046");
-        assert_eq!(plain_text("<|speaker:1|> [笑い]ふふ、[小声で]そう"), "ふふ、そう");
-        let s = srt(&[Cue { start: 0.0, end: 1.5, text: "[囁き]ねえ".into(), cast: "ミカ".into() }], true);
+        assert_eq!(
+            plain_text("<|speaker:1|> [笑い]ふふ、[小声で]そう"),
+            "ふふ、そう"
+        );
+        let s = srt(
+            &[Cue {
+                start: 0.0,
+                end: 1.5,
+                text: "[囁き]ねえ".into(),
+                cast: "ミカ".into(),
+            }],
+            true,
+        );
         assert_eq!(s, "1\n00:00:00,000 --> 00:00:01,500\nミカ: ねえ\n\n");
     }
 
     #[test]
     fn template_and_serials() {
-        let it = ExportItem { text: "[驚いて]本当に？それは楽しみ/だね".into(), cast: "ナレ:ター".into(), seed: Some(7), ..Default::default() };
-        assert_eq!(render_template("{index}_{cast}_{text8}", 3, 3, &it), "003_ナレ_ター_本当に？それは楽");
-        assert_eq!(render_template("{seed}-{text}", 1, 1, &it), "7-本当に？それは楽しみ_だね");
+        let it = ExportItem {
+            text: "[驚いて]本当に？それは楽しみ/だね".into(),
+            cast: "ナレ:ター".into(),
+            seed: Some(7),
+            ..Default::default()
+        };
+        assert_eq!(
+            render_template("{index}_{cast}_{text8}", 3, 3, &it),
+            "003_ナレ_ター_本当に？それは楽"
+        );
+        assert_eq!(
+            render_template("{seed}-{text}", 1, 1, &it),
+            "7-本当に？それは楽しみ_だね"
+        );
         let d = tempfile::tempdir().unwrap();
         let src = tone(d.path(), "t.wav", 0.1, 1000);
-        let items = vec![ExportItem { path: src.clone(), text: "同じ".into(), ..Default::default() }, ExportItem { path: src, text: "同じ".into(), ..Default::default() }];
+        let items = vec![
+            ExportItem {
+                path: src.clone(),
+                text: "同じ".into(),
+                ..Default::default()
+            },
+            ExportItem {
+                path: src,
+                text: "同じ".into(),
+                ..Default::default()
+            },
+        ];
         let out = export_each(&items, &d.path().join("out"), "{text8}", true).unwrap();
         assert_eq!(out[0].file_name().unwrap(), "同じ.wav");
         assert_eq!(out[1].file_name().unwrap(), "同じ_2.wav");
         assert!(out[1].with_extension("txt").exists());
-        assert_eq!(script_text(&[ExportItem { cast: "A".into(), text: "x".into(), ..Default::default() }]), "A,x\n");
+        assert_eq!(
+            script_text(&[ExportItem {
+                cast: "A".into(),
+                text: "x".into(),
+                ..Default::default()
+            }]),
+            "A,x\n"
+        );
     }
 }

@@ -105,7 +105,13 @@ pub struct ExportSettings {
 
 impl Default for ExportSettings {
     fn default() -> Self {
-        ExportSettings { file_template: "{index}_{cast}_{text8}".into(), out_dir: String::new(), default_pre_silence: 0.0, default_post_silence: 0.3, extra: Map::new() }
+        ExportSettings {
+            file_template: "{index}_{cast}_{text8}".into(),
+            out_dir: String::new(),
+            default_pre_silence: 0.0,
+            default_post_silence: 0.3,
+            extra: Map::new(),
+        }
     }
 }
 
@@ -125,18 +131,29 @@ pub fn takes_dir_for(project_path: &Path) -> PathBuf {
 }
 
 pub fn write_atomic(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
-    let tmp = path.with_extension(format!("{}.tmp", path.extension().and_then(|e| e.to_str()).unwrap_or("")));
+    let tmp = path.with_extension(format!(
+        "{}.tmp",
+        path.extension().and_then(|e| e.to_str()).unwrap_or("")
+    ));
     std::fs::write(&tmp, bytes)?;
     std::fs::rename(&tmp, path)
 }
 
 fn take_files(p: &Project) -> impl Iterator<Item = &str> {
-    p.lines.iter().flat_map(|l| l.takes.iter()).chain(p.scenes.iter().flat_map(|s| s.takes.iter())).map(|t| t.file.as_str())
+    p.lines
+        .iter()
+        .flat_map(|l| l.takes.iter())
+        .chain(p.scenes.iter().flat_map(|s| s.takes.iter()))
+        .map(|t| t.file.as_str())
 }
 
 /// Writes the project and makes sure every take it names is in its takes folder,
 /// copying them from `from_takes_dir` (an untitled project's work folder, or the old location after Save As).
-pub fn save_project(path: &Path, project: &Project, from_takes_dir: Option<&Path>) -> Result<PathBuf, ProjectError> {
+pub fn save_project(
+    path: &Path,
+    project: &Project,
+    from_takes_dir: Option<&Path>,
+) -> Result<PathBuf, ProjectError> {
     let io = |p: &Path, e| ProjectError::Io(p.display().to_string(), e);
     let dir = takes_dir_for(path);
     std::fs::create_dir_all(&dir).map_err(|e| io(&dir, e))?;
@@ -157,7 +174,8 @@ pub fn save_project(path: &Path, project: &Project, from_takes_dir: Option<&Path
 }
 
 pub fn load_project(path: &Path) -> Result<(Project, PathBuf), ProjectError> {
-    let s = std::fs::read_to_string(path).map_err(|e| ProjectError::Io(path.display().to_string(), e))?;
+    let s = std::fs::read_to_string(path)
+        .map_err(|e| ProjectError::Io(path.display().to_string(), e))?;
     let p: Project = serde_json::from_str(&s)?;
     if p.version > PROJECT_VERSION {
         return Err(ProjectError::TooNew(p.version));
@@ -168,11 +186,16 @@ pub fn load_project(path: &Path) -> Result<(Project, PathBuf), ProjectError> {
 /// Removes WAV files in the takes folder that no take of the project names.
 pub fn prune_orphans(project: &Project, takes_dir: &Path) -> usize {
     let keep: std::collections::HashSet<&str> = take_files(project).collect();
-    let Ok(rd) = std::fs::read_dir(takes_dir) else { return 0 };
+    let Ok(rd) = std::fs::read_dir(takes_dir) else {
+        return 0;
+    };
     let mut n = 0;
     for e in rd.flatten() {
         let name = e.file_name().to_string_lossy().into_owned();
-        if name.ends_with(".wav") && !keep.contains(name.as_str()) && std::fs::remove_file(e.path()).is_ok() {
+        if name.ends_with(".wav")
+            && !keep.contains(name.as_str())
+            && std::fs::remove_file(e.path()).is_ok()
+        {
             n += 1;
         }
     }
@@ -201,7 +224,14 @@ mod tests {
     #[test]
     fn json_shape_is_camel_case_and_round_trips() {
         let mut p = Project::default();
-        p.lines.push(Line { id: "l1".into(), text: "[囁き]ねえ".into(), pre_silence: 0.1, takes: vec![take("a.wav")], selected_take_id: Some("a.wav".into()), ..Default::default() });
+        p.lines.push(Line {
+            id: "l1".into(),
+            text: "[囁き]ねえ".into(),
+            pre_silence: 0.1,
+            takes: vec![take("a.wav")],
+            selected_take_id: Some("a.wav".into()),
+            ..Default::default()
+        });
         p.extra.insert("futureField".into(), Value::from(5));
         let v = serde_json::to_value(&p).unwrap();
         assert_eq!(v["lines"][0]["preSilence"], 0.1);
@@ -217,7 +247,11 @@ mod tests {
         std::fs::write(work.path().join("a.wav"), b"RIFF").unwrap();
         std::fs::write(work.path().join("orphan.wav"), b"RIFF").unwrap();
         let mut p = Project::default();
-        p.lines.push(Line { id: "l".into(), takes: vec![take("a.wav")], ..Default::default() });
+        p.lines.push(Line {
+            id: "l".into(),
+            takes: vec![take("a.wav")],
+            ..Default::default()
+        });
         let out = tempfile::tempdir().unwrap();
         let path = out.path().join("drama.vsproj");
         let dir = save_project(&path, &p, Some(work.path())).unwrap();

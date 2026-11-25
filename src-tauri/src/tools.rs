@@ -31,15 +31,28 @@ impl Speech<'_> {
             return Err(ToolError::NoExe);
         }
         let mut cmd = Command::new(self.exe);
-        cmd.args(args).env("SPEECH_NO_UPDATE_CHECK", "1").envs(self.env).stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::piped()).kill_on_drop(true);
+        cmd.args(args)
+            .env("SPEECH_NO_UPDATE_CHECK", "1")
+            .envs(self.env)
+            .stdin(Stdio::null())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .kill_on_drop(true);
         no_window(&mut cmd);
-        let out = cmd.output().await.map_err(|e| ToolError::Spawn(self.exe.into(), e))?;
+        let out = cmd
+            .output()
+            .await
+            .map_err(|e| ToolError::Spawn(self.exe.into(), e))?;
         let stdout = String::from_utf8_lossy(&out.stdout).into_owned();
         if !out.status.success() {
             let err = String::from_utf8_lossy(&out.stderr);
             let tail: Vec<&str> = err.lines().rev().take(6).collect();
             let tail: Vec<&str> = tail.into_iter().rev().collect();
-            return Err(ToolError::Failed(args.first().cloned().unwrap_or_default(), out.status.code().unwrap_or(-1), tail.join("\n")));
+            return Err(ToolError::Failed(
+                args.first().cloned().unwrap_or_default(),
+                out.status.code().unwrap_or(-1),
+                tail.join("\n"),
+            ));
         }
         Ok(stdout)
     }
@@ -73,22 +86,46 @@ impl Speech<'_> {
             return Ok(model.to_string());
         }
         let out = self.run(&["pull".into(), model.into()]).await?;
-        out.lines().rev().map(str::trim).find(|l| !l.is_empty()).map(str::to_owned).ok_or_else(|| ToolError::Output("speech pull printed no path".into()))
+        out.lines()
+            .rev()
+            .map(str::trim)
+            .find(|l| !l.is_empty())
+            .map(str::to_owned)
+            .ok_or_else(|| ToolError::Output("speech pull printed no path".into()))
     }
 
     /// The text of a recording, with the recognition model given (its path or catalog name).
-    pub async fn transcribe(&self, asr_model: &str, device: &str, wav: &str) -> Result<String, ToolError> {
+    pub async fn transcribe(
+        &self,
+        asr_model: &str,
+        device: &str,
+        wav: &str,
+    ) -> Result<String, ToolError> {
         let model = self.resolve_model(asr_model).await?;
-        let mut args = vec!["asr".to_string(), model, "--format".into(), "json".into(), "--language".into(), "ja".into()];
+        let mut args = vec![
+            "asr".to_string(),
+            model,
+            "--format".into(),
+            "json".into(),
+            "--language".into(),
+            "ja".into(),
+        ];
         if !device.is_empty() {
             args.push("--device".into());
             args.push(device.into());
         }
         args.push(wav.into());
         let out = self.run(&args).await?;
-        let line = out.lines().find(|l| l.trim_start().starts_with('{')).ok_or_else(|| ToolError::Output(out.clone()))?;
+        let line = out
+            .lines()
+            .find(|l| l.trim_start().starts_with('{'))
+            .ok_or_else(|| ToolError::Output(out.clone()))?;
         let v: Value = serde_json::from_str(line).map_err(|e| ToolError::Output(e.to_string()))?;
-        Ok(v.get("text").and_then(Value::as_str).unwrap_or("").trim().to_string())
+        Ok(v.get("text")
+            .and_then(Value::as_str)
+            .unwrap_or("")
+            .trim()
+            .to_string())
     }
 }
 
@@ -113,7 +150,10 @@ mod tests {
         let env = BTreeMap::new();
         let s = Speech { exe: "", env: &env };
         assert!(matches!(s.devices().await, Err(ToolError::NoExe)));
-        let s = Speech { exe: "Z:/does/not/exist/speech.exe", env: &env };
+        let s = Speech {
+            exe: "Z:/does/not/exist/speech.exe",
+            env: &env,
+        };
         assert!(matches!(s.devices().await, Err(ToolError::Spawn(..))));
     }
 }

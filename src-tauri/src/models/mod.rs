@@ -49,8 +49,27 @@ pub struct OptionSpec {
 }
 
 impl OptionSpec {
-    pub(crate) fn num(name: &'static str, label: &'static str, kind: &'static str, default: Value, min: f64, max: f64, step: f64, help: &'static str) -> Self {
-        OptionSpec { name, label, kind, default, min: Some(min), max: Some(max), step: Some(step), help }
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn num(
+        name: &'static str,
+        label: &'static str,
+        kind: &'static str,
+        default: Value,
+        min: f64,
+        max: f64,
+        step: f64,
+        help: &'static str,
+    ) -> Self {
+        OptionSpec {
+            name,
+            label,
+            kind,
+            default,
+            min: Some(min),
+            max: Some(max),
+            step: Some(step),
+            help,
+        }
     }
 }
 
@@ -145,11 +164,20 @@ pub struct AdapterDescriptor {
 }
 
 pub fn describe(a: &dyn ModelAdapter) -> AdapterDescriptor {
-    AdapterDescriptor { id: a.id(), display_name: a.display_name(), capabilities: a.capabilities(), options: a.option_schema() }
+    AdapterDescriptor {
+        id: a.id(),
+        display_name: a.display_name(),
+        capabilities: a.capabilities(),
+        options: a.option_schema(),
+    }
 }
 
 /// Copies the options the schema knows into `msg`, clamping numbers into range; returns the names dropped.
-pub(crate) fn apply_options(schema: &[OptionSpec], opts: &Map<String, Value>, msg: &mut Map<String, Value>) -> Vec<String> {
+pub(crate) fn apply_options(
+    schema: &[OptionSpec],
+    opts: &Map<String, Value>,
+    msg: &mut Map<String, Value>,
+) -> Vec<String> {
     let mut dropped = Vec::new();
     for (k, v) in opts {
         if v.is_null() {
@@ -189,10 +217,16 @@ fn clamp(f: f64, s: &OptionSpec) -> f64 {
     f
 }
 
-pub(crate) fn check_family(adapter: &dyn ModelAdapter, req: &LineRequest) -> Result<(), AdapterError> {
+pub(crate) fn check_family(
+    adapter: &dyn ModelAdapter,
+    req: &LineRequest,
+) -> Result<(), AdapterError> {
     if let (Some(_), Some(fam)) = (&req.voice, &req.voice_family) {
         if fam != adapter.id() {
-            return Err(AdapterError::VoiceFamily { voice: fam.clone(), model: adapter.id().into() });
+            return Err(AdapterError::VoiceFamily {
+                voice: fam.clone(),
+                model: adapter.id().into(),
+            });
         }
     }
     Ok(())
@@ -203,5 +237,8 @@ pub(crate) fn path_str(p: &std::path::Path) -> String {
 }
 
 pub(crate) fn is_voice_file(p: &std::path::Path) -> bool {
-    p.extension().and_then(|e| e.to_str()).map(|e| e.eq_ignore_ascii_case("gguf")).unwrap_or(false)
+    p.extension()
+        .and_then(|e| e.to_str())
+        .map(|e| e.eq_ignore_ascii_case("gguf"))
+        .unwrap_or(false)
 }

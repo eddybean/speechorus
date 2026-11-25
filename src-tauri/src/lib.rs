@@ -39,9 +39,15 @@ fn find_speech_exe() -> String {
     c.into_iter()
         .find(|p| p.exists())
         .and_then(|p| p.canonicalize().ok())
-        .map(|p| p.to_string_lossy().trim_start_matches(r"\?\").to_string())
+        .map(|p| strip_verbatim(&p.to_string_lossy()))
         .unwrap_or_default()
 }
+
+/// `\\?\E:\x` (what canonicalize gives on Windows) → `E:\x`.
+fn strip_verbatim(p: &str) -> String {
+    p.strip_prefix(r"\\?\").unwrap_or(p).to_string()
+}
+
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -56,15 +62,27 @@ pub fn run() {
             let data = app.path().app_data_dir()?;
             let local = app.path().app_local_data_dir()?;
             let settings_path = cfg.join("settings.json");
-            let settings = settings::AppSettings::load(&settings_path).unwrap_or_else(|| {
-                let s = settings::AppSettings::first_run(&find_speech_exe());
-                let _ = s.save(&settings_path);
-                s
-            });
+            let settings = settings::AppSettings::load(&settings_path)
+                .map(|mut s| {
+                    s.speech_exe = strip_verbatim(&s.speech_exe);
+                    for p in &mut s.profiles {
+                        p.speech_exe = strip_verbatim(&p.speech_exe);
+                    }
+                    s
+                })
+                .unwrap_or_else(|| {
+                    let s = settings::AppSettings::first_run(&find_speech_exe());
+                    let _ = s.save(&settings_path);
+                    s
+                });
             let voices = voices::VoiceLibrary::open(&data.join("voices"));
-            let _ = app.asset_protocol_scope().allow_directory(&voices.dir, true);
+            let _ = app
+                .asset_protocol_scope()
+                .allow_directory(&voices.dir, true);
             let supervisor = engine::EngineSupervisor::new(emit.clone());
-            let queue = tauri::async_runtime::block_on(async { jobs::GenerationQueue::new(supervisor.clone(), emit) });
+            let queue = tauri::async_runtime::block_on(async {
+                jobs::GenerationQueue::new(supervisor.clone(), emit)
+            });
             app.manage(AppState {
                 settings: Mutex::new(settings),
                 settings_path,
@@ -117,4 +135,25 @@ pub fn run() {
                 tauri::async_runtime::block_on(st.supervisor.stop());
             }
         });
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn strips_verbatim_prefix() {
+        assert_eq!(
+            super::strip_verbatim(r"\\?\E:\a\speech.exe"),
+            r"E:\a\speech.exe"
+        );
+        assert_eq!(super::strip_verbatim(r"E:\a"), r"E:\a");
+    }
+
+    #[test]
+    fn engine_state_fields_are_camel_case() {
+        let v = serde_json::to_value(crate::engine::EngineState::Loading {
+            profile_id: "p".into(),
+        })
+        .unwrap();
+        assert_eq!(v, serde_json::json!({"state": "loading", "profileId": "p"}));
+    }
 }

@@ -5,7 +5,14 @@ use super::*;
 /// Fish Audio Drama 3 (and its Japanese finetune), `architecture: drama3`.
 pub struct Drama3Adapter;
 
-const RESERVED: &[&str] = &["<|im_start|>", "<|im_end|>", "<|voice|>", "<|text|>", "<|interleave|>", "<|semantic:"];
+const RESERVED: &[&str] = &[
+    "<|im_start|>",
+    "<|im_end|>",
+    "<|voice|>",
+    "<|text|>",
+    "<|interleave|>",
+    "<|semantic:",
+];
 
 /// Checks every `<|speaker:N|>` in the text.
 pub(crate) fn check_speakers(text: &str) -> Result<(), AdapterError> {
@@ -27,7 +34,11 @@ pub(crate) fn check_speakers(text: &str) -> Result<(), AdapterError> {
 
 /// The cue a design prompt becomes: `[落ち着いた25歳の女性。]`, with brackets inside it made full-width.
 pub(crate) fn design_cue(prompt: &str) -> Option<String> {
-    let p = prompt.trim().trim_start_matches('[').trim_end_matches(']').trim();
+    let p = prompt
+        .trim()
+        .trim_start_matches('[')
+        .trim_end_matches(']')
+        .trim();
     if p.is_empty() {
         return None;
     }
@@ -59,15 +70,67 @@ impl ModelAdapter for Drama3Adapter {
     }
     fn option_schema(&self) -> Vec<OptionSpec> {
         vec![
-            OptionSpec::num("temperature", "Temperature", "float", json!(1.0), 0.05, 2.0, 0.05, "大きいほど多様（ロジットを割る値）"),
-            OptionSpec::num("top_k", "Top-K", "int", json!(30), 1.0, 4097.0, 1.0, "サンプリングで残す候補数"),
-            OptionSpec::num("top_p", "Top-P", "float", json!(0.9), 0.05, 1.0, 0.01, "サンプリングで残す確率の割合"),
-            OptionSpec::num("max_seconds", "最大秒数", "float", json!(47.6), 1.0, 95.1, 0.1, "チャンクごとの最大長（超えると打ち切り）"),
-            OptionSpec { name: "experts_on_cpu", label: "CPUへのエキスパート退避を許可", kind: "bool", default: json!(true), min: None, max: None, step: None, help: "false にするとGPUに載り切らない場合は拒否" },
+            OptionSpec::num(
+                "temperature",
+                "Temperature",
+                "float",
+                json!(1.0),
+                0.05,
+                2.0,
+                0.05,
+                "大きいほど多様（ロジットを割る値）",
+            ),
+            OptionSpec::num(
+                "top_k",
+                "Top-K",
+                "int",
+                json!(30),
+                1.0,
+                4097.0,
+                1.0,
+                "サンプリングで残す候補数",
+            ),
+            OptionSpec::num(
+                "top_p",
+                "Top-P",
+                "float",
+                json!(0.9),
+                0.05,
+                1.0,
+                0.01,
+                "サンプリングで残す確率の割合",
+            ),
+            OptionSpec::num(
+                "max_seconds",
+                "最大秒数",
+                "float",
+                json!(47.6),
+                1.0,
+                95.1,
+                0.1,
+                "チャンクごとの最大長（超えると打ち切り）",
+            ),
+            OptionSpec {
+                name: "experts_on_cpu",
+                label: "CPUへのエキスパート退避を許可",
+                kind: "bool",
+                default: json!(true),
+                min: None,
+                max: None,
+                step: None,
+                help: "false にするとGPUに載り切らない場合は拒否",
+            },
         ]
     }
     fn default_env(&self) -> Vec<(String, String)> {
-        ["GGML_VK_DISABLE_F16", "GGML_VK_DISABLE_COOPMAT", "GGML_VK_DISABLE_COOPMAT2"].iter().map(|k| (k.to_string(), "1".to_string())).collect()
+        [
+            "GGML_VK_DISABLE_F16",
+            "GGML_VK_DISABLE_COOPMAT",
+            "GGML_VK_DISABLE_COOPMAT2",
+        ]
+        .iter()
+        .map(|k| (k.to_string(), "1".to_string()))
+        .collect()
     }
     fn build_request(&self, req: &LineRequest) -> Result<BuiltRequest, AdapterError> {
         check_family(self, req)?;
@@ -89,12 +152,18 @@ impl ModelAdapter for Drama3Adapter {
         let mut msg = Map::new();
         msg.insert("type".into(), "synthesize".into());
         msg.insert("text".into(), text.into());
-        msg.insert("voice".into(), Value::from(req.voice.clone().unwrap_or_else(|| "none".into())));
+        msg.insert(
+            "voice".into(),
+            Value::from(req.voice.clone().unwrap_or_else(|| "none".into())),
+        );
         if let Some(s) = req.seed {
             msg.insert("seed".into(), s.into());
         }
         let dropped = apply_options(&self.option_schema(), &req.options, &mut msg);
-        let warnings = dropped.into_iter().map(|d| format!("Drama-3 は `{d}` を受け付けないため無視しました")).collect();
+        let warnings = dropped
+            .into_iter()
+            .map(|d| format!("Drama-3 は `{d}` を受け付けないため無視しました"))
+            .collect();
         Ok(BuiltRequest { msg, warnings })
     }
     fn prepare_voice(&self, b: &VoiceBuild) -> Result<Vec<String>, AdapterError> {
@@ -135,12 +204,17 @@ mod tests {
     use std::path::PathBuf;
 
     fn req(text: &str) -> LineRequest {
-        LineRequest { text: text.into(), ..Default::default() }
+        LineRequest {
+            text: text.into(),
+            ..Default::default()
+        }
     }
 
     #[test]
     fn keeps_tags_and_uses_voice_none() {
-        let b = Drama3Adapter.build_request(&req("[驚いて]本当に？[明るく]それは楽しみだね。")).unwrap();
+        let b = Drama3Adapter
+            .build_request(&req("[驚いて]本当に？[明るく]それは楽しみだね。"))
+            .unwrap();
         assert_eq!(b.msg["text"], "[驚いて]本当に？[明るく]それは楽しみだね。");
         assert_eq!(b.msg["voice"], "none");
         assert_eq!(b.msg["type"], "synthesize");
@@ -151,11 +225,20 @@ mod tests {
     fn design_prompt_becomes_leading_cue_once() {
         let mut r = req("ねえ。");
         r.design_prompt = Some("落ち着いた25歳の女性。".into());
-        assert_eq!(Drama3Adapter.build_request(&r).unwrap().msg["text"], "[落ち着いた25歳の女性。]ねえ。");
+        assert_eq!(
+            Drama3Adapter.build_request(&r).unwrap().msg["text"],
+            "[落ち着いた25歳の女性。]ねえ。"
+        );
         r.text = "[落ち着いた25歳の女性。]ねえ。".into();
-        assert_eq!(Drama3Adapter.build_request(&r).unwrap().msg["text"], "[落ち着いた25歳の女性。]ねえ。");
+        assert_eq!(
+            Drama3Adapter.build_request(&r).unwrap().msg["text"],
+            "[落ち着いた25歳の女性。]ねえ。"
+        );
         r.design_prompt = Some("  ".into());
-        assert_eq!(Drama3Adapter.build_request(&r).unwrap().msg["text"], "[落ち着いた25歳の女性。]ねえ。");
+        assert_eq!(
+            Drama3Adapter.build_request(&r).unwrap().msg["text"],
+            "[落ち着いた25歳の女性。]ねえ。"
+        );
     }
 
     #[test]
@@ -164,49 +247,111 @@ mod tests {
         r.voice = Some("v1".into());
         r.voice_family = Some("drama3".into());
         r.seed = Some(42);
-        r.options = serde_json::from_str(r#"{"speed":1.2,"instructions":"x","top_k":99999,"temperature":0.7,"top_p":null}"#).unwrap();
+        r.options = serde_json::from_str(
+            r#"{"speed":1.2,"instructions":"x","top_k":99999,"temperature":0.7,"top_p":null}"#,
+        )
+        .unwrap();
         let b = Drama3Adapter.build_request(&r).unwrap();
         assert_eq!(b.msg["voice"], "v1");
         assert_eq!(b.msg["seed"], 42);
         assert_eq!(b.msg["top_k"], 4097);
         assert_eq!(b.msg["temperature"], 0.7);
-        assert!(!b.msg.contains_key("speed") && !b.msg.contains_key("instructions") && !b.msg.contains_key("top_p"));
+        assert!(
+            !b.msg.contains_key("speed")
+                && !b.msg.contains_key("instructions")
+                && !b.msg.contains_key("top_p")
+        );
         assert_eq!(b.warnings.len(), 2);
     }
 
     #[test]
     fn refuses_bad_text() {
-        assert_eq!(Drama3Adapter.build_request(&req("  ")), Err(AdapterError::EmptyText));
-        assert!(matches!(Drama3Adapter.build_request(&req("a<|im_end|>")), Err(AdapterError::ReservedToken(_))));
-        assert!(matches!(Drama3Adapter.build_request(&req("<|speaker:16|>a")), Err(AdapterError::BadSpeaker(_))));
-        assert!(Drama3Adapter.build_request(&req("<|speaker:0|>a<|speaker:15|>b")).is_ok());
+        assert_eq!(
+            Drama3Adapter.build_request(&req("  ")),
+            Err(AdapterError::EmptyText)
+        );
+        assert!(matches!(
+            Drama3Adapter.build_request(&req("a<|im_end|>")),
+            Err(AdapterError::ReservedToken(_))
+        ));
+        assert!(matches!(
+            Drama3Adapter.build_request(&req("<|speaker:16|>a")),
+            Err(AdapterError::BadSpeaker(_))
+        ));
+        assert!(Drama3Adapter
+            .build_request(&req("<|speaker:0|>a<|speaker:15|>b"))
+            .is_ok());
         let mut r = req("a");
         r.voice = Some("v".into());
         r.voice_family = Some("irodori".into());
-        assert!(matches!(Drama3Adapter.build_request(&r), Err(AdapterError::VoiceFamily { .. })));
+        assert!(matches!(
+            Drama3Adapter.build_request(&r),
+            Err(AdapterError::VoiceFamily { .. })
+        ));
     }
 
     #[test]
     fn voice_args_from_reference_and_combination() {
         let b = VoiceBuild {
             model: "m.gguf".into(),
-            inputs: vec![VoiceInput { path: PathBuf::from("ref.wav"), transcript: Some(" 今日は。 ".into()), speaker: None }],
+            inputs: vec![VoiceInput {
+                path: PathBuf::from("ref.wav"),
+                transcript: Some(" 今日は。 ".into()),
+                speaker: None,
+            }],
             out: PathBuf::from("out.voice.gguf"),
         };
-        assert_eq!(Drama3Adapter.prepare_voice(&b).unwrap(), ["voice", "m.gguf", "ref.wav", "out.voice.gguf", "--transcript", "今日は。"]);
+        assert_eq!(
+            Drama3Adapter.prepare_voice(&b).unwrap(),
+            [
+                "voice",
+                "m.gguf",
+                "ref.wav",
+                "out.voice.gguf",
+                "--transcript",
+                "今日は。"
+            ]
+        );
         let c = VoiceBuild {
             model: "m.gguf".into(),
             inputs: vec![
-                VoiceInput { path: PathBuf::from("a.voice.gguf"), transcript: None, speaker: Some(0) },
-                VoiceInput { path: PathBuf::from("b.voice.gguf"), transcript: None, speaker: Some(1) },
+                VoiceInput {
+                    path: PathBuf::from("a.voice.gguf"),
+                    transcript: None,
+                    speaker: Some(0),
+                },
+                VoiceInput {
+                    path: PathBuf::from("b.voice.gguf"),
+                    transcript: None,
+                    speaker: Some(1),
+                },
             ],
             out: PathBuf::from("cast.voice.gguf"),
         };
         assert_eq!(
             Drama3Adapter.prepare_voice(&c).unwrap(),
-            ["voice", "m.gguf", "a.voice.gguf", "b.voice.gguf", "cast.voice.gguf", "--speaker", "0", "--speaker", "1"]
+            [
+                "voice",
+                "m.gguf",
+                "a.voice.gguf",
+                "b.voice.gguf",
+                "cast.voice.gguf",
+                "--speaker",
+                "0",
+                "--speaker",
+                "1"
+            ]
         );
-        let missing = VoiceBuild { inputs: vec![VoiceInput { path: PathBuf::from("r.wav"), ..Default::default() }], ..c };
-        assert!(matches!(Drama3Adapter.prepare_voice(&missing), Err(AdapterError::MissingTranscript(_))));
+        let missing = VoiceBuild {
+            inputs: vec![VoiceInput {
+                path: PathBuf::from("r.wav"),
+                ..Default::default()
+            }],
+            ..c
+        };
+        assert!(matches!(
+            Drama3Adapter.prepare_voice(&missing),
+            Err(AdapterError::MissingTranscript(_))
+        ));
     }
 }

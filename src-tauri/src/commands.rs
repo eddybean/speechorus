@@ -38,7 +38,12 @@ fn allow_dir(app: &AppHandle, dir: &Path) {
 
 impl AppState {
     fn profile(&self, id: &str) -> R<ModelProfile> {
-        self.settings.lock().unwrap().profile(id).cloned().ok_or_else(|| format!("モデルプロファイル {id} がありません"))
+        self.settings
+            .lock()
+            .unwrap()
+            .profile(id)
+            .cloned()
+            .ok_or_else(|| format!("モデルプロファイル {id} がありません"))
     }
     fn exe(&self) -> String {
         self.settings.lock().unwrap().speech_exe.clone()
@@ -58,34 +63,61 @@ pub fn save_settings(st: State<'_, AppState>, settings: AppSettings) -> R<()> {
 }
 
 #[tauri::command]
-pub fn new_profile(adapter: String, id: String, name: String, model: String, speech_exe: String) -> R<ModelProfile> {
+pub fn new_profile(
+    adapter: String,
+    id: String,
+    name: String,
+    model: String,
+    speech_exe: String,
+) -> R<ModelProfile> {
     adapter_for(&adapter).ok_or("unknown adapter")?;
     Ok(ModelProfile::new(&id, &name, &adapter, &model, &speech_exe))
 }
 
 #[tauri::command]
 pub fn list_adapters() -> Vec<AdapterDescriptor> {
-    all_adapters().iter().map(|a| describe(a.as_ref())).collect()
+    all_adapters()
+        .iter()
+        .map(|a| describe(a.as_ref()))
+        .collect()
 }
 
 #[tauri::command]
 pub async fn speech_version(exe: String) -> R<String> {
     let env = BTreeMap::new();
-    Speech { exe: &exe, env: &env }.version().await.map_err(e)
+    Speech {
+        exe: &exe,
+        env: &env,
+    }
+    .version()
+    .await
+    .map_err(e)
 }
 
 #[tauri::command]
 pub async fn list_devices(st: State<'_, AppState>) -> R<Value> {
     let exe = st.exe();
     let env = BTreeMap::new();
-    Speech { exe: &exe, env: &env }.devices().await.map_err(e)
+    Speech {
+        exe: &exe,
+        env: &env,
+    }
+    .devices()
+    .await
+    .map_err(e)
 }
 
 #[tauri::command]
 pub async fn model_catalog(st: State<'_, AppState>) -> R<Value> {
     let exe = st.exe();
     let env = BTreeMap::new();
-    Speech { exe: &exe, env: &env }.catalog().await.map_err(e)
+    Speech {
+        exe: &exe,
+        env: &env,
+    }
+    .catalog()
+    .await
+    .map_err(e)
 }
 
 #[derive(Serialize)]
@@ -100,11 +132,18 @@ pub struct ModelInfo {
 #[tauri::command]
 pub async fn model_info(st: State<'_, AppState>, profile_id: String) -> R<ModelInfo> {
     let p = st.profile(&profile_id)?;
-    let s = Speech { exe: &p.speech_exe, env: &p.env };
+    let s = Speech {
+        exe: &p.speech_exe,
+        env: &p.env,
+    };
     let path = s.resolve_model(&p.model).await.map_err(e)?;
     let info = s.info(&path).await.map_err(e)?;
     let sidecar = Path::new(&format!("{path}.json")).exists();
-    Ok(ModelInfo { path, info, sidecar })
+    Ok(ModelInfo {
+        path,
+        info,
+        sidecar,
+    })
 }
 
 #[tauri::command]
@@ -118,7 +157,13 @@ pub async fn engine_start(st: State<'_, AppState>, profile_id: String) -> R<()> 
     if p.model.trim().is_empty() {
         return Err("モデル (GGUF) のパスが設定されていません".into());
     }
-    let path = Speech { exe: &p.speech_exe, env: &p.env }.resolve_model(&p.model).await.map_err(e)?;
+    let path = Speech {
+        exe: &p.speech_exe,
+        env: &p.env,
+    }
+    .resolve_model(&p.model)
+    .await
+    .map_err(e)?;
     st.supervisor.start(&p, path).await.map_err(e)
 }
 
@@ -170,27 +215,61 @@ pub fn voices_list(app: AppHandle, st: State<'_, AppState>) -> Vec<Voice> {
 pub async fn voice_transcribe(app: AppHandle, st: State<'_, AppState>, path: String) -> R<String> {
     let (exe, model, device) = {
         let s = st.settings.lock().unwrap();
-        (s.speech_exe.clone(), s.asr_model.clone(), s.asr_device.clone())
+        (
+            s.speech_exe.clone(),
+            s.asr_model.clone(),
+            s.asr_device.clone(),
+        )
     };
     if let Some(d) = Path::new(&path).parent() {
         let _ = app.asset_protocol_scope().allow_file(Path::new(&path));
         let _ = d;
     }
     let env = BTreeMap::new();
-    Speech { exe: &exe, env: &env }.transcribe(&model, &device, &path).await.map_err(e)
+    Speech {
+        exe: &exe,
+        env: &env,
+    }
+    .transcribe(&model, &device, &path)
+    .await
+    .map_err(e)
 }
 
 async fn build_voice(p: &ModelProfile, args: Vec<String>) -> R<()> {
     // Vulkan flags do not matter on the CPU, but the profile's env is passed for consistency.
-    Speech { exe: &p.speech_exe, env: &p.env }.run(&args).await.map(|_| ()).map_err(e)
+    Speech {
+        exe: &p.speech_exe,
+        env: &p.env,
+    }
+    .run(&args)
+    .await
+    .map(|_| ())
+    .map_err(e)
 }
 
 #[tauri::command]
-pub async fn voice_create(st: State<'_, AppState>, profile_id: String, name: String, inputs: Vec<VoiceInput>, note: Option<String>) -> R<Voice> {
+pub async fn voice_create(
+    st: State<'_, AppState>,
+    profile_id: String,
+    name: String,
+    inputs: Vec<VoiceInput>,
+    note: Option<String>,
+) -> R<Voice> {
     let p = st.profile(&profile_id)?;
     let adapter = adapter_for(&p.adapter).ok_or("unknown adapter")?;
-    let model = Speech { exe: &p.speech_exe, env: &p.env }.resolve_model(&p.model).await.map_err(e)?;
-    let (build, mut voice) = st.voices.lock().unwrap().plan(adapter.as_ref(), &model, &name, inputs).map_err(e)?;
+    let model = Speech {
+        exe: &p.speech_exe,
+        env: &p.env,
+    }
+    .resolve_model(&p.model)
+    .await
+    .map_err(e)?;
+    let (build, mut voice) = st
+        .voices
+        .lock()
+        .unwrap()
+        .plan(adapter.as_ref(), &model, &name, inputs)
+        .map_err(e)?;
     let args = adapter.prepare_voice(&build).map_err(e)?;
     build_voice(&p, args).await?;
     voice.note = note.unwrap_or_default();
@@ -200,11 +279,25 @@ pub async fn voice_create(st: State<'_, AppState>, profile_id: String, name: Str
 
 /// A Drama-3 cast voice whose speaker N is `voiceIds[N]`.
 #[tauri::command]
-pub async fn voice_combine(st: State<'_, AppState>, profile_id: String, voice_ids: Vec<Option<String>>) -> R<Option<Voice>> {
+pub async fn voice_combine(
+    st: State<'_, AppState>,
+    profile_id: String,
+    voice_ids: Vec<Option<String>>,
+) -> R<Option<Voice>> {
     let p = st.profile(&profile_id)?;
     let adapter = adapter_for(&p.adapter).ok_or("unknown adapter")?;
-    let model = Speech { exe: &p.speech_exe, env: &p.env }.resolve_model(&p.model).await.map_err(e)?;
-    let plan = st.voices.lock().unwrap().plan_combined(&model, &voice_ids)?;
+    let model = Speech {
+        exe: &p.speech_exe,
+        env: &p.env,
+    }
+    .resolve_model(&p.model)
+    .await
+    .map_err(e)?;
+    let plan = st
+        .voices
+        .lock()
+        .unwrap()
+        .plan_combined(&model, &voice_ids)?;
     match plan {
         CombinePlan::NoneNeeded => Ok(None),
         CombinePlan::Existing(v) => Ok(Some(v)),
@@ -251,8 +344,19 @@ pub fn project_new(app: AppHandle, st: State<'_, AppState>) -> R<String> {
 }
 
 #[tauri::command]
-pub fn project_save(app: AppHandle, st: State<'_, AppState>, path: String, project: Project, from_takes_dir: Option<String>) -> R<String> {
-    let dir = project::save_project(Path::new(&path), &project, from_takes_dir.as_deref().map(Path::new)).map_err(e)?;
+pub fn project_save(
+    app: AppHandle,
+    st: State<'_, AppState>,
+    path: String,
+    project: Project,
+    from_takes_dir: Option<String>,
+) -> R<String> {
+    let dir = project::save_project(
+        Path::new(&path),
+        &project,
+        from_takes_dir.as_deref().map(Path::new),
+    )
+    .map_err(e)?;
     allow_dir(&app, &dir);
     let mut s = st.settings.lock().unwrap();
     s.push_recent_project(&path);
@@ -267,7 +371,11 @@ pub fn project_load(app: AppHandle, st: State<'_, AppState>, path: String) -> R<
     let mut s = st.settings.lock().unwrap();
     s.push_recent_project(&path);
     let _ = s.save(&st.settings_path);
-    Ok(OpenedProject { project, takes_dir: dir.to_string_lossy().into_owned(), path: Some(path) })
+    Ok(OpenedProject {
+        project,
+        takes_dir: dir.to_string_lossy().into_owned(),
+        path: Some(path),
+    })
 }
 
 #[tauri::command]
@@ -284,7 +392,9 @@ pub fn read_text_file(path: String) -> R<String> {
 
 #[tauri::command]
 pub fn allow_file(app: AppHandle, path: String) -> R<()> {
-    app.asset_protocol_scope().allow_file(Path::new(&path)).map_err(e)
+    app.asset_protocol_scope()
+        .allow_file(Path::new(&path))
+        .map_err(e)
 }
 
 // ---- export ----
@@ -329,10 +439,21 @@ pub async fn export_joined(req: JoinedExport) -> R<ExportResult> {
 }
 
 #[tauri::command]
-pub async fn export_each(items: Vec<ExportItem>, dir: String, template: String, write_txt: bool) -> R<ExportResult> {
+pub async fn export_each(
+    items: Vec<ExportItem>,
+    dir: String,
+    template: String,
+    write_txt: bool,
+) -> R<ExportResult> {
     tauri::async_runtime::spawn_blocking(move || {
         let files = audio::export_each(&items, Path::new(&dir), &template, write_txt).map_err(e)?;
-        Ok(ExportResult { files: files.into_iter().map(|p| p.to_string_lossy().into_owned()).collect(), cues: Vec::new() })
+        Ok(ExportResult {
+            files: files
+                .into_iter()
+                .map(|p| p.to_string_lossy().into_owned())
+                .collect(),
+            cues: Vec::new(),
+        })
     })
     .await
     .map_err(e)?

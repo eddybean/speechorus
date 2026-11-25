@@ -19,7 +19,8 @@ export function Toolbar() {
   const activeLineId = useProject((s) => s.activeLineId);
   const playing = usePlayer((s) => s.playingKey);
   const app = useApp.getState;
-  const prof = useApp((s) => s.activeProfile());
+  // The profile chosen in the selector; the engine may still run another one until "切替".
+  const prof = useApp((s) => s.settings?.profiles.find((p) => p.id === s.settings?.activeProfileId) ?? s.settings?.profiles[0]);
 
   const engineLabel =
     engine.state === "ready" ? "● 準備完了" : engine.state === "loading" ? "◌ 読み込み中…" : engine.state === "failed" ? "× 失敗" : "○ 停止中";

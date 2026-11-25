@@ -48,17 +48,39 @@ pub struct TakeResult {
 #[serde(tag = "type", rename_all = "camelCase")]
 pub enum QueueEvent {
     #[serde(rename_all = "camelCase")]
-    Enqueued { job_ids: Vec<String> },
+    Enqueued {
+        job_ids: Vec<String>,
+    },
     #[serde(rename_all = "camelCase")]
-    Started { job_id: String, line_id: Option<String> },
+    Started {
+        job_id: String,
+        line_id: Option<String>,
+    },
     #[serde(rename_all = "camelCase")]
-    Progress { job_id: String, seconds: f64, done: Option<f64> },
+    Progress {
+        job_id: String,
+        seconds: f64,
+        done: Option<f64>,
+    },
     #[serde(rename_all = "camelCase")]
-    Done { job_id: String, line_id: Option<String>, scene_id: Option<String>, take: TakeResult, warnings: Vec<String> },
+    Done {
+        job_id: String,
+        line_id: Option<String>,
+        scene_id: Option<String>,
+        take: TakeResult,
+        warnings: Vec<String>,
+    },
     #[serde(rename_all = "camelCase")]
-    Failed { job_id: String, line_id: Option<String>, message: String },
+    Failed {
+        job_id: String,
+        line_id: Option<String>,
+        message: String,
+    },
     #[serde(rename_all = "camelCase")]
-    Cancelled { job_id: String, line_id: Option<String> },
+    Cancelled {
+        job_id: String,
+        line_id: Option<String>,
+    },
     Idle,
 }
 
@@ -90,7 +112,10 @@ enum Outcome {
 }
 
 fn now_ms() -> u64 {
-    SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_millis() as u64).unwrap_or(0)
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_millis() as u64)
+        .unwrap_or(0)
 }
 
 /// `dir/stem.wav`, or `dir/stem_2.wav` … when it exists.
@@ -99,12 +124,20 @@ pub fn unique_path(dir: &Path, stem: &str, ext: &str) -> PathBuf {
     if !p.exists() {
         return p;
     }
-    (2..).map(|n| dir.join(format!("{stem}_{n}.{ext}"))).find(|p| !p.exists()).unwrap()
+    (2..)
+        .map(|n| dir.join(format!("{stem}_{n}.{ext}")))
+        .find(|p| !p.exists())
+        .unwrap()
 }
 
 impl GenerationQueue {
     pub fn new(supervisor: Arc<EngineSupervisor>, emit: Emit) -> Arc<Self> {
-        let q = Arc::new(GenerationQueue { state: Mutex::new(QState::default()), notify: Notify::new(), supervisor, emit });
+        let q = Arc::new(GenerationQueue {
+            state: Mutex::new(QState::default()),
+            notify: Notify::new(),
+            supervisor,
+            emit,
+        });
         let runner = q.clone();
         tokio::spawn(async move { runner.run().await });
         q
@@ -112,7 +145,10 @@ impl GenerationQueue {
 
     pub fn snapshot(&self) -> QueueSnapshot {
         let s = self.state.lock().unwrap();
-        QueueSnapshot { pending: s.pending.iter().map(|j| j.job_id.clone()).collect(), current: s.current.clone() }
+        QueueSnapshot {
+            pending: s.pending.iter().map(|j| j.job_id.clone()).collect(),
+            current: s.current.clone(),
+        }
     }
 
     pub fn enqueue(&self, jobs: Vec<JobSpec>) {
@@ -135,7 +171,10 @@ impl GenerationQueue {
             }
         };
         match removed {
-            Some(j) => (self.emit)(AppEvent::Queue(QueueEvent::Cancelled { job_id: j.job_id, line_id: j.line_id })),
+            Some(j) => (self.emit)(AppEvent::Queue(QueueEvent::Cancelled {
+                job_id: j.job_id,
+                line_id: j.line_id,
+            })),
             None => {
                 if let Ok(live) = self.supervisor.live() {
                     let _ = live.conn.cancel(job_id).await;
@@ -153,7 +192,10 @@ impl GenerationQueue {
             (s.pending.drain(..).collect(), s.current.clone())
         };
         for j in drained {
-            (self.emit)(AppEvent::Queue(QueueEvent::Cancelled { job_id: j.job_id, line_id: j.line_id }));
+            (self.emit)(AppEvent::Queue(QueueEvent::Cancelled {
+                job_id: j.job_id,
+                line_id: j.line_id,
+            }));
         }
         if let Some(c) = current {
             if let Ok(live) = self.supervisor.live() {
@@ -176,13 +218,29 @@ impl GenerationQueue {
                 self.notify.notified().await;
                 continue;
             };
-            (self.emit)(AppEvent::Queue(QueueEvent::Started { job_id: job.job_id.clone(), line_id: job.line_id.clone() }));
+            (self.emit)(AppEvent::Queue(QueueEvent::Started {
+                job_id: job.job_id.clone(),
+                line_id: job.line_id.clone(),
+            }));
             let outcome = self.run_job(&job).await;
             self.state.lock().unwrap().current = None;
             let ev = match outcome {
-                Outcome::Done(take, warnings) => QueueEvent::Done { job_id: job.job_id, line_id: job.line_id, scene_id: job.scene_id, take, warnings },
-                Outcome::Failed(message) => QueueEvent::Failed { job_id: job.job_id, line_id: job.line_id, message },
-                Outcome::Cancelled => QueueEvent::Cancelled { job_id: job.job_id, line_id: job.line_id },
+                Outcome::Done(take, warnings) => QueueEvent::Done {
+                    job_id: job.job_id,
+                    line_id: job.line_id,
+                    scene_id: job.scene_id,
+                    take,
+                    warnings,
+                },
+                Outcome::Failed(message) => QueueEvent::Failed {
+                    job_id: job.job_id,
+                    line_id: job.line_id,
+                    message,
+                },
+                Outcome::Cancelled => QueueEvent::Cancelled {
+                    job_id: job.job_id,
+                    line_id: job.line_id,
+                },
             };
             (self.emit)(AppEvent::Queue(ev));
         }
@@ -214,7 +272,12 @@ impl GenerationQueue {
             return Outcome::Failed(format!("{}: {e}", job.out_dir.display()));
         }
         let path = unique_path(&job.out_dir, &job.file_stem, "wav");
-        let spec = hound::WavSpec { channels: 1, sample_rate: sr, bits_per_sample: 16, sample_format: hound::SampleFormat::Int };
+        let spec = hound::WavSpec {
+            channels: 1,
+            sample_rate: sr,
+            bits_per_sample: 16,
+            sample_format: hound::SampleFormat::Int,
+        };
         let mut writer = match hound::WavWriter::create(&path, spec) {
             Ok(w) => w,
             Err(e) => return Outcome::Failed(format!("{}: {e}", path.display())),
@@ -240,10 +303,11 @@ impl GenerationQueue {
         while let Some(m) = rx.recv().await {
             match m {
                 WorkerMsg::Chunk { pcm, .. } => {
-                    let bytes = match base64::engine::general_purpose::STANDARD.decode(pcm.as_bytes()) {
-                        Ok(b) => b,
-                        Err(e) => return fail(writer, format!("pcm: {e}")),
-                    };
+                    let bytes =
+                        match base64::engine::general_purpose::STANDARD.decode(pcm.as_bytes()) {
+                            Ok(b) => b,
+                            Err(e) => return fail(writer, format!("pcm: {e}")),
+                        };
                     for c in bytes.chunks_exact(2) {
                         if let Err(e) = writer.write_sample(i16::from_le_bytes([c[0], c[1]])) {
                             return fail(writer, e.to_string());
@@ -252,11 +316,19 @@ impl GenerationQueue {
                     samples += (bytes.len() / 2) as u64;
                     if last.elapsed() >= Duration::from_millis(200) {
                         last = Instant::now();
-                        (self.emit)(AppEvent::Queue(QueueEvent::Progress { job_id: job.job_id.clone(), seconds: samples as f64 / sr as f64, done: None }));
+                        (self.emit)(AppEvent::Queue(QueueEvent::Progress {
+                            job_id: job.job_id.clone(),
+                            seconds: samples as f64 / sr as f64,
+                            done: None,
+                        }));
                     }
                 }
                 WorkerMsg::Progress { done, .. } => {
-                    (self.emit)(AppEvent::Queue(QueueEvent::Progress { job_id: job.job_id.clone(), seconds: samples as f64 / sr as f64, done: Some(done) }));
+                    (self.emit)(AppEvent::Queue(QueueEvent::Progress {
+                        job_id: job.job_id.clone(),
+                        seconds: samples as f64 / sr as f64,
+                        done: Some(done),
+                    }));
                 }
                 WorkerMsg::End { rest, .. } => {
                     if let Err(e) = writer.finalize() {
@@ -265,8 +337,14 @@ impl GenerationQueue {
                     }
                     let mut snap = built.msg.clone();
                     snap.remove("type");
-                    let text = snap.remove("text").and_then(|t| t.as_str().map(str::to_owned)).unwrap_or_default();
-                    let seed = rest.get("seed").and_then(Value::as_u64).or(job.request.seed);
+                    let text = snap
+                        .remove("text")
+                        .and_then(|t| t.as_str().map(str::to_owned))
+                        .unwrap_or_default();
+                    let seed = rest
+                        .get("seed")
+                        .and_then(Value::as_u64)
+                        .or(job.request.seed);
                     if let Some(s) = seed {
                         snap.insert("seed".into(), s.into());
                     }
@@ -274,10 +352,17 @@ impl GenerationQueue {
                         id: uuid::Uuid::new_v4().to_string(),
                         seed,
                         options_snapshot: snap,
-                        file: path.file_name().map(|f| f.to_string_lossy().into_owned()).unwrap_or_default(),
+                        file: path
+                            .file_name()
+                            .map(|f| f.to_string_lossy().into_owned())
+                            .unwrap_or_default(),
                         duration: samples as f64 / sr as f64,
                         sample_rate: sr,
-                        stop_reason: rest.get("stop").and_then(Value::as_str).unwrap_or("complete").to_string(),
+                        stop_reason: rest
+                            .get("stop")
+                            .and_then(Value::as_str)
+                            .unwrap_or("complete")
+                            .to_string(),
                         created_at: now_ms(),
                         starred: false,
                         text,
@@ -309,7 +394,11 @@ pub(crate) mod mock {
     use tokio::sync::mpsc;
 
     /// Returns (worker's stdout for the client to read, worker's stdin for the client to write, log of lines received).
-    pub fn spawn(sample_rate: u32, chunks: usize, chunk_ms: u64) -> (DuplexStream, DuplexStream, Arc<Mutex<Vec<Value>>>) {
+    pub fn spawn(
+        sample_rate: u32,
+        chunks: usize,
+        chunk_ms: u64,
+    ) -> (DuplexStream, DuplexStream, Arc<Mutex<Vec<Value>>>) {
         let (client_r, mut worker_w) = tokio::io::duplex(1 << 20);
         let (client_w, worker_r) = tokio::io::duplex(1 << 20);
         let log = Arc::new(Mutex::new(Vec::new()));
@@ -318,7 +407,10 @@ pub(crate) mod mock {
         let (req_tx, mut req_rx) = mpsc::unbounded_channel::<Value>();
         tokio::spawn(async move {
             let ready = json!({"type":"ready","protocol":4,"version":"0.11.2","defaults":{},"model":{"sample_rate":sample_rate,"architecture":"drama3"}});
-            worker_w.write_all(format!("{ready}\n").as_bytes()).await.unwrap();
+            worker_w
+                .write_all(format!("{ready}\n").as_bytes())
+                .await
+                .unwrap();
             while let Some(l) = out_rx.recv().await {
                 if worker_w.write_all(l.as_bytes()).await.is_err() {
                     break;
@@ -356,11 +448,15 @@ pub(crate) mod mock {
                     "synthesize" => {
                         let text = v["text"].as_str().unwrap_or("");
                         if text.contains("FAIL") {
-                            send(json!({"type":"error","id":id,"error":{"code":"invalid_argument","option":"text","message":"mock failure"}}));
+                            send(
+                                json!({"type":"error","id":id,"error":{"code":"invalid_argument","option":"text","message":"mock failure"}}),
+                            );
                             continue;
                         }
                         let n = sample_rate as usize / 10;
-                        let pcm: Vec<u8> = (0..n).flat_map(|i| ((i as i16).wrapping_mul(30)).to_le_bytes()).collect();
+                        let pcm: Vec<u8> = (0..n)
+                            .flat_map(|i| ((i as i16).wrapping_mul(30)).to_le_bytes())
+                            .collect();
                         let b64 = base64::engine::general_purpose::STANDARD.encode(&pcm);
                         let mut was_cancelled = false;
                         for seq in 0..chunks {
@@ -375,10 +471,14 @@ pub(crate) mod mock {
                             send(json!({"type":"cancelled","id":id}));
                         } else {
                             let seed = v.get("seed").and_then(Value::as_u64).unwrap_or(1234);
-                            send(json!({"type":"end","id":id,"seed":seed,"samples":n*chunks,"stop":"complete"}));
+                            send(
+                                json!({"type":"end","id":id,"seed":seed,"samples":n*chunks,"stop":"complete"}),
+                            );
                         }
                     }
-                    _ => send(json!({"type":"error","id":id,"error":{"code":"unsupported","option":"type","message":"mock"}})),
+                    _ => send(
+                        json!({"type":"error","id":id,"error":{"code":"unsupported","option":"type","message":"mock"}}),
+                    ),
                 }
             }
         });
@@ -394,7 +494,14 @@ mod tests {
     use std::sync::Arc;
     use tokio::sync::mpsc;
 
-    async fn setup(chunks: usize, chunk_ms: u64) -> (Arc<GenerationQueue>, mpsc::UnboundedReceiver<QueueEvent>, Arc<Mutex<Vec<Value>>>) {
+    async fn setup(
+        chunks: usize,
+        chunk_ms: u64,
+    ) -> (
+        Arc<GenerationQueue>,
+        mpsc::UnboundedReceiver<QueueEvent>,
+        Arc<Mutex<Vec<Value>>>,
+    ) {
         let (tx, rx) = mpsc::unbounded_channel();
         let emit: Emit = Arc::new(move |e| {
             if let AppEvent::Queue(q) = e {
@@ -403,7 +510,9 @@ mod tests {
         });
         let sup = EngineSupervisor::new(emit.clone());
         let (r, w, log) = mock::spawn(16_000, chunks, chunk_ms);
-        let conn = WorkerConnection::handshake(r, w, Arc::new(|_| {})).await.unwrap();
+        let conn = WorkerConnection::handshake(r, w, Arc::new(|_| {}))
+            .await
+            .unwrap();
         sup.attach(conn, Arc::new(Drama3Adapter), "p");
         (GenerationQueue::new(sup, emit), rx, log)
     }
@@ -412,18 +521,30 @@ mod tests {
         JobSpec {
             job_id: id.into(),
             line_id: Some(format!("line-{id}")),
-            request: LineRequest { text: text.into(), ..Default::default() },
+            request: LineRequest {
+                text: text.into(),
+                ..Default::default()
+            },
             out_dir: dir.to_path_buf(),
             file_stem: format!("take-{id}"),
             ..Default::default()
         }
     }
 
-    async fn until_terminal(rx: &mut mpsc::UnboundedReceiver<QueueEvent>, n: usize) -> Vec<QueueEvent> {
+    async fn until_terminal(
+        rx: &mut mpsc::UnboundedReceiver<QueueEvent>,
+        n: usize,
+    ) -> Vec<QueueEvent> {
         let mut out = Vec::new();
         while out.len() < n {
-            let e = tokio::time::timeout(Duration::from_secs(5), rx.recv()).await.expect("timeout").unwrap();
-            if matches!(e, QueueEvent::Done { .. } | QueueEvent::Failed { .. } | QueueEvent::Cancelled { .. }) {
+            let e = tokio::time::timeout(Duration::from_secs(5), rx.recv())
+                .await
+                .expect("timeout")
+                .unwrap();
+            if matches!(
+                e,
+                QueueEvent::Done { .. } | QueueEvent::Failed { .. } | QueueEvent::Cancelled { .. }
+            ) {
                 out.push(e);
             }
         }
@@ -458,7 +579,12 @@ mod tests {
             assert!((t.duration - 0.3).abs() < 1e-9);
         }
         // The voice was added once, before the synthesis that uses it.
-        let types: Vec<String> = log.lock().unwrap().iter().map(|v| v["type"].as_str().unwrap().to_string()).collect();
+        let types: Vec<String> = log
+            .lock()
+            .unwrap()
+            .iter()
+            .map(|v| v["type"].as_str().unwrap().to_string())
+            .collect();
         assert_eq!(types, ["synthesize", "add_voice", "synthesize"]);
     }
 
@@ -466,7 +592,11 @@ mod tests {
     async fn cancels_running_and_pending_jobs() {
         let dir = tempfile::tempdir().unwrap();
         let (q, mut rx, _log) = setup(50, 20).await;
-        q.enqueue(vec![job("a", dir.path(), "長い"), job("b", dir.path(), "待ち"), job("c", dir.path(), "最後")]);
+        q.enqueue(vec![
+            job("a", dir.path(), "長い"),
+            job("b", dir.path(), "待ち"),
+            job("c", dir.path(), "最後"),
+        ]);
         // Wait until "a" runs.
         loop {
             if let Some(QueueEvent::Started { job_id, .. }) = rx.recv().await {
@@ -488,7 +618,14 @@ mod tests {
                 _ => unreachable!(),
             })
             .collect();
-        assert_eq!(summary, [("b".to_string(), "cancelled"), ("a".to_string(), "cancelled"), ("c".to_string(), "done")]);
+        assert_eq!(
+            summary,
+            [
+                ("b".to_string(), "cancelled"),
+                ("a".to_string(), "cancelled"),
+                ("c".to_string(), "done")
+            ]
+        );
         // The cancelled take left no file behind.
         assert!(!dir.path().join("take-a.wav").exists());
         assert!(dir.path().join("take-c.wav").exists());
@@ -498,12 +635,21 @@ mod tests {
     async fn cancel_all_and_failures() {
         let dir = tempfile::tempdir().unwrap();
         let (q, mut rx, _log) = setup(2, 5).await;
-        q.enqueue(vec![job("x", dir.path(), "FAIL please"), job("y", dir.path(), "")]);
+        q.enqueue(vec![
+            job("x", dir.path(), "FAIL please"),
+            job("y", dir.path(), ""),
+        ]);
         let ev = until_terminal(&mut rx, 2).await;
-        assert!(matches!(&ev[0], QueueEvent::Failed { message, .. } if message.contains("mock failure")));
+        assert!(
+            matches!(&ev[0], QueueEvent::Failed { message, .. } if message.contains("mock failure"))
+        );
         assert!(matches!(&ev[1], QueueEvent::Failed { message, .. } if message.contains("空")));
         let (q2, mut rx2, _l) = setup(100, 20).await;
-        q2.enqueue((0..4).map(|i| job(&i.to_string(), dir.path(), "x")).collect());
+        q2.enqueue(
+            (0..4)
+                .map(|i| job(&i.to_string(), dir.path(), "x"))
+                .collect(),
+        );
         tokio::time::sleep(Duration::from_millis(50)).await;
         q2.cancel_all().await;
         let ev = until_terminal(&mut rx2, 4).await;
