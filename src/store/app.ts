@@ -26,6 +26,11 @@ interface AppStore {
   logs: string[];
   jobs: Record<string, JobInfo>;
   jobOrder: string[];
+  /** When the running job started, and how long finished jobs took (ms), for the ETA. */
+  runningSince: number | null;
+  jobDurations: number[];
+  installing: boolean;
+  installSpeech: () => Promise<void>;
   voices: Voice[];
   batch: BatchSettings;
   notices: Notice[];
@@ -58,6 +63,22 @@ export const useApp = create<AppStore>()((set, get) => ({
   logs: [],
   jobs: {},
   jobOrder: [],
+  runningSince: null,
+  jobDurations: [],
+  installing: false,
+  installSpeech: async () => {
+    if (!confirm("speech.cpp の最新公式リリース（Windows Vulkan 版・約30MB）を GitHub からダウンロードし、SHA-256 を確認して展開します。よろしいですか？")) return;
+    set({ installing: true });
+    try {
+      const s = await ipc.installSpeech();
+      set({ settings: s });
+      get().notify("info", `speech.cpp をインストールしました: ${s.speechExe}`);
+    } catch (e) {
+      get().notify("error", `インストールに失敗: ${e}`);
+    } finally {
+      set({ installing: false });
+    }
+  },
   voices: [],
   batch: { takesPerLine: 1, seedMode: "random", baseSeed: 1 },
   notices: [],
@@ -91,21 +112,29 @@ export const useApp = create<AppStore>()((set, get) => ({
         set((s) => {
           const jobs = { ...s.jobs };
           let jobOrder = s.jobOrder;
+          let { runningSince, jobDurations } = s;
           switch (q.type) {
             case "started":
               if (jobs[q.jobId]) jobs[q.jobId] = { ...jobs[q.jobId], status: "running" };
+              runningSince = Date.now();
               break;
             case "progress":
               if (jobs[q.jobId]) jobs[q.jobId] = { ...jobs[q.jobId], seconds: q.seconds };
               break;
             case "done":
+              if (runningSince) jobDurations = [...jobDurations.slice(-19), Date.now() - runningSince];
+              runningSince = null;
+              delete jobs[q.jobId];
+              jobOrder = jobOrder.filter((j) => j !== q.jobId);
+              break;
             case "failed":
             case "cancelled":
+              if (s.jobs[q.jobId]?.status === "running") runningSince = null;
               delete jobs[q.jobId];
               jobOrder = jobOrder.filter((j) => j !== q.jobId);
               break;
           }
-          return { jobs, jobOrder };
+          return { jobs, jobOrder, runningSince, jobDurations };
         });
         if (q.type === "done") {
           const proj = useProject.getState();
@@ -175,3 +204,11 @@ export const useApp = create<AppStore>()((set, get) => ({
   dismiss: (id) => set((s) => ({ notices: s.notices.filter((n) => n.id !== id) })),
   openDialog: (d) => set({ dialog: d }),
 }));
+
+/** Seconds until the queue is empty: the mean of the recent jobs × the jobs left, minus the running one's time so far. */
+export function queueEta(remaining: number, durations: number[], runningSince: number | null, now = Date.now()): number | null {
+  if (remaining === 0 || durations.length === 0) return null;
+  const mean = durations.reduce((a, b) => a + b, 0) / durations.length;
+  const elapsed = runningSince !== null ? Math.min(now - runningSince, mean) : 0;
+  return Math.max(0, (mean * remaining - elapsed) / 1000);
+}

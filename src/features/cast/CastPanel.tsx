@@ -47,7 +47,7 @@ function CastCard({ cast, open, toggle }: { cast: Cast; open: boolean; toggle: (
       key,
     );
   const family = adapter?.id;
-  const usable = voices.filter((v) => v.family === family && v.speakers <= 1);
+  const usable = voices.filter((v) => v.family === family);
   const voice = voices.find((v) => v.id === cast.voiceId);
   const mismatch = voice && voice.family !== family;
   return (
@@ -67,6 +67,7 @@ function CastCard({ cast, open, toggle }: { cast: Cast; open: boolean; toggle: (
         {usable.map((v) => (
           <option key={v.id} value={v.id}>
             {v.name}
+            {v.speakers > 1 ? `（${v.speakers}話者）` : ""}
           </option>
         ))}
         {voice && mismatch && <option value={voice.id}>{voice.name}（{voice.family} 用・現在のモデルでは無効）</option>}

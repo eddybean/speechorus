@@ -1,9 +1,10 @@
-import { useApp } from "../store/app";
+import { queueEta, useApp } from "../store/app";
 import { useProject } from "../store/project";
 import { usePlayer } from "../lib/player";
 import { generateAll, generateMissing, generateSelected, createScene, playFrom } from "../features/generate/actions";
 import { importScript, newProject, openProject, saveProject } from "../features/project/fileOps";
 import type { SeedMode } from "../lib/text";
+import { copyLines, pasteLines } from "../features/script/clipboard";
 
 export function Toolbar() {
   const settings = useApp((s) => s.settings);
@@ -11,6 +12,7 @@ export function Toolbar() {
   const batch = useApp((s) => s.batch);
   const jobCount = useApp((s) => s.jobOrder.length);
   const running = useApp((s) => Object.values(s.jobs).find((j) => j.status === "running"));
+  const eta = useApp((s) => queueEta(s.jobOrder.length, s.jobDurations, s.runningSince));
   const canUndo = useProject((s) => s.undoStack.length > 0);
   const canRedo = useProject((s) => s.redoStack.length > 0);
   const dirty = useProject((s) => s.dirty);
@@ -53,6 +55,12 @@ export function Toolbar() {
         </button>
         <button disabled={!canRedo} onClick={() => useProject.getState().redo()} title="やり直し (Ctrl+Y)">
           ↷
+        </button>
+        <button disabled={!selection.length && !activeLineId} onClick={() => copyLines()} title="行をコピー（複数行選択時は Ctrl+C）">
+          ⧉
+        </button>
+        <button onClick={() => pasteLines()} title="行を貼り付け（複数行選択時は Ctrl+V）">
+          📋
         </button>
       </div>
       <div className="group engine">
@@ -109,6 +117,7 @@ export function Toolbar() {
             <span className="queue">
               残り {jobCount}
               {running ? `・${running.seconds.toFixed(1)}s` : ""}
+              {eta !== null ? `・残り約${eta < 60 ? `${Math.ceil(eta)}秒` : `${Math.floor(eta / 60)}分${Math.ceil(eta % 60)}秒`}` : ""}
             </span>
             <button onClick={() => app().cancelAll()}>■ 中止</button>
           </>

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { ipc } from "../../lib/ipc";
 import { useApp } from "../../store/app";
 import { Dialog } from "../../app/Dialog";
+import { InstallButton } from "../models/ModelManager";
 
 export function SettingsDialog() {
   const s = useApp((x) => x.settings)!;
@@ -29,6 +30,7 @@ export function SettingsDialog() {
         speech.exe（ASR・ボイス作成・デバイス一覧に使用）
         <input value={s.speechExe} onChange={(e) => app().saveSettings({ ...s, speechExe: e.target.value })} />
       </label>
+      <InstallButton />
       <div className="grid2">
         <label>
           書き起こしモデル (ASR)

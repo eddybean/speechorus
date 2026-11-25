@@ -689,3 +689,12 @@ pre.log {
   font-size: 11px;
   white-space: pre-wrap;
 }
+.slot {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin: 4px 0;
+}
+.slot select {
+  flex: 1;
+}

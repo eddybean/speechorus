@@ -22,6 +22,10 @@ hound = "3"
 thiserror = "2"
 uuid = { version = "1", features = ["v4"] }
 base64 = "0.22"
+ureq = "2"
+sha2 = "0.10"
+hex = "0.4"
+zip = { version = "2", default-features = false, features = ["deflate"] }
 
 [dev-dependencies]
 tempfile = "3"

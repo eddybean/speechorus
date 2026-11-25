@@ -116,6 +116,7 @@ export function VoiceLibrary() {
           </button>
         </div>
       </section>
+      {adapter?.capabilities.multiSpeaker && <CastVoiceComposer />}
       <section>
         <h3>ボイス一覧</h3>
         <table className="voices">
@@ -178,5 +179,65 @@ function VoiceRow({ v }: { v: Voice }) {
         </button>
       </td>
     </tr>
+  );
+}
+
+/** A multi-speaker voice put together by hand: speaker N is the voice in slot N (`speech voice … --speaker N`). */
+function CastVoiceComposer() {
+  const voices = useApp((s) => s.voices);
+  const adapter = useApp((s) => s.activeAdapter());
+  const profile = useApp((s) => s.activeProfile());
+  const [slots, setSlots] = useState<(string | null)[]>([null, null]);
+  const [name, setName] = useState("");
+  const [busy, setBusy] = useState(false);
+  const singles = voices.filter((v) => v.family === adapter?.id && v.speakers === 1 && v.combinedFrom.length === 0);
+  const app = useApp.getState;
+  const create = async () => {
+    if (!profile) return;
+    setBusy(true);
+    try {
+      const v = await ipc.voiceCombine(profile.id, slots, name || undefined);
+      await app().refreshVoices();
+      if (v) app().notify("info", `キャストボイス「${v.name}」（${v.speakers}話者）を作成しました`);
+      setSlots([null, null]);
+      setName("");
+    } catch (e) {
+      app().notify("error", `キャストボイスを作成できません: ${e}`);
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <section>
+      <h3>キャストボイス（複数話者）を作成</h3>
+      <p className="muted">話者番号ごとにボイスを割り当てて1つのボイスファイルにまとめます。台本では {"<|speaker:N|>"} で話者を指定します（「なし」の話者はモデルにおまかせ）。</p>
+      {slots.map((id, n) => (
+        <div key={n} className="slot">
+          <span className="tok-speaker">{`<|speaker:${n}|>`}</span>
+          <select value={id ?? ""} onChange={(e) => setSlots((s) => s.map((x, j) => (j === n ? e.target.value || null : x)))}>
+            <option value="">（なし）</option>
+            {singles.map((v) => (
+              <option key={v.id} value={v.id}>
+                {v.name}
+              </option>
+            ))}
+          </select>
+          {slots.length > 1 && (
+            <button onClick={() => setSlots((s) => s.filter((_, j) => j !== n))} title="この話者を外す">
+              ✕
+            </button>
+          )}
+        </div>
+      ))}
+      <div className="row-buttons">
+        <button disabled={slots.length >= 16} onClick={() => setSlots((s) => [...s, null])}>
+          ＋ 話者
+        </button>
+        <input placeholder="名前（省略可）" value={name} onChange={(e) => setName(e.target.value)} />
+        <button className="primary" disabled={busy || slots.every((s) => !s)} onClick={create}>
+          {busy ? "作成中…" : "作成"}
+        </button>
+      </div>
+    </section>
   );
 }

@@ -91,6 +91,7 @@ export function ModelManager() {
                 <button onClick={async () => { const f = await pickFile(["exe"], "speech.exe"); if (f) await save({ ...prof, speechExe: f }); }}>…</button>
               </span>
               <span className="muted small-text">{version || "（未確認）"} — 公式 Windows 版は Vulkan ビルドです。</span>
+              <InstallButton />
             </label>
             <label className="block">
               モデル（GGUF のパス、または speech.cpp のモデル名）
@@ -207,5 +208,14 @@ export function ModelManager() {
         )}
       </div>
     </Dialog>
+  );
+}
+
+export function InstallButton() {
+  const installing = useApp((s) => s.installing);
+  return (
+    <button className="small" disabled={installing} onClick={() => useApp.getState().installSpeech()} title="GitHub の公式リリースから zip を取得し、SHA256SUMS で検証して展開します">
+      {installing ? "ダウンロード中…" : "⤓ speech.cpp をダウンロード（公式・SHA検証）"}
+    </button>
   );
 }

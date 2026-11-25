@@ -11,10 +11,21 @@ import { ExportDialog } from "../features/export/ExportDialog";
 import { SettingsDialog } from "../features/settings/SettingsDialog";
 import { generateSelected, togglePlay } from "../features/generate/actions";
 import { openProject, saveProject } from "../features/project/fileOps";
+import { copyLines, pasteLines } from "../features/script/clipboard";
+import { activeEditor } from "../features/script/LineEditor";
 
 function isTyping(e: KeyboardEvent) {
   const t = e.target as HTMLElement | null;
   return !!t && (t.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(t.tagName));
+}
+
+/** Ctrl+C/X/V act on whole lines when several lines are selected, or when no text field has focus. */
+function lineClipboardMode(e: KeyboardEvent, selected: number): boolean {
+  if (selected > 1) {
+    const v = activeEditor();
+    return !v || v.state.selection.main.empty;
+  }
+  return !isTyping(e) && (selected > 0 || e.key.toLowerCase() === "v");
 }
 
 export function App() {
@@ -45,6 +56,11 @@ export function App() {
       } else if (mod && e.key === "Enter") {
         e.preventDefault();
         void generateSelected();
+      } else if (mod && ["c", "x", "v"].includes(e.key.toLowerCase()) && lineClipboardMode(e, p.selection.length)) {
+        e.preventDefault();
+        const k = e.key.toLowerCase();
+        if (k === "v") void pasteLines();
+        else void copyLines(k === "x");
       } else if (mod && e.key.toLowerCase() === "d" && p.selection.length) {
         e.preventDefault();
         p.duplicateLines(p.selection);

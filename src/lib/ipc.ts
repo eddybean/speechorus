@@ -28,7 +28,8 @@ export const ipc = {
   voiceTranscribe: (path: string) => invoke<string>("voice_transcribe", { path }),
   voiceCreate: (profileId: string, name: string, inputs: VoiceInput[], note?: string) =>
     invoke<Voice>("voice_create", { profileId, name, inputs, note: note ?? null }),
-  voiceCombine: (profileId: string, voiceIds: (string | null)[]) => invoke<Voice | null>("voice_combine", { profileId, voiceIds }),
+  voiceCombine: (profileId: string, voiceIds: (string | null)[], name?: string) => invoke<Voice | null>("voice_combine", { profileId, voiceIds, name: name ?? null }),
+  installSpeech: () => invoke<AppSettings>("install_speech"),
   voiceUpdate: (voice: Voice) => invoke<void>("voice_update", { voice }),
   voiceDelete: (id: string) => invoke<void>("voice_delete", { id }),
   projectNew: () => invoke<string>("project_new"),

@@ -4,6 +4,7 @@ pub mod audio;
 mod commands;
 pub mod engine;
 pub mod events;
+pub mod installer;
 pub mod jobs;
 mod memory;
 pub mod models;
@@ -126,6 +127,7 @@ pub fn run() {
             commands::export_each,
             commands::delete_file,
             commands::process_memory,
+            commands::install_speech,
         ])
         .build(tauri::generate_context!())
         .expect("error while building Voice Studio")

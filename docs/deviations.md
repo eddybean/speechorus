@@ -12,7 +12,7 @@ They are listed under "Decisions pending" at the end.
 
 ## Changes to the method
 
-### D-01 The default scene mode is "per line"; the single-request `<|speaker:N|>` mode stays as an option 【変更・要確認】
+### D-01 The default scene mode is "per line"; the single-request `<|speaker:N|>` mode stays as an option 【変更・承認済み 2026-11-26】
 - **What**: The plan says scene mode generates several lines in one request with `<|speaker:N|>` and outputs one WAV. The implementation offers two modes: "per line", the default, where each line uses its own cast voice and the lines are joined in order; and "single request" (`<|speaker:N|>`, as in the plan).
 - **Why**: In the spike, a single request with Drama-3-Japanese voiced **only speaker 0**, with the second speaker onward missing. It was tested with 4 seeds, `voice none` and a 2-speaker cast voice, with and without spaces or newlines (docs/engine-protocol.md).
 - **Workaround**: Single-request mode remains available, with a warning shown. Per-line mode produces a WAV through playback and the combined export.
@@ -58,31 +58,35 @@ They are listed under "Decisions pending" at the end.
 
 ## Not implemented (planned in v1)
 
-### D-10 The "run install.ps1 / download the release zip" button in model management 【未実装・要確認】
+### D-10 The "run install.ps1 / download the release zip" button in model management 【変更・承認済み・実装済み】
 - **What**: Only typing or picking the speech.exe path and showing its version are implemented.
 - **Why**: Both options carry security and dependency trade-offs. The official procedure (`irm …/install.ps1 | iex`) **runs a remote script as is**. Downloading the zip inside the app would add an HTTP dependency to the Rust side (the GUI binary grows).
 - **Alternatives**: (a) a button that runs the official install.ps1 after a confirmation dialog; (b) a button that opens the release page in the browser; (c) download the zip, check the SHA256SUMS, extract.
-- **User impact**: Currently you have to install speech.exe yourself and enter its path. In development it is detected automatically in `.engine/`.
+- **Decision (user, 2026-11-26)**: (c). Implemented: the "⤓ Download speech.cpp" button in model management and in Settings.
+  It gets the latest release through the GitHub API, checks it against SHA256SUMS, and extracts it into `%LOCALAPPDATA%\dev.voicestudio.app\speech\<tag>\`, refusing paths that would escape the folder. **install.ps1 is not run.**
+- **User impact**: The button does not add speech.exe to PATH (unlike install.ps1). The settings and every profile whose speech.exe is missing or unset now point at the downloaded speech.exe. See D-20 for the size increase.
 
-### D-11 Queue ETA 【未実装】
+### D-11 Queue ETA 【実装済み（承認により v1 で実装）】
 - **What**: Remaining job count and seconds generated are shown, but no estimated finish time.
-- **Alternative**: Estimate from the average time per finished job × remaining jobs (small; can be implemented).
+- **Implementation**: The toolbar shows "about N seconds left", from the mean time of the last 20 finished jobs × the jobs left, minus the elapsed time of the running job. No estimate is shown until the first job finishes.
 
-### D-12 Copying and pasting lines (to the clipboard) 【未実装】
+### D-12 Copying and pasting lines (to the clipboard) 【実装済み（承認により v1 で実装）】
 - **What**: Duplicating (Ctrl+D), multi-select, deleting and drag-reordering are implemented. Copying selected lines to the clipboard and pasting them as lines is not.
-- **Alternative**: Text pasted into a line is auto-split into lines.
+- **Implementation**: Ctrl+C / Ctrl+X / Ctrl+V when several lines are selected, or when no text field has focus, plus the ⧉ and 📋 buttons in the toolbar. The system clipboard receives `キャラ,テキスト` text. Pasting the same text back restores the options and silences; text from outside is imported as `キャラ,テキスト`, and missing casts are created.
+- **Differences**: Pasted lines **do not carry takes** (only the settings are copied). If the system clipboard cannot be read (for example when the window is not focused), the in-app copy is used.
 
-### D-13 Creating a multi-speaker voice by hand in the voice library 【未実装】
+### D-13 Creating a multi-speaker voice by hand in the voice library 【実装済み（承認により v1 で実装）】
 - **What**: A voice can be made from several references (joined as one speaker). The UI that assigns voices to speakers with `--speaker N` exists only in scene generation (automatic merging from cast order).
-- **User impact**: You cannot create and keep any cast voice you choose.
+- **Implementation**: The voice library has a "Create a cast voice (multiple speakers)" section. You assign a voice to each `<|speaker:N|>` (up to 16; a speaker can be left as "none") and give it a name. A multi-speaker voice can also be chosen for a cast, shown as "(N 話者)".
+- **Note**: With Drama-3-Japanese, only speaker 0 speaks in a single request (D-01), so this mainly matters for future models.
 
-### D-14 Named presets (option sets) 【変更】
+### D-14 Named presets (option sets) 【変更・v2 へ延期（2026-11-26 ユーザー判断）】
 - **What**: Each cast's "default options" and each line's "options for this line only" are implemented. Named presets that can be saved and reapplied are not.
 
-### D-15 i18n readiness 【未実装】
+### D-15 i18n readiness 【未実装・v2 へ延期（2026-11-26 ユーザー判断）】
 - **What**: The UI strings are Japanese, hard-coded in the components. There is no translation layer.
 
-### D-16 Dragging several lines at once 【未実装】
+### D-16 Dragging several lines at once 【未実装・v2 へ延期（2026-11-26 ユーザー判断）】
 - **What**: Drag reordering works one line at a time.
 
 ## Behavior notes and items not verified
@@ -98,9 +102,21 @@ They are listed under "Decisions pending" at the end.
 - **What**: `window.__voiceStudio` exposes the stores and actions (for E2E driven over the DevTools protocol).
 - **User impact**: None (it is accessible from the WebView only, and DevTools is disabled in the release build unless an environment variable is set).
 
+## Added in turn 2 (2026-11-26, after the decisions)
+
+### D-20 The GUI binary gained an HTTP client and zip extraction 【変更】
+- **What**: The Rust side now depends on `ureq` (rustls), `zip` (deflate only), `sha2` and `hex`, for D-10.
+- **Why**: The user chose the in-app download (c).
+- **User impact**: The release build `voice-studio.exe` is 5.2 MB. The memory used while running is unchanged, since the code only runs during a download.
+
+### D-21 The `voice_combine` command takes a name 【追加】
+- **What**: An optional `name` was added to name the manual cast voices of D-13. Automatic merging for scenes still names voices as before.
+- **User impact**: None.
+
 ---
 
-## Decisions pending (confirm with the user)
-- D-01: Make "per line" the default scene mode? Or should single-request scenes be made to work (for example by checking the base Drama-3 model or a patched build)?
-- D-10: Which way should speech.exe be installed (a/b/c)?
-- D-11 to D-16: Implement in v1, or defer to v2?
+## Decisions
+- D-01: **Approved** (2026-11-26) — "per line" is the default.
+- D-10: **(c) download the zip, check its SHA, extract — approved and implemented** (2026-11-26).
+- D-11, D-12, D-13: **Implement in v1 — implemented** (2026-11-26).
+- D-14, D-15, D-16: **Deferred to v2** (not selected by the user, 2026-11-26).

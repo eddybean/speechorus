@@ -283,6 +283,7 @@ pub async fn voice_combine(
     st: State<'_, AppState>,
     profile_id: String,
     voice_ids: Vec<Option<String>>,
+    name: Option<String>,
 ) -> R<Option<Voice>> {
     let p = st.profile(&profile_id)?;
     let adapter = adapter_for(&p.adapter).ok_or("unknown adapter")?;
@@ -298,16 +299,21 @@ pub async fn voice_combine(
         .lock()
         .unwrap()
         .plan_combined(&model, &voice_ids)?;
-    match plan {
-        CombinePlan::NoneNeeded => Ok(None),
-        CombinePlan::Existing(v) => Ok(Some(v)),
+    let name = name.map(|n| n.trim().to_string()).filter(|n| !n.is_empty());
+    let mut voice = match plan {
+        CombinePlan::NoneNeeded => return Ok(None),
+        CombinePlan::Existing(v) => v,
         CombinePlan::Build(build, voice) => {
             let args = adapter.prepare_voice(&build).map_err(e)?;
             build_voice(&p, args).await?;
-            st.voices.lock().unwrap().insert(voice.clone()).map_err(e)?;
-            Ok(Some(voice))
+            voice
         }
+    };
+    if let Some(n) = name {
+        voice.name = n;
     }
+    st.voices.lock().unwrap().insert(voice.clone()).map_err(e)?;
+    Ok(Some(voice))
 }
 
 #[tauri::command]
@@ -472,4 +478,29 @@ pub fn delete_file(path: String) -> R<()> {
 #[tauri::command]
 pub fn process_memory() -> u64 {
     crate::memory::working_set()
+}
+
+/// Downloads the latest official speech.cpp Windows Vulkan release (SHA-256 checked) and points the
+/// settings, and every profile whose speech.exe is missing, at it.
+#[tauri::command]
+pub async fn install_speech(app: AppHandle, st: State<'_, AppState>) -> R<AppSettings> {
+    let root = app.path().app_local_data_dir().map_err(e)?.join("speech");
+    let emit_app = app.clone();
+    let installed = tauri::async_runtime::spawn_blocking(move || {
+        crate::installer::install_latest(&root, &|line| {
+            let _ = tauri::Emitter::emit(&emit_app, "vs://event", crate::events::AppEvent::EngineLog { line: format!("[install] {line}") });
+        })
+    })
+    .await
+    .map_err(e)??;
+    let mut s = st.settings.lock().unwrap();
+    let old = s.speech_exe.clone();
+    s.speech_exe = installed.exe.clone();
+    for p in &mut s.profiles {
+        if p.speech_exe.is_empty() || p.speech_exe == old || !Path::new(&p.speech_exe).exists() {
+            p.speech_exe = installed.exe.clone();
+        }
+    }
+    s.save(&st.settings_path).map_err(e)?;
+    Ok(s.clone())
 }
