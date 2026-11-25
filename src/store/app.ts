@@ -1,7 +1,7 @@
 // App-wide state: settings, model adapters, engine, queue, voice library, notices.
 import { create } from "zustand";
 import { inTauri, ipc, onAppEvent } from "../lib/ipc";
-import type { AdapterDescriptor, AppSettings, EngineState, JobSpec, ModelProfile, Voice } from "../lib/types";
+import type { DownloadProgress, AdapterDescriptor, AppSettings, EngineState, JobSpec, ModelProfile, Voice } from "../lib/types";
 import type { BatchSettings } from "../features/generate/jobs";
 import { useProject } from "./project";
 
@@ -30,11 +30,12 @@ interface AppStore {
   runningSince: number | null;
   jobDurations: number[];
   installing: boolean;
+  downloads: Record<string, DownloadProgress>;
   installSpeech: () => Promise<void>;
   voices: Voice[];
   batch: BatchSettings;
   notices: Notice[];
-  dialog: null | "models" | "voices" | "export" | "settings";
+  dialog: null | "models" | "voices" | "export" | "settings" | "catalog";
 
   init: () => Promise<void>;
   saveSettings: (s: AppSettings) => Promise<void>;
@@ -66,6 +67,7 @@ export const useApp = create<AppStore>()((set, get) => ({
   runningSince: null,
   jobDurations: [],
   installing: false,
+  downloads: {},
   installSpeech: async () => {
     if (!confirm("speech.cpp の最新公式リリース（Windows Vulkan 版・約30MB）を GitHub からダウンロードし、SHA-256 を確認して展開します。よろしいですか？")) return;
     set({ installing: true });
@@ -105,6 +107,20 @@ export const useApp = create<AppStore>()((set, get) => ({
       if (ev.kind === "engine") {
         set({ engine: ev.data });
         if (ev.data.state === "failed") get().notify("error", `エンジン: ${ev.data.message}`);
+      } else if (ev.kind === "download") {
+        const d = ev.data;
+        // Terminal events carry no byte counts: keep the last ones so the bar stays meaningful.
+        set((s) => {
+          const prev = s.downloads[d.id];
+          const keep = d.total === 0 && prev ? { done: prev.done, total: prev.total, file: prev.file } : {};
+          return { downloads: { ...s.downloads, [d.id]: { ...d, ...keep } } };
+        });
+        if (d.phase === "done") {
+          get().notify("info", `ダウンロード完了: ${d.message}`);
+          void ipc.getSettings().then((s) => set({ settings: s }));
+        } else if (d.phase === "failed") {
+          get().notify("error", `ダウンロード失敗: ${d.message}`);
+        }
       } else if (ev.kind === "engineLog") {
         set((s) => ({ logs: [...s.logs.slice(-199), ev.data.line] }));
       } else {

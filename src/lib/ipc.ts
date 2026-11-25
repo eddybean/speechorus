@@ -2,6 +2,7 @@
 import { invoke, convertFileSrc } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import type {
+  CatalogView,
   AdapterDescriptor, AppEvent, AppSettings, Cue, EngineState, ExportItem, JobSpec, ModelProfile, Project, Voice, VoiceInput, Json,
 } from "./types";
 
@@ -30,6 +31,10 @@ export const ipc = {
     invoke<Voice>("voice_create", { profileId, name, inputs, note: note ?? null }),
   voiceCombine: (profileId: string, voiceIds: (string | null)[], name?: string) => invoke<Voice | null>("voice_combine", { profileId, voiceIds, name: name ?? null }),
   installSpeech: () => invoke<AppSettings>("install_speech"),
+  catalogList: () => invoke<CatalogView>("catalog_list"),
+  catalogDownload: (modelId: string, variantId: string, destDir: string, licenseAccepted: boolean) =>
+    invoke<string>("catalog_download", { modelId, variantId, destDir, licenseAccepted }),
+  downloadCancel: (id: string) => invoke<void>("download_cancel", { id }),
   voiceUpdate: (voice: Voice) => invoke<void>("voice_update", { voice }),
   voiceDelete: (id: string) => invoke<void>("voice_delete", { id }),
   projectNew: () => invoke<string>("project_new"),

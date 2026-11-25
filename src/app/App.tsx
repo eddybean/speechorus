@@ -9,6 +9,7 @@ import { VoiceLibrary } from "../features/voices/VoiceLibrary";
 import { ModelManager } from "../features/models/ModelManager";
 import { ExportDialog } from "../features/export/ExportDialog";
 import { SettingsDialog } from "../features/settings/SettingsDialog";
+import { CatalogDialog } from "../features/models/CatalogDialog";
 import { generateSelected, togglePlay } from "../features/generate/actions";
 import { openProject, saveProject } from "../features/project/fileOps";
 import { copyLines, pasteLines } from "../features/script/clipboard";
@@ -105,6 +106,7 @@ export function App() {
       {dialog === "models" && <ModelManager />}
       {dialog === "export" && <ExportDialog />}
       {dialog === "settings" && <SettingsDialog />}
+      {dialog === "catalog" && <CatalogDialog />}
     </div>
   );
 }

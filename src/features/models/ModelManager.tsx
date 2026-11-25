@@ -61,7 +61,10 @@ export function ModelManager() {
               {engine.state !== "stopped" && "profileId" in engine && engine.profileId === p.id && <span className={`dot ${engine.state}`} />}
             </button>
           ))}
-          <div className="muted small-text">追加:</div>
+          <button className="small primary" onClick={() => app().openDialog("catalog")}>
+            ⤓ カタログから入手
+          </button>
+          <div className="muted small-text">手動で追加:</div>
           {adapters.map((a) => (
             <button key={a.id} className="small" onClick={() => addProfile(a.id)}>
               ＋ {a.displayName}

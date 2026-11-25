@@ -85,6 +85,9 @@ export function Toolbar() {
             {engine.state === "ready" ? "切替" : "起動"}
           </button>
         )}
+        <button onClick={() => app().openDialog("catalog")} title="モデルカタログからダウンロード" className={prof && !prof.model ? "primary" : ""}>
+          ⤓ モデルを入手
+        </button>
         <button onClick={() => app().openDialog("models")} title="モデル管理">
           ⚙ モデル
         </button>

@@ -13,6 +13,7 @@ pub enum AppEvent {
     Engine(EngineState),
     EngineLog { line: String },
     Queue(QueueEvent),
+    Download(crate::downloads::Progress),
 }
 
 pub type Emit = Arc<dyn Fn(AppEvent) + Send + Sync>;

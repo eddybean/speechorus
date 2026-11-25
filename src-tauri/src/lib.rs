@@ -3,6 +3,7 @@
 pub mod audio;
 mod commands;
 pub mod engine;
+pub mod downloads;
 pub mod events;
 pub mod installer;
 pub mod jobs;
@@ -91,6 +92,8 @@ pub fn run() {
                 queue,
                 voices: Mutex::new(voices),
                 work_root: local.join("work"),
+                downloads: Default::default(),
+                catalog_override: cfg.join("catalog.json"),
             });
             Ok(())
         })
@@ -128,6 +131,10 @@ pub fn run() {
             commands::delete_file,
             commands::process_memory,
             commands::install_speech,
+            commands::catalog_list,
+            commands::catalog_download,
+            commands::download_cancel,
+            commands::default_models_dir,
         ])
         .build(tauri::generate_context!())
         .expect("error while building Voice Studio")

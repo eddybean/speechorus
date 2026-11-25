@@ -24,6 +24,9 @@ pub struct AppState {
     pub queue: Arc<GenerationQueue>,
     pub voices: Mutex<VoiceLibrary>,
     pub work_root: PathBuf,
+    pub downloads: crate::downloads::Downloads,
+    /// A catalog.json here replaces the built-in model catalog.
+    pub catalog_override: PathBuf,
 }
 
 type R<T> = Result<T, String>;
@@ -503,4 +506,149 @@ pub async fn install_speech(app: AppHandle, st: State<'_, AppState>) -> R<AppSet
     }
     s.save(&st.settings_path).map_err(e)?;
     Ok(s.clone())
+}
+
+// ---- model catalog ----
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GpuInfo {
+    pub name: String,
+    pub free: u64,
+    pub total: u64,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CatalogView {
+    pub catalog: crate::downloads::Catalog,
+    /// Model id → the variant recommended for the GPU's memory.
+    pub recommended: std::collections::HashMap<String, String>,
+    pub gpu: Option<GpuInfo>,
+    pub default_dir: String,
+    /// Download ids (`model:variant`) that are running.
+    pub running: Vec<String>,
+}
+
+#[tauri::command]
+pub async fn catalog_list(app: AppHandle, st: State<'_, AppState>) -> R<CatalogView> {
+    use crate::downloads::{recommend, Catalog};
+    let catalog = Catalog::load(&st.catalog_override);
+    let exe = st.exe();
+    let env = BTreeMap::new();
+    let devs = Speech { exe: &exe, env: &env }.devices().await.ok();
+    let gpu = devs
+        .as_ref()
+        .and_then(|d| d.get("devices")?.as_array()?.iter().find(|x| x.get("kind").and_then(Value::as_str) == Some("gpu")).cloned())
+        .map(|g| GpuInfo {
+            name: g.get("description").and_then(Value::as_str).unwrap_or("").trim().to_string(),
+            free: g.get("memory_free").and_then(Value::as_u64).unwrap_or(0),
+            total: g.get("memory_total").and_then(Value::as_u64).unwrap_or(0),
+        });
+    // A loaded engine holds VRAM itself, so then judge by the total minus a desktop reserve.
+    let budget = gpu.as_ref().map(|g| if st.supervisor.live().is_ok() { g.total.saturating_sub(1 << 30) } else { g.free });
+    let recommended = catalog.models.iter().filter_map(|m| recommend(m, budget).map(|v| (m.id.clone(), v))).collect();
+    let default_dir = app.path().app_local_data_dir().map_err(e)?.join("models").to_string_lossy().into_owned();
+    let running = st.downloads.running.lock().unwrap().keys().cloned().collect();
+    Ok(CatalogView { catalog, recommended, gpu, default_dir, running })
+}
+
+#[tauri::command]
+pub fn default_models_dir(app: AppHandle) -> R<String> {
+    Ok(app.path().app_local_data_dir().map_err(e)?.join("models").to_string_lossy().into_owned())
+}
+
+#[tauri::command]
+pub fn download_cancel(st: State<'_, AppState>, id: String) {
+    if let Some(c) = st.downloads.running.lock().unwrap().get(&id) {
+        c.store(true, std::sync::atomic::Ordering::Relaxed);
+    }
+}
+
+/// Starts a catalog download in the background; progress and the result come as `download` events.
+/// On success a synthesis model gets a profile (created or replaced, and selected); a recognition model becomes the ASR model.
+#[tauri::command]
+pub fn catalog_download(app: AppHandle, st: State<'_, AppState>, model_id: String, variant_id: String, dest_dir: String, license_accepted: bool) -> R<String> {
+    use crate::downloads::{Catalog, DownloadError, Progress, Source};
+    use std::sync::atomic::AtomicBool;
+    let catalog = Catalog::load(&st.catalog_override);
+    let (m, v) = catalog.find(&model_id, &variant_id).ok_or("カタログにないモデルです")?;
+    if !v.supported {
+        return Err(format!("{} は使えません: {}", v.label, v.unsupported_reason));
+    }
+    if m.license.requires_consent && !license_accepted {
+        return Err(format!("{} への同意が必要です", m.license.name));
+    }
+    let (m, v) = (m.clone(), v.clone());
+    let id = format!("{model_id}:{variant_id}");
+    let cancel = Arc::new(AtomicBool::new(false));
+    {
+        let mut running = st.downloads.running.lock().unwrap();
+        if running.contains_key(&id) {
+            return Err("このモデルはダウンロード中です".into());
+        }
+        running.insert(id.clone(), cancel.clone());
+    }
+    let exe = st.exe();
+    let id2 = id.clone();
+    tauri::async_runtime::spawn(async move {
+        let emit_app = app.clone();
+        let on: Arc<dyn Fn(Progress) + Send + Sync> = Arc::new(move |p| {
+            let _ = tauri::Emitter::emit(&emit_app, "vs://event", crate::events::AppEvent::Download(p));
+        });
+        let result: Result<String, DownloadError> = match &m.source {
+            Source::Huggingface { repo, revision } => {
+                let (repo, revision, v2, dir, c, on2, id3) = (repo.clone(), revision.clone(), v.clone(), PathBuf::from(dest_dir.replace('/', std::path::MAIN_SEPARATOR_STR)), cancel.clone(), on.clone(), id2.clone());
+                tauri::async_runtime::spawn_blocking(move || crate::downloads::fetch_variant(&id3, &repo, &revision, &v2, &dir, &c, &*on2))
+                    .await
+                    .map_err(|x| DownloadError::Other(x.to_string()))
+                    .and_then(|r| r)
+                    .map(|p| p.to_string_lossy().into_owned())
+            }
+            Source::SpeechPull { name } => {
+                // speech.cpp keeps its catalog in %LOCALAPPDATA%\speech.cpp.
+                let need = v.total_bytes();
+                let dir = std::env::var("LOCALAPPDATA").map(PathBuf::from).unwrap_or_default();
+                match crate::downloads::free_space(&dir) {
+                    Some(free) if free < need + (1 << 30) => Err(DownloadError::NoSpace { need: crate::downloads::gib(need + (1 << 30)), free: crate::downloads::gib(free) }),
+                    _ => crate::downloads::speech_pull(&id2, &exe, name, cancel.clone(), on.clone()).await,
+                }
+            }
+        };
+        let st = app.state::<AppState>();
+        st.downloads.running.lock().unwrap().remove(&id2);
+        let mut p = Progress::new(&id2, "done");
+        match result {
+            Ok(path) => {
+                let mut s = st.settings.lock().unwrap();
+                if m.task == "recognition" {
+                    s.asr_model = path.clone();
+                    p.message = format!("書き起こしモデルに設定しました: {path}");
+                } else {
+                    let pid = format!("{}-{}", m.id, v.id);
+                    let mut prof = ModelProfile::new(&pid, &format!("{} {}", m.name, v.label), &m.adapter, &path, &s.speech_exe);
+                    prof.env = m.env.clone();
+                    if !m.device.is_empty() {
+                        prof.device = m.device.clone();
+                    }
+                    s.profiles.retain(|x| x.id != pid);
+                    s.profiles.push(prof);
+                    s.active_profile_id = Some(pid.clone());
+                    p.profile_id = Some(pid);
+                    p.message = format!("プロファイルを作成して選択しました: {path}");
+                }
+                let _ = s.save(&st.settings_path);
+            }
+            Err(DownloadError::Cancelled) => {
+                p.phase = "cancelled".into();
+                p.message = "キャンセルしました（続きから再開できます）".into();
+            }
+            Err(x) => {
+                p.phase = "failed".into();
+                p.message = x.to_string();
+            }
+        }
+        on(p);
+    });
+    Ok(id)
 }

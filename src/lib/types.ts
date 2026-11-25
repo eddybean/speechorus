@@ -157,7 +157,8 @@ export type QueueEvent =
 export type AppEvent =
   | { kind: "engine"; data: EngineState }
   | { kind: "engineLog"; data: { line: string } }
-  | { kind: "queue"; data: QueueEvent };
+  | { kind: "queue"; data: QueueEvent }
+  | { kind: "download"; data: DownloadProgress };
 
 export interface LineRequest {
   text: string;
@@ -205,4 +206,54 @@ export interface TagPaletteData {
   id: string;
   syntax: "brackets" | "emoji";
   categories: TagCategory[];
+}
+
+export interface DownloadProgress {
+  id: string;
+  phase: "checking" | "downloading" | "verifying" | "done" | "failed" | "cancelled";
+  file: string;
+  done: number;
+  total: number;
+  bytesPerSec: number;
+  etaSecs: number | null;
+  message: string;
+  profileId: string | null;
+}
+
+export interface CatalogFile {
+  name: string;
+  size: number;
+  sha256: string;
+  role: "model" | "sidecar";
+}
+
+export interface CatalogVariant {
+  id: string;
+  label: string;
+  supported?: boolean;
+  unsupportedReason?: string;
+  vramBytes: number;
+  files: CatalogFile[];
+}
+
+export interface CatalogModel {
+  id: string;
+  name: string;
+  task: "synthesis" | "recognition";
+  adapter: string;
+  description: string;
+  source: { kind: "huggingface"; repo: string; revision: string } | { kind: "speechPull"; name: string };
+  license: { name: string; url: string; summary: string; requiresConsent: boolean };
+  env: Record<string, string>;
+  device: string;
+  defaultVariant: string;
+  variants: CatalogVariant[];
+}
+
+export interface CatalogView {
+  catalog: { version: number; models: CatalogModel[] };
+  recommended: Record<string, string>;
+  gpu: { name: string; free: number; total: number } | null;
+  defaultDir: string;
+  running: string[];
 }
