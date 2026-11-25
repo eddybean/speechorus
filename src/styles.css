@@ -739,3 +739,32 @@ pre.log {
   background: var(--accent);
   transition: width 0.4s;
 }
+button.icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 7px;
+}
+.ref-block {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 6px;
+  margin: 8px 0;
+}
+.trimmer canvas {
+  display: block;
+  background: var(--bg);
+  border-radius: 4px;
+  cursor: ew-resize;
+  touch-action: none;
+}
+.trim-info {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-top: 4px;
+}
+.row-buttons.left {
+  justify-content: flex-start;
+}

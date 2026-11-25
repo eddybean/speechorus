@@ -3,7 +3,8 @@ import { usePlayer } from "../../lib/player";
 import type { Line, Take } from "../../lib/types";
 import { useApp } from "../../store/app";
 import { selectedTake, useProject } from "../../store/project";
-import { generateIds, generateScene, playLine, playScene, rerollTake } from "../generate/actions";
+import { generateIds, generateScene, lineItems, rerollTake, sceneItems, session } from "../generate/actions";
+import { PlayButton } from "../../app/PlayButton";
 import { OptionForm } from "../models/OptionForm";
 import { TagPalette } from "../tags/TagPalette";
 
@@ -84,9 +85,7 @@ function TakeList({ line }: { line: Line }) {
     <ul className="takes">
       {[...line.takes].reverse().map((t, i) => (
         <li key={t.id} className={`${t.id === sel?.id ? "adopted" : ""}${playingKey === t.id ? " playing" : ""}`}>
-          <button title="再生" onClick={() => playLine(line.id, t.id)}>
-            ▶
-          </button>
+          <PlayButton session={session.take(t.id)} items={() => lineItems(line.id, t.id)} />
           <span className="take-name">#{line.takes.length - i}</span>
           <span className="muted">{t.duration.toFixed(1)}s</span>
           <span className="muted" title="シード">
@@ -164,7 +163,7 @@ function Scenes() {
                   </option>
                 </select>
                 <button onClick={() => generateScene(sc.id)}>⚡</button>
-                <button onClick={() => playScene(sc.id)}>▶</button>
+                <PlayButton session={session.scene(sc.id)} items={() => sceneItems(sc.id)} />
                 <button
                   title="シーンを削除（行は残ります）"
                   onClick={() =>

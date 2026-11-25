@@ -652,3 +652,32 @@ pub fn catalog_download(app: AppHandle, st: State<'_, AppState>, model_id: Strin
     });
     Ok(id)
 }
+
+// ---- reference audio and prompt voices ----
+
+#[tauri::command]
+pub async fn wav_peaks(app: AppHandle, path: String, buckets: usize) -> R<audio::Waveform> {
+    let _ = app.asset_protocol_scope().allow_file(Path::new(&path));
+    tauri::async_runtime::spawn_blocking(move || audio::peaks(Path::new(&path), buckets).map_err(e)).await.map_err(e)?
+}
+
+/// Cuts `[start, end)` of a reference recording into a new file beside the library's references; the original stays.
+#[tauri::command]
+pub async fn wav_trim(app: AppHandle, st: State<'_, AppState>, path: String, start: f64, end: f64) -> R<String> {
+    let dir = st.voices.lock().unwrap().dir.join("trimmed");
+    let stem = Path::new(&path).file_stem().map(|s| s.to_string_lossy().into_owned()).unwrap_or_else(|| "ref".into());
+    let dst = dir.join(format!("{stem}_{:.2}-{:.2}_{}.wav", start, end, &uuid::Uuid::new_v4().simple().to_string()[..6]));
+    let d2 = dst.clone();
+    tauri::async_runtime::spawn_blocking(move || audio::trim(Path::new(&path), &d2, start, end).map_err(e)).await.map_err(e)??;
+    let _ = app.asset_protocol_scope().allow_file(&dst);
+    Ok(dst.to_string_lossy().into_owned())
+}
+
+#[tauri::command]
+pub fn voice_create_prompt(st: State<'_, AppState>, family: String, name: String, prompt: String, note: Option<String>) -> R<Voice> {
+    adapter_for(&family).ok_or("unknown adapter")?;
+    if prompt.trim().is_empty() {
+        return Err("声の説明が空です".into());
+    }
+    st.voices.lock().unwrap().add_prompt_voice(&family, &name, &prompt, &note.unwrap_or_default()).map_err(e)
+}

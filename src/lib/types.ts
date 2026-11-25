@@ -137,6 +137,8 @@ export interface Voice {
   combinedFrom: string[];
   createdAt: number;
   note: string;
+  /** A voice described in words only (no file). */
+  prompt: string;
 }
 
 export type EngineState =

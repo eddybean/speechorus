@@ -1,16 +1,24 @@
 // Voice library: reference WAV → automatic transcription → `speech voice` → .voice.gguf.
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
 import { ipc } from "../../lib/ipc";
-import { usePlayer } from "../../lib/player";
+import { PlayButton } from "../../app/PlayButton";
 import type { Voice } from "../../lib/types";
 import { useApp } from "../../store/app";
 import { Dialog } from "../../app/Dialog";
+import { WaveformTrimmer } from "./WaveformTrimmer";
+import { VoiceDesigner } from "./VoiceDesigner";
 
 interface Ref {
+  /** The file the user picked; trimming always cuts from it, and it is never changed. */
+  original: string;
+  /** What the voice is made from: the original, or a cut of it. */
   path: string;
   transcript: string;
   busy: boolean;
+  start: number;
+  end: number;
+  duration: number;
 }
 
 export function VoiceLibrary() {
@@ -37,10 +45,18 @@ export function VoiceLibrary() {
 
   const addRefs = async () => {
     const sel = await open({ multiple: true, filters: [{ name: "WAV", extensions: ["wav"] }] });
-    const paths = (Array.isArray(sel) ? sel : sel ? [sel] : []).map(String);
+    await addRefPaths((Array.isArray(sel) ? sel : sel ? [sel] : []).map(String));
+  };
+  // Scripted E2E checks add references without the native file picker (see main.tsx).
+  useEffect(() => {
+    const h = (e: Event) => void addRefPaths((e as CustomEvent<string[]>).detail);
+    window.addEventListener("vs-add-refs", h);
+    return () => window.removeEventListener("vs-add-refs", h);
+  });
+  const addRefPaths = async (paths: string[]) => {
     if (!paths.length) return;
     const start = refs.length;
-    setRefs((r) => [...r, ...paths.map((p) => ({ path: p, transcript: "", busy: needsText }))]);
+    setRefs((r) => [...r, ...paths.map((p) => ({ original: p, path: p, transcript: "", busy: needsText, start: 0, end: 0, duration: 0 }))]);
     if (!name) setName(paths[0].split(/[\\/]/).pop()!.replace(/\.wav$/i, ""));
     for (const [k, p] of paths.entries()) {
       await ipc.allowFile(p);
@@ -70,6 +86,23 @@ export function VoiceLibrary() {
     }
   };
 
+  /** Cuts the chosen range out of the original (Rust, hound) and transcribes the cut again. */
+  const applyTrim = async (i: number) => {
+    const r = refs[i];
+    try {
+      const cut = await ipc.wavTrim(r.original, r.start, r.end);
+      setRefs((x) => x.map((y, j) => (j === i ? { ...y, path: cut } : y)));
+      if (needsText) await transcribe(i, cut);
+    } catch (e) {
+      app().notify("error", `切り出せません: ${e}`);
+    }
+  };
+  const resetTrim = async (i: number) => {
+    const r = refs[i];
+    setRefs((x) => x.map((y, j) => (j === i ? { ...y, path: y.original, start: 0, end: y.duration } : y)));
+    if (needsText) await transcribe(i, r.original);
+  };
+
   const canCreate = refs.length > 0 && !creating && refs.every((r) => !r.busy && (!needsText || r.transcript.trim()));
   return (
     <Dialog title="ボイスライブラリ" onClose={() => app().openDialog(null)} wide>
@@ -89,9 +122,27 @@ export function VoiceLibrary() {
           </label>
         </div>
         {refs.map((r, i) => (
-          <div key={r.path + i} className="ref">
-            <button onClick={() => usePlayer.getState().play([{ path: r.path, pre: 0, post: 0, key: r.path }])}>▶</button>
+          <div key={r.original + i} className="ref-block">
+          <WaveformTrimmer
+            path={r.original}
+            start={r.start}
+            end={r.end}
+            onChange={(start, end, duration) => setRefs((x) => x.map((y, j) => (j === i ? { ...y, start, end, duration } : y)))}
+          />
+          <div className="row-buttons left">
+            <button disabled={r.busy || r.duration === 0} onClick={() => applyTrim(i)} title="選んだ区間を新しいファイルに切り出し、書き起こし直します（元のファイルは残ります）">
+              ✂ この区間で切り出す{needsText ? "（再書き起こし）" : ""}
+            </button>
+            {r.path !== r.original && (
+              <button disabled={r.busy} onClick={() => resetTrim(i)}>
+                元の音声に戻す
+              </button>
+            )}
+          </div>
+          <div className="ref">
+            <PlayButton session={`ref:${r.path}`} items={() => [{ path: r.path, pre: 0, post: 0, key: r.path }]} title="使う音声を試聴" />
             <span className="path" title={r.path}>
+              {r.path !== r.original ? "✂ " : ""}
               {r.path.split(/[\\/]/).pop()}
             </span>
             <textarea
@@ -108,6 +159,7 @@ export function VoiceLibrary() {
             )}
             <button onClick={() => setRefs((x) => x.filter((_, j) => j !== i))}>✕</button>
           </div>
+          </div>
         ))}
         <div className="row-buttons">
           <button onClick={addRefs}>参照音声を追加…</button>
@@ -116,6 +168,7 @@ export function VoiceLibrary() {
           </button>
         </div>
       </section>
+      <VoiceDesigner />
       {adapter?.capabilities.multiSpeaker && <CastVoiceComposer />}
       <section>
         <h3>ボイス一覧</h3>
@@ -160,11 +213,14 @@ function VoiceRow({ v }: { v: Voice }) {
       <td>{v.speakers}</td>
       <td>
         {v.sources.map((s, i) => (
-          <button key={i} title={s.transcript ?? ""} onClick={() => usePlayer.getState().play([{ path: s.path, pre: 0, post: 0, key: s.path }])}>
-            ▶{i + 1}
-          </button>
+          <PlayButton key={i} session={`src:${v.id}:${i}`} items={() => [{ path: s.path, pre: 0, post: 0, key: s.path }]} title={s.transcript ?? "参照音声"} label={String(i + 1)} />
         ))}
         {v.combinedFrom.length > 0 && <span className="muted">合成</span>}
+        {!v.file && v.prompt && (
+          <span className="muted small-text" title={v.prompt}>
+            📝 {v.prompt.length > 24 ? v.prompt.slice(0, 24) + "…" : v.prompt}
+          </span>
+        )}
       </td>
       <td>
         <button

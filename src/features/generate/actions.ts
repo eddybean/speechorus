@@ -5,7 +5,7 @@ import { uid, workerVoiceName } from "../../lib/text";
 import type { Line } from "../../lib/types";
 import { useApp } from "../../store/app";
 import { selectedTake, useProject } from "../../store/project";
-import { jobsForLines, sceneSpeakers, sceneText, type BuildContext } from "./jobs";
+import { castVoicing, jobsForLines, sceneSpeakers, sceneText, type BuildContext } from "./jobs";
 
 function context(): BuildContext | null {
   const app = useApp.getState();
@@ -68,34 +68,43 @@ function playItems(lines: Line[]): PlayItem[] {
   });
 }
 
-export function playLine(lineId: string, takeId?: string) {
+/** The take of a line (its selected one, or `takeId`) as a play list. */
+export function lineItems(lineId: string, takeId?: string): PlayItem[] {
   const { project, takesDir } = useProject.getState();
   const l = project.lines.find((x) => x.id === lineId);
-  if (!l) return;
-  const t = takeId ? l.takes.find((x) => x.id === takeId) : selectedTake(l);
-  if (!t) {
+  const t = l && (takeId ? l.takes.find((x) => x.id === takeId) : selectedTake(l));
+  if (!l || !t) {
     useApp.getState().notify("info", "この行にはまだテイクがありません");
-    return;
+    return [];
   }
-  usePlayer.getState().play([{ path: joinPath(takesDir, t.file), pre: 0, post: 0, key: takeId ?? l.id }]);
+  return [{ path: joinPath(takesDir, t.file), pre: 0, post: 0, key: takeId ?? l.id }];
 }
 
-/** Plays the selected takes from `lineId` to the end, with each line's silences. */
-export function playFrom(lineId: string | null) {
+/** The selected takes from `lineId` to the end, with each line's silences. */
+export function fromItems(lineId: string | null): PlayItem[] {
   const { project } = useProject.getState();
   const i = Math.max(0, lineId ? project.lines.findIndex((l) => l.id === lineId) : 0);
   const items = playItems(project.lines.slice(i));
   if (!items.length) useApp.getState().notify("info", "再生できるテイクがありません");
-  else usePlayer.getState().play(items);
+  return items;
 }
 
+/** Session keys of the play buttons, so a button shows ■ only for its own playback. */
+export const session = {
+  line: (id: string) => `line:${id}`,
+  take: (id: string) => `take:${id}`,
+  scene: (id: string) => `scene:${id}`,
+  sequence: "sequence",
+};
+
+/** Space: stop whatever plays, else play the active line's take. */
 export function togglePlay() {
   const p = usePlayer.getState();
-  if (p.playingKey) p.stop();
+  if (p.sessionKey) p.stop();
   else {
     const { activeLineId, selection } = useProject.getState();
     const id = activeLineId ?? selection[0];
-    if (id) playLine(id);
+    if (id) p.play(lineItems(id), session.line(id));
   }
 }
 
@@ -136,8 +145,8 @@ export async function generateScene(sceneId: string) {
   const speakers = sceneSpeakers(ctx.project, scene.lineIds);
   const voiceIds = speakers.map((castId) => {
     const c = ctx.project.cast.find((x) => x.id === castId);
-    const v = c?.voiceId ? ctx.voices.find((x) => x.id === c.voiceId && x.family === ctx.adapter.id && x.speakers === 1) : undefined;
-    return v?.id ?? null;
+    const { file } = castVoicing(ctx, c);
+    return file && file.speakers === 1 ? file.id : null;
   });
   const profile = app.activeProfile();
   if (!profile) return;
@@ -149,8 +158,9 @@ export async function generateScene(sceneId: string) {
     return;
   }
   await app.refreshVoices();
-  const hasVoice = (castId: string) => voiceIds[speakers.indexOf(castId)] !== null;
-  const text = sceneText(ctx.project, scene.lineIds, hasVoice);
+  const cueFor = (castId: string) =>
+    voiceIds[speakers.indexOf(castId)] !== null ? null : castVoicing(ctx, ctx.project.cast.find((x) => x.id === castId)).prompt;
+  const text = sceneText(ctx.project, scene.lineIds, cueFor);
   const batch = app.batch;
   const jobs = Array.from({ length: Math.max(1, batch.takesPerLine) }, (_, k) => ({
     jobId: uid(),
@@ -172,16 +182,14 @@ export async function generateScene(sceneId: string) {
   await app.enqueue(jobs);
 }
 
-export function playScene(sceneId: string) {
+export function sceneItems(sceneId: string): PlayItem[] {
   const { project, takesDir } = useProject.getState();
   const s = project.scenes.find((x) => x.id === sceneId);
-  if (!s) return;
+  if (!s) return [];
   if (s.mode === "single") {
     const t = s.takes.find((x) => x.id === s.selectedTakeId) ?? s.takes[s.takes.length - 1];
-    if (t) usePlayer.getState().play([{ path: joinPath(takesDir, t.file), pre: 0, post: 0, key: s.id }]);
-    else useApp.getState().notify("info", "シーンのテイクがまだありません");
-    return;
+    if (!t) useApp.getState().notify("info", "シーンのテイクがまだありません");
+    return t ? [{ path: joinPath(takesDir, t.file), pre: 0, post: 0, key: s.id }] : [];
   }
-  const items = playItems(project.lines.filter((l) => s.lineIds.includes(l.id)));
-  if (items.length) usePlayer.getState().play(items);
+  return playItems(project.lines.filter((l) => s.lineIds.includes(l.id)));
 }

@@ -68,6 +68,7 @@ function CastCard({ cast, open, toggle }: { cast: Cast; open: boolean; toggle: (
           <option key={v.id} value={v.id}>
             {v.name}
             {v.speakers > 1 ? `（${v.speakers}話者）` : ""}
+            {!v.file && v.prompt ? "（説明のみ）" : ""}
           </option>
         ))}
         {voice && mismatch && <option value={voice.id}>{voice.name}（{voice.family} 用・現在のモデルでは無効）</option>}

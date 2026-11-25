@@ -432,3 +432,67 @@ mod tests {
         );
     }
 }
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Waveform {
+    pub duration: f64,
+    pub sample_rate: u32,
+    /// (min, max) of each of `buckets` equal slices, in -1..1.
+    pub peaks: Vec<(f32, f32)>,
+}
+
+/// A light summary of a WAV for drawing: min/max per bucket.
+pub fn peaks(path: &Path, buckets: usize) -> Result<Waveform, AudioError> {
+    let (x, sr) = read_mono(path)?;
+    let buckets = buckets.clamp(1, 20_000);
+    let per = x.len().div_ceil(buckets).max(1);
+    let peaks = x
+        .chunks(per)
+        .map(|c| c.iter().fold((0f32, 0f32), |(lo, hi), &v| (lo.min(v), hi.max(v))))
+        .collect();
+    Ok(Waveform { duration: x.len() as f64 / sr as f64, sample_rate: sr, peaks })
+}
+
+/// Writes `[start, end)` seconds of `src` to `dst` as 16-bit mono; `src` is left as it is.
+pub fn trim(src: &Path, dst: &Path, start: f64, end: f64) -> Result<f64, AudioError> {
+    let (x, sr) = read_mono(src)?;
+    let a = secs_to_samples(start, sr).min(x.len());
+    let b = secs_to_samples(end, sr).clamp(a, x.len());
+    if b <= a {
+        return Err(AudioError::Nothing);
+    }
+    if let Some(d) = dst.parent() {
+        std::fs::create_dir_all(d).map_err(|e| AudioError::Io(d.display().to_string(), e))?;
+    }
+    write_mono_i16(dst, &x[a..b], sr)?;
+    Ok((b - a) as f64 / sr as f64)
+}
+
+#[cfg(test)]
+mod trim_tests {
+    use super::*;
+
+    #[test]
+    fn peaks_and_trim() {
+        let d = tempfile::tempdir().unwrap();
+        let src = d.path().join("ref.wav");
+        // 2 s at 1 kHz: silence, then a 0.5-amplitude second.
+        let mut x = vec![0.0f32; 1000];
+        x.extend(std::iter::repeat_n(0.5f32, 1000));
+        write_mono_i16(&src, &x, 1000).unwrap();
+        let w = peaks(&src, 4).unwrap();
+        assert_eq!(w.duration, 2.0);
+        assert_eq!(w.peaks.len(), 4);
+        assert_eq!(w.peaks[0], (0.0, 0.0));
+        assert!((w.peaks[3].1 - 0.5).abs() < 1e-3);
+        let dst = d.path().join("cut").join("ref-cut.wav");
+        let len = trim(&src, &dst, 0.75, 1.5).unwrap();
+        assert!((len - 0.75).abs() < 1e-9);
+        let (y, sr) = read_mono(&dst).unwrap();
+        assert_eq!((y.len(), sr), (750, 1000));
+        assert!(y[0].abs() < 1e-3 && (y[400] - 0.5).abs() < 1e-3);
+        assert!(src.exists(), "the original stays");
+        assert!(matches!(trim(&src, &dst, 1.5, 1.5), Err(AudioError::Nothing)));
+    }
+}

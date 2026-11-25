@@ -161,6 +161,48 @@ Before starting, the user allowed a test re-download of Q4_K (22 GB, deleted aft
 - **What**: In the installer E2E, the release build picked up the repository's `.engine\speech.exe` on first run. Searching the working folder now happens only in debug builds.
 - **User impact**: On an installed app's first run, speech.exe is unset until you download it with the button or enter its path.
 
+## Added in turn 4 (2026-11-26, feedback from manual testing)
+
+Requests: (1) a way to stop playback, (2) choosing a Drama-3 voice by text prompt alone (a)(b), (3) a gear icon for settings, (4) trimming reference audio by range.
+
+### D-29 Play buttons toggle to "stop", not "pause" 【仕様の選択】
+- **What**: Every play button (line, take, continuous playback, scene, reference preview, voice list, voice design candidates, range preview) shows ■ while its own playback runs and stops it on a second click. Starting a different playback stops the previous one, and the button returns to ▶. The button returns to ▶ when playback ends. The request allowed either pause or stop; stop was chosen, so playback does not resume from the middle.
+- **Addition**: While something other than continuous playback is playing, a "■ 停止" button appears in the toolbar. Space also stops playback.
+- **User impact**: Pausing and then resuming from the same point is not possible.
+
+### D-30 The settings button is a gear; the model management button loses its gear 【変更】
+- **What**: The settings button (formerly ☰) is now a gear SVG icon. The old "⚙ モデル" button became "モデル管理" (text only), so there are not two gear buttons.
+
+### D-31 The waveform is computed by the Rust side (hound), not decoded with Web Audio 【方式の変更（軽微）】
+- **What**: The request suggested decoding with Web Audio and drawing on a canvas. Instead, `wav_peaks` reads the WAV in Rust and returns 640 min/max pairs, which the front end draws on a canvas.
+- **Why**: Decoding in the WebView would need `fetch` of the asset URL, which means widening the CSP (`connect-src`). Sending only the peak summary keeps the WebView from holding whole audio files, which is lighter.
+- **User impact**: None (no new library; the display is equivalent).
+
+### D-32 Trimming details 【仕様】
+- **What**: Cutting always starts from the original file. The result is written as 16-bit mono to `%APPDATA%\dev.voicestudio.app\voices\trimmed\<name>_<start>-<end>_<id>.wav`, and the original is not changed. The cut is transcribed again automatically (for Drama-3). "元の音声に戻す" (back to the original) is available. The two handles stay at least 0.2 s apart.
+- **Length guide**: 10–30 s is recommended. Under 3 s and over 30 s are warnings; 3–10 s is a note. Nothing is refused.
+- **User impact**: Trimming a multi-channel WAV produces mono (speech voice mixes to mono anyway).
+
+### D-33 Prompt-only voices (a) 【仕様】
+- **What**: A voice record has a `prompt` field (with no file) and is registered with "説明だけで登録" (register the description only). When it is assigned to a cast, generation sends `voice none`, and the description becomes a leading `[..]` cue for Drama-3 or `instructions` for Irodori. If the cast has its own "voice design", that one wins.
+  A prompt-only voice cannot be part of a multi-speaker cast voice file. In a single-request scene, that speaker's description is added as a cue on its first turn.
+- **User impact**: The cast list labels these voices "（説明のみ）" (description only).
+
+### D-34 Fixing a voice from candidates (b): an ASR check of each candidate was added 【追加（要求外）】
+- **What**: As requested, the flow is: description + sample sentence → N candidates with consecutive seeds → listen → "この声で固定" (fix this voice) → `speech voice` with that WAV, using the sample sentence without cues as the transcript.
+  **Addition**: after generation, each candidate is transcribed by ASR automatically. Candidates that look as if they did not read the whole sentence are marked "⚠ 読み切れていない可能性" (may not have read it all), and fixing one asks for confirmation.
+- **Why**: In the E2E, one Drama-3-Japanese candidate (seed 49530482) stopped before the last clause of the sample sentence (「最後まで精一杯がんばりますね」 was missing). Fixing it with the full sentence as its transcript would give a voice whose transcript and audio disagree.
+  The transcript is still the sample sentence, as the request says; ASR is used only to warn. The check compares an LCS of ≥ 75% and the last two characters, because ASR may write kana as kanji (頑張り for がんばり). In the in-app retest, 4 candidates that read the whole sentence all showed ✓.
+- **Other**: Candidates are saved to `<takes folder>\design\` and are not stored in the project (they are cleared when the app restarts). The fixed voice's note records the description and the seed. Irodori uses the same UI (no transcript is needed).
+- **User impact**: Each candidate costs about 1 s of ASR.
+
+### D-35 Debug hook for E2E 【追加】
+- **What**: A window event `vs-add-refs` adds reference audio to the voice library dialog by path. This exists because the native file dialog cannot be driven from a script. It is the same kind of debug handle as `window.__voiceStudio`.
+- **User impact**: None.
+
+### Note: test data
+- The voices made during the E2E remain in the voice library: 落ち着いた女性, 明るい声, the cast voices, 手動キャスト, プロンプト女性, and **固定した女性** (made from a candidate that stopped early; recommended for deletion). They have not been deleted, since that is permanent and needs the user's confirmation.
+
 ---
 
 ## Decisions

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { jobsForLines, mergedOptions, sceneSpeakers, sceneText } from "./jobs";
+import { castVoicing, jobsForLines, mergedOptions, sceneSpeakers, sceneText } from "./jobs";
 import { emptyProject, newCast, newLine } from "../../store/project";
 import type { AdapterDescriptor, Voice } from "../../lib/types";
 
@@ -13,7 +13,7 @@ const drama: AdapterDescriptor = {
   ],
 };
 
-const voice: Voice = { id: "aaaa-bbbb", name: "me", family: "drama3", file: "C:/v/me.voice.gguf", sources: [], speakers: 1, combinedFrom: [], createdAt: 0, note: "" };
+const voice: Voice = { id: "aaaa-bbbb", name: "me", family: "drama3", file: "C:/v/me.voice.gguf", sources: [], speakers: 1, combinedFrom: [], createdAt: 0, note: "", prompt: "" };
 
 describe("jobsForLines", () => {
   it("makes N takes per line with sequential seeds and the cast's voice", () => {
@@ -58,6 +58,28 @@ describe("scenes", () => {
     p.lines = l;
     const ids = l.map((x) => x.id);
     expect(sceneSpeakers(p, ids)).toEqual([b.id, a.id]);
-    expect(sceneText(p, ids, (c) => c === b.id)).toBe("<|speaker:0|> 晴れたね。 <|speaker:1|> [明るい少女]うん！ <|speaker:1|> 行こう。");
+    expect(sceneText(p, ids, (c) => (c === b.id ? null : "明るい少女"))).toBe("<|speaker:0|> 晴れたね。 <|speaker:1|> [明るい少女]うん！ <|speaker:1|> 行こう。");
+  });
+});
+
+describe("prompt voices", () => {
+  const promptVoice: Voice = { ...voice, id: "pv", file: "", prompt: "落ち着いた25歳の女性。" };
+
+  it("sends voice none with the voice's description, unless the cast has its own", () => {
+    const p = emptyProject();
+    const c = newCast("A", 0, { voiceId: "pv" });
+    p.cast.push(c);
+    const ctx = { project: p, voices: [promptVoice], adapter: drama, takesDir: "" };
+    const [j] = jobsForLines(ctx, [newLine({ castId: c.id, text: "ねえ" })], { takesPerLine: 1, seedMode: "random", baseSeed: 0 });
+    expect(j.request.voice).toBeNull();
+    expect(j.voicePath).toBeNull();
+    expect(j.request.designPrompt).toBe("落ち着いた25歳の女性。");
+    expect(castVoicing(ctx, { ...c, designPrompt: "低い男性" }).prompt).toBe("低い男性");
+  });
+
+  it("keeps a voice file and the cast's prompt for a recorded voice", () => {
+    const r = castVoicing({ voices: [voice], adapter: drama }, newCast("B", 0, { voiceId: voice.id }));
+    expect(r.file?.id).toBe(voice.id);
+    expect(r.prompt).toBeNull();
   });
 });

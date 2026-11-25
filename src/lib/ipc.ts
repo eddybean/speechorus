@@ -31,6 +31,10 @@ export const ipc = {
     invoke<Voice>("voice_create", { profileId, name, inputs, note: note ?? null }),
   voiceCombine: (profileId: string, voiceIds: (string | null)[], name?: string) => invoke<Voice | null>("voice_combine", { profileId, voiceIds, name: name ?? null }),
   installSpeech: () => invoke<AppSettings>("install_speech"),
+  wavPeaks: (path: string, buckets: number) => invoke<{ duration: number; sampleRate: number; peaks: [number, number][] }>("wav_peaks", { path, buckets }),
+  wavTrim: (path: string, start: number, end: number) => invoke<string>("wav_trim", { path, start, end }),
+  voiceCreatePrompt: (family: string, name: string, prompt: string, note?: string) =>
+    invoke<Voice>("voice_create_prompt", { family, name, prompt, note: note ?? null }),
   catalogList: () => invoke<CatalogView>("catalog_list"),
   catalogDownload: (modelId: string, variantId: string, destDir: string, licenseAccepted: boolean) =>
     invoke<string>("catalog_download", { modelId, variantId, destDir, licenseAccepted }),

@@ -1,7 +1,7 @@
 // App-wide state: settings, model adapters, engine, queue, voice library, notices.
 import { create } from "zustand";
-import { inTauri, ipc, onAppEvent } from "../lib/ipc";
-import type { DownloadProgress, AdapterDescriptor, AppSettings, EngineState, JobSpec, ModelProfile, Voice } from "../lib/types";
+import { inTauri, ipc, joinPath, onAppEvent } from "../lib/ipc";
+import type { Take, DownloadProgress, AdapterDescriptor, AppSettings, EngineState, JobSpec, ModelProfile, Voice } from "../lib/types";
 import type { BatchSettings } from "../features/generate/jobs";
 import { useProject } from "./project";
 
@@ -31,6 +31,8 @@ interface AppStore {
   jobDurations: number[];
   installing: boolean;
   downloads: Record<string, DownloadProgress>;
+  /** Voice design (prompt → candidates → fixed voice): the jobs in flight and the candidates made. */
+  design: { jobs: Record<string, string>; candidates: DesignCandidate[] };
   installSpeech: () => Promise<void>;
   voices: Voice[];
   batch: BatchSettings;
@@ -68,6 +70,7 @@ export const useApp = create<AppStore>()((set, get) => ({
   jobDurations: [],
   installing: false,
   downloads: {},
+  design: { jobs: {}, candidates: [] },
   installSpeech: async () => {
     if (!confirm("speech.cpp の最新公式リリース（Windows Vulkan 版・約30MB）を GitHub からダウンロードし、SHA-256 を確認して展開します。よろしいですか？")) return;
     set({ installing: true });
@@ -154,10 +157,24 @@ export const useApp = create<AppStore>()((set, get) => ({
         });
         if (q.type === "done") {
           const proj = useProject.getState();
-          if (q.sceneId) proj.addSceneTake(q.sceneId, q.take);
+          const designDir = get().design.jobs[q.jobId];
+          if (designDir !== undefined) {
+            set((s) => {
+              const jobs = { ...s.design.jobs };
+              delete jobs[q.jobId];
+              return { design: { jobs, candidates: [...s.design.candidates, { take: q.take, path: joinPath(designDir, q.take.file) }] } };
+            });
+          } else if (q.sceneId) proj.addSceneTake(q.sceneId, q.take);
           else if (q.lineId) proj.addTake(q.lineId, q.take);
           for (const w of q.warnings) get().notify("warn", w);
           if (q.take.stopReason !== "complete") get().notify("warn", `最大長 (${q.take.stopReason}) で打ち切られました: ${q.take.text.slice(0, 20)}…`);
+        } else if ((q.type === "failed" || q.type === "cancelled") && get().design.jobs[q.jobId] !== undefined) {
+          set((s) => {
+            const jobs = { ...s.design.jobs };
+            delete jobs[q.jobId];
+            return { design: { ...s.design, jobs } };
+          });
+          if (q.type === "failed") get().notify("error", `候補の生成に失敗: ${q.message}`);
         } else if (q.type === "failed") {
           get().notify("error", `生成に失敗: ${q.message}`);
         }
@@ -227,4 +244,11 @@ export function queueEta(remaining: number, durations: number[], runningSince: n
   const mean = durations.reduce((a, b) => a + b, 0) / durations.length;
   const elapsed = runningSince !== null ? Math.min(now - runningSince, mean) : 0;
   return Math.max(0, (mean * remaining - elapsed) / 1000);
+}
+
+export interface DesignCandidate {
+  take: Take;
+  path: string;
+  /** What ASR heard, to catch a candidate that stopped before the end of the sample. */
+  asr?: string;
 }

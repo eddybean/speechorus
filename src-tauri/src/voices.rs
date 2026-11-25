@@ -21,6 +21,9 @@ pub struct Voice {
     pub combined_from: Vec<String>,
     pub created_at: u64,
     pub note: String,
+    /// A voice described in words only (no file): Drama-3 writes it as a leading cue with `voice none`,
+    /// Irodori sends it as `instructions`.
+    pub prompt: String,
 }
 
 impl Voice {
@@ -120,6 +123,10 @@ impl VoiceLibrary {
             let v = self
                 .get(id)
                 .ok_or_else(|| format!("ボイス {id} がありません"))?;
+            if v.file.is_empty() {
+                // A description alone has no recordings: that speaker is left to the model (its cue goes in the text).
+                continue;
+            }
             if v.family != "drama3" {
                 return Err(format!("{} は Drama-3 のボイスではありません", v.name));
             }
@@ -188,6 +195,24 @@ impl VoiceLibrary {
     }
 }
 
+impl VoiceLibrary {
+    /// Records a voice that is a description alone.
+    pub fn add_prompt_voice(&mut self, family: &str, name: &str, prompt: &str, note: &str) -> std::io::Result<Voice> {
+        let v = Voice {
+            id: uuid::Uuid::new_v4().to_string(),
+            name: name.into(),
+            family: family.into(),
+            speakers: 1,
+            prompt: prompt.trim().into(),
+            note: note.into(),
+            created_at: std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_millis() as u64).unwrap_or(0),
+            ..Default::default()
+        };
+        self.insert(v.clone())?;
+        Ok(v)
+    }
+}
+
 pub enum CombinePlan {
     NoneNeeded,
     Existing(Voice),
@@ -247,5 +272,11 @@ mod tests {
         ));
         lib.remove(&vid).unwrap();
         assert!(lib.get(&vid).is_none());
+
+        let pv = lib.add_prompt_voice("drama3", "落ち着いた女性", " 落ち着いた25歳の女性。 ", "").unwrap();
+        assert_eq!(pv.prompt, "落ち着いた25歳の女性。");
+        assert!(pv.file.is_empty());
+        assert!(matches!(lib.plan_combined("m.gguf", &[Some(pv.id.clone())]).unwrap(), CombinePlan::NoneNeeded));
+        assert_eq!(VoiceLibrary::open(&lib.dir).get(&pv.id).unwrap().prompt, "落ち着いた25歳の女性。");
     }
 }

@@ -9,7 +9,8 @@ import type { Cast, Line } from "../../lib/types";
 import { newLine, useProject } from "../../store/project";
 import { useApp } from "../../store/app";
 import { usePlayer } from "../../lib/player";
-import { generateIds, playLine } from "../generate/actions";
+import { generateIds, lineItems, session } from "../generate/actions";
+import { PlayButton } from "../../app/PlayButton";
 
 const PLACEHOLDER = "セリフを入力（[驚いて] などの演技タグ可）";
 
@@ -172,9 +173,7 @@ const Row = memo(function Row({ line, index, cast }: { line: Line; index: number
         {line.takes.some((t) => t.stopReason !== "complete") && <span className="badge warn" title="最大長で打ち切り">!</span>}
       </span>
       <span className="row-actions">
-        <button title="再生" disabled={!line.takes.length} onClick={() => playLine(line.id)}>
-          ▶
-        </button>
+        <PlayButton session={session.line(line.id)} items={() => lineItems(line.id)} disabled={!line.takes.length} />
         {job ? (
           <button title="キャンセル" onClick={() => useApp.getState().cancelLine(line.id)}>
             ■

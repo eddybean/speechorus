@@ -31,6 +31,22 @@ export function castVoice(ctx: Pick<BuildContext, "voices" | "adapter">, cast: C
   return v && v.family === ctx.adapter.id ? v : undefined;
 }
 
+/** True for a voice that is a description alone (no voice file). */
+export function isPromptVoice(v: Voice | undefined): boolean {
+  return !!v && !v.file && !!v.prompt?.trim();
+}
+
+/**
+ * What a cast sends: a voice file, or `voice none` with a description — the cast's own design prompt,
+ * else the prompt voice's (Drama-3 writes it as a leading cue, Irodori sends it as `instructions`).
+ */
+export function castVoicing(ctx: Pick<BuildContext, "voices" | "adapter">, cast: Cast | undefined): { file: Voice | undefined; prompt: string | null } {
+  const v = castVoice(ctx, cast);
+  const own = cast?.designPrompt?.trim() ?? "";
+  if (isPromptVoice(v)) return { file: undefined, prompt: own || v!.prompt.trim() };
+  return { file: v, prompt: own || null };
+}
+
 function stem(line: Line, k: number) {
   return `${line.id.slice(0, 8)}-${Date.now().toString(36)}-${k}`;
 }
@@ -41,7 +57,7 @@ export function jobsForLines(ctx: BuildContext, lines: Line[], batch: BatchSetti
   for (const line of lines) {
     if (!line.text.trim()) continue;
     const cast = ctx.project.cast.find((c) => c.id === line.castId);
-    const voice = castVoice(ctx, cast);
+    const { file: voice, prompt } = castVoicing(ctx, cast);
     for (let k = 0; k < Math.max(1, batch.takesPerLine); k++) {
       jobs.push({
         jobId: uid(),
@@ -51,7 +67,7 @@ export function jobsForLines(ctx: BuildContext, lines: Line[], batch: BatchSetti
           text: line.text,
           voice: voice ? workerVoiceName(voice.id) : null,
           voiceFamily: voice ? voice.family : null,
-          designPrompt: cast?.designPrompt?.trim() ? cast.designPrompt : null,
+          designPrompt: prompt,
           options: mergedOptions(ctx.adapter, cast, line),
           seed: seedFor(batch.seedMode, batch.baseSeed, k),
         },
@@ -81,8 +97,9 @@ export function sceneSpeakers(project: Project, lineIds: string[]): string[] {
   return order.slice(0, 16);
 }
 
-/** The single-request text of a scene: `<|speaker:N|> text` per line; a cast without a voice gets its design cue on its first turn. */
-export function sceneText(project: Project, lineIds: string[], hasVoice: (castId: string) => boolean): string {
+/** The single-request text of a scene: `<|speaker:N|> text` per line; `cueFor` gives the description a speaker
+ *  without a voice file gets as a cue on its first turn (null when it has one). */
+export function sceneText(project: Project, lineIds: string[], cueFor: (castId: string) => string | null): string {
   const speakers = sceneSpeakers(project, lineIds);
   const cued = new Set<string>();
   const parts: string[] = [];
@@ -92,10 +109,10 @@ export function sceneText(project: Project, lineIds: string[], hasVoice: (castId
     const c = l.castId ?? "";
     const n = speakers.indexOf(c);
     if (n < 0) continue;
-    const cast = project.cast.find((x) => x.id === c);
     let cue = "";
-    if (cast?.designPrompt.trim() && !hasVoice(c) && !cued.has(c)) {
-      cue = `[${cast.designPrompt.trim().replace(/^\[|\]$/g, "")}]`;
+    const desc = cueFor(c)?.trim();
+    if (desc && !cued.has(c)) {
+      cue = `[${desc.replace(/^\[|\]$/g, "")}]`;
       cued.add(c);
     }
     parts.push(`<|speaker:${n}|> ${cue}${l.text.trim()}`);

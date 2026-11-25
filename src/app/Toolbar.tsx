@@ -1,7 +1,8 @@
 import { queueEta, useApp } from "../store/app";
 import { useProject } from "../store/project";
 import { usePlayer } from "../lib/player";
-import { generateAll, generateMissing, generateSelected, createScene, playFrom } from "../features/generate/actions";
+import { generateAll, generateMissing, generateSelected, createScene, fromItems, session } from "../features/generate/actions";
+import { PlayButton } from "./PlayButton";
 import { importScript, newProject, openProject, saveProject } from "../features/project/fileOps";
 import type { SeedMode } from "../lib/text";
 import { copyLines, pasteLines } from "../features/script/clipboard";
@@ -19,7 +20,7 @@ export function Toolbar() {
   const name = useProject((s) => s.project.name);
   const selection = useProject((s) => s.selection);
   const activeLineId = useProject((s) => s.activeLineId);
-  const playing = usePlayer((s) => s.playingKey);
+  const playingOther = usePlayer((s) => s.sessionKey !== null && s.sessionKey !== session.sequence);
   const app = useApp.getState;
   // The profile chosen in the selector; the engine may still run another one until "切替".
   const prof = useApp((s) => s.settings?.profiles.find((p) => p.id === s.settings?.activeProfileId) ?? s.settings?.profiles[0]);
@@ -89,7 +90,7 @@ export function Toolbar() {
           ⤓ モデルを入手
         </button>
         <button onClick={() => app().openDialog("models")} title="モデル管理">
-          ⚙ モデル
+          モデル管理
         </button>
       </div>
       <div className="group gen">
@@ -127,18 +128,27 @@ export function Toolbar() {
         )}
       </div>
       <div className="group">
-        {playing ? (
-          <button onClick={() => usePlayer.getState().stop()}>■ 停止</button>
-        ) : (
-          <button onClick={() => playFrom(activeLineId)} title="選択行から連続再生">
-            ▶ 連続再生
+        <PlayButton session={session.sequence} items={() => fromItems(activeLineId)} title="選択行から連続再生" label="連続再生" />
+        {playingOther && (
+          <button onClick={() => usePlayer.getState().stop()} title="再生中の音声を止める">
+            ■ 停止
           </button>
         )}
         <button onClick={() => app().openDialog("export")}>⤓ 書き出し</button>
-        <button onClick={() => app().openDialog("settings")} title="設定">
-          ☰
+        <button className="icon" onClick={() => app().openDialog("settings")} title="設定" aria-label="設定">
+          <GearIcon />
         </button>
       </div>
     </header>
+  );
+}
+
+/** The usual settings cog. */
+export function GearIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="3" />
+      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+    </svg>
   );
 }
