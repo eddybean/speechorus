@@ -165,10 +165,20 @@ Before starting, the user allowed a test re-download of Q4_K (22 GB, deleted aft
 
 Requests: (1) a way to stop playback, (2) choosing a Drama-3 voice by text prompt alone (a)(b), (3) a gear icon for settings, (4) trimming reference audio by range.
 
-### D-29 Play buttons toggle to "stop", not "pause" 【仕様の選択】
-- **What**: Every play button (line, take, continuous playback, scene, reference preview, voice list, voice design candidates, range preview) shows ■ while its own playback runs and stops it on a second click. Starting a different playback stops the previous one, and the button returns to ▶. The button returns to ▶ when playback ends. The request allowed either pause or stop; stop was chosen, so playback does not resume from the middle.
-- **Addition**: While something other than continuous playback is playing, a "■ 停止" button appears in the toolbar. Space also stops playback.
-- **User impact**: Pausing and then resuming from the same point is not possible.
+### D-29 Play buttons toggle pause/resume 【仕様の選択 → 2026-11-26 ユーザー判断で「一時停止」に変更（turn 5）】
+- **History**: Turn 4 implemented "stop" (no resuming from the middle). The user decided "一時停止に変える" (change it to pause), so turn 5 changed it to the following.
+- **What (now)**: Every play button (line, take, continuous playback, scene, reference preview, voice list, voice design candidates, range preview) works like this:
+  - ▶ plays; pressing it while playing pauses (⏸); pressing it again resumes from **the same point** (while paused, the button shows a highlighted ▶ with the tooltip 「再開」 (resume)).
+  - When playback reaches the end, the button returns to ▶, and the next press plays from the start.
+  - Starting a different playback **stops** the previous one and drops its position.
+  - Continuous playback: resuming after a pause continues from the same point of the same line and then plays the following lines. A pause during the silence between lines resumes with the **rest of that silence** (the silence after one line and before the next is treated as one pausable wait).
+  - Stopping and going back to the start: while anything is playing or paused, a "■ 停止" button is shown in the toolbar.
+  - Space: toggles pause/resume while something is playing or paused. With nothing playing, it plays the active line.
+- **Verification (real app)**:
+  - One line (4.88 s): play 1 s → pause 2 s → resume; it ended at 7.03 s, which equals the take's length plus the pause, so the position was kept.
+  - Continuous playback: a pause 1 s into the 2 s silence, held for 3 s, resumed with the remaining 1.0 s. A pause 1 s into line 2, held for 2 s, resumed and continued to line 3. Ended at 17.8 s (expected 17.59 s).
+  - Space toggles pause/resume, and ■ stop returns to the start.
+- **User impact**: None (as requested).
 
 ### D-30 The settings button is a gear; the model management button loses its gear 【変更】
 - **What**: The settings button (formerly ☰) is now a gear SVG icon. The old "⚙ モデル" button became "モデル管理" (text only), so there are not two gear buttons.

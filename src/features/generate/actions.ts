@@ -97,11 +97,13 @@ export const session = {
   sequence: "sequence",
 };
 
-/** Space: stop whatever plays, else play the active line's take. */
+/** Space: pause or resume what plays, else play the active line's take. */
 export function togglePlay() {
   const p = usePlayer.getState();
-  if (p.sessionKey) p.stop();
-  else {
+  if (p.sessionKey) {
+    if (p.paused) p.resume();
+    else p.pause();
+  } else {
     const { activeLineId, selection } = useProject.getState();
     const id = activeLineId ?? selection[0];
     if (id) p.play(lineItems(id), session.line(id));

@@ -20,7 +20,8 @@ export function Toolbar() {
   const name = useProject((s) => s.project.name);
   const selection = useProject((s) => s.selection);
   const activeLineId = useProject((s) => s.activeLineId);
-  const playingOther = usePlayer((s) => s.sessionKey !== null && s.sessionKey !== session.sequence);
+  // Stop (back to the start) is offered whenever anything plays or is paused.
+  const active = usePlayer((s) => s.sessionKey !== null);
   const app = useApp.getState;
   // The profile chosen in the selector; the engine may still run another one until "切替".
   const prof = useApp((s) => s.settings?.profiles.find((p) => p.id === s.settings?.activeProfileId) ?? s.settings?.profiles[0]);
@@ -129,8 +130,8 @@ export function Toolbar() {
       </div>
       <div className="group">
         <PlayButton session={session.sequence} items={() => fromItems(activeLineId)} title="選択行から連続再生" label="連続再生" />
-        {playingOther && (
-          <button onClick={() => usePlayer.getState().stop()} title="再生中の音声を止める">
+        {active && (
+          <button onClick={() => usePlayer.getState().stop()} title="停止（位置を破棄して頭に戻す）">
             ■ 停止
           </button>
         )}
