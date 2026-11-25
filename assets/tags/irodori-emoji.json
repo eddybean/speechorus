@@ -1,0 +1,245 @@
+{
+ "id": "irodori-emoji",
+ "syntax": "emoji",
+ "source": "Aratako/Irodori-TTS irodori_tts/gradio_emoji_palette.py",
+ "categories": [
+  {
+   "id": "all",
+   "label": "絵文字タグ",
+   "tags": [
+    {
+     "tag": "👂",
+     "label": "囁き",
+     "help": "耳元の音"
+    },
+    {
+     "tag": "😮‍💨",
+     "label": "吐息",
+     "help": "溜息、寝息"
+    },
+    {
+     "tag": "⏸️",
+     "label": "間",
+     "help": "沈黙"
+    },
+    {
+     "tag": "🤭",
+     "label": "笑い",
+     "help": "くすくす、含み笑い"
+    },
+    {
+     "tag": "📢",
+     "label": "エコー",
+     "help": "リバーブ"
+    },
+    {
+     "tag": "😏",
+     "label": "からかう",
+     "help": "甘えるように"
+    },
+    {
+     "tag": "🥺",
+     "label": "震え声",
+     "help": "自信なさげに"
+    },
+    {
+     "tag": "🌬️",
+     "label": "息切れ",
+     "help": "荒い息遣い、呼吸音"
+    },
+    {
+     "tag": "😮",
+     "label": "息をのむ",
+     "help": "Gasp"
+    },
+    {
+     "tag": "💋",
+     "label": "リップノイズ",
+     "help": "Lip smack"
+    },
+    {
+     "tag": "🫶",
+     "label": "優しく",
+     "help": "Tenderly"
+    },
+    {
+     "tag": "😭",
+     "label": "泣き声",
+     "help": "嗚咽、悲しみ"
+    },
+    {
+     "tag": "😱",
+     "label": "悲鳴",
+     "help": "叫び、絶叫"
+    },
+    {
+     "tag": "😪",
+     "label": "眠そう",
+     "help": "気だるげに"
+    },
+    {
+     "tag": "😴",
+     "label": "寝言",
+     "help": "いびき"
+    },
+    {
+     "tag": "⏩",
+     "label": "早口",
+     "help": "一気に、急いで"
+    },
+    {
+     "tag": "📞",
+     "label": "電話越し",
+     "help": "スピーカー越し"
+    },
+    {
+     "tag": "🐢",
+     "label": "ゆっくり",
+     "help": "Slowly"
+    },
+    {
+     "tag": "🥤",
+     "label": "飲み込む",
+     "help": "唾を飲む音"
+    },
+    {
+     "tag": "🤧",
+     "label": "咳・鼻",
+     "help": "咳き込み、鼻すすり"
+    },
+    {
+     "tag": "😒",
+     "label": "舌打ち",
+     "help": "Tutting"
+    },
+    {
+     "tag": "😰",
+     "label": "慌てる",
+     "help": "動揺、緊張、どもり"
+    },
+    {
+     "tag": "😆",
+     "label": "喜び",
+     "help": "嬉しそうに"
+    },
+    {
+     "tag": "💥",
+     "label": "勢いよく",
+     "help": "力強い勢い"
+    },
+    {
+     "tag": "😠",
+     "label": "怒り",
+     "help": "不満げ、拗ねる"
+    },
+    {
+     "tag": "😲",
+     "label": "驚き",
+     "help": "感嘆"
+    },
+    {
+     "tag": "🥱",
+     "label": "あくび",
+     "help": "Yawn"
+    },
+    {
+     "tag": "😖",
+     "label": "苦しげ",
+     "help": "Agonizingly"
+    },
+    {
+     "tag": "😟",
+     "label": "心配",
+     "help": "不安そうに"
+    },
+    {
+     "tag": "🫣",
+     "label": "照れ",
+     "help": "恥ずかしそうに"
+    },
+    {
+     "tag": "🙄",
+     "label": "呆れ",
+     "help": "Exasperatedly"
+    },
+    {
+     "tag": "😊",
+     "label": "楽しげ",
+     "help": "嬉しそうに"
+    },
+    {
+     "tag": "😎",
+     "label": "得意げ",
+     "help": "自信ありげに"
+    },
+    {
+     "tag": "👌",
+     "label": "相槌",
+     "help": "頷く音"
+    },
+    {
+     "tag": "🙏",
+     "label": "懇願",
+     "help": "お願いするように"
+    },
+    {
+     "tag": "🥴",
+     "label": "酔う",
+     "help": "Drunkenly"
+    },
+    {
+     "tag": "🎵",
+     "label": "鼻歌",
+     "help": "Humming"
+    },
+    {
+     "tag": "🤐",
+     "label": "口を塞ぐ",
+     "help": "Muffled"
+    },
+    {
+     "tag": "😌",
+     "label": "安堵",
+     "help": "満足げに"
+    },
+    {
+     "tag": "🤔",
+     "label": "疑問",
+     "help": "Questioning"
+    },
+    {
+     "tag": "💪",
+     "label": "力強く",
+     "help": "力を込めて"
+    },
+    {
+     "tag": "👃",
+     "label": "嗅ぐ音",
+     "help": "匂いを嗅ぐ音"
+    },
+    {
+     "tag": "📖",
+     "label": "朗読",
+     "help": "ナレーション"
+    }
+   ]
+  },
+  {
+   "id": "nsfw",
+   "label": "NSFW",
+   "nsfw": true,
+   "tags": [
+    {
+     "tag": "🥵",
+     "label": "喘ぎ",
+     "help": "うめき声、唸り声"
+    },
+    {
+     "tag": "👅",
+     "label": "舐める音",
+     "help": "咀嚼音、水音"
+    }
+   ]
+  }
+ ]
+}
