@@ -1,4 +1,4 @@
-# Voice Studio
+# Speechorus
 
 A lightweight Japanese TTS studio (Tauri 2 + React) that uses [speech.cpp](https://github.com/nyosegawa/speech.cpp) as its engine.
 The main model is **Drama-3-Japanese** (`StudioYebisu-ship-it/Drama-3-Japanese-speech-cpp-gguf`). **Irodori-TTS** is also supported, and you can switch between them.
@@ -32,7 +32,7 @@ npm run test:rust          # cargo test (mock worker)
 npx tauri build --no-bundle
 ```
 
-`speech.exe` is looked up in this order: the `VOICE_STUDIO_SPEECH` environment variable, next to the executable (`speech/speech.exe`, `speech.exe`), then `.engine/speech.exe` (for development).
+`speech.exe` is looked up in this order: the `SPEECHORUS_SPEECH` environment variable, next to the executable (`speech/speech.exe`, `speech.exe`), then `.engine/speech.exe` (for development).
 
 E2E tests against the real engine (only when the environment variables are set):
 

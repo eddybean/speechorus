@@ -39,7 +39,7 @@ They are listed under "Decisions pending" at the end.
 - **User impact**: Undo cannot cancel "a take was generated" (delete the take instead). A deleted take's WAV is removed from disk on the next save, so Undo can bring it back until then.
 
 ### D-06 The voice library is global to the app, not stored per project 【変更】
-- **What**: Voices are stored in `%APPDATA%\dev.voicestudio.app\voices\`, and reference WAVs are copied there. A project refers to a voice only by ID.
+- **What**: Voices are stored in `%APPDATA%\dev.speechorus.app\voices\`, and reference WAVs are copied there. A project refers to a voice only by ID.
 - **Why**: The plan did not specify where voices live. It makes the same voice reusable across projects.
 - **User impact**: Moving a `.vsproj` to another PC does not bring its voices along (cast voices show as unavailable).
 
@@ -63,7 +63,7 @@ They are listed under "Decisions pending" at the end.
 - **Why**: Both options carry security and dependency trade-offs. The official procedure (`irm …/install.ps1 | iex`) **runs a remote script as is**. Downloading the zip inside the app would add an HTTP dependency to the Rust side (the GUI binary grows).
 - **Alternatives**: (a) a button that runs the official install.ps1 after a confirmation dialog; (b) a button that opens the release page in the browser; (c) download the zip, check the SHA256SUMS, extract.
 - **Decision (user, 2026-11-26)**: (c). Implemented: the "⤓ Download speech.cpp" button in model management and in Settings.
-  It gets the latest release through the GitHub API, checks it against SHA256SUMS, and extracts it into `%LOCALAPPDATA%\dev.voicestudio.app\speech\<tag>\`, refusing paths that would escape the folder. **install.ps1 is not run.**
+  It gets the latest release through the GitHub API, checks it against SHA256SUMS, and extracts it into `%LOCALAPPDATA%\dev.speechorus.app\speech\<tag>\`, refusing paths that would escape the folder. **install.ps1 is not run.**
 - **User impact**: The button does not add speech.exe to PATH (unlike install.ps1). The settings and every profile whose speech.exe is missing or unset now point at the downloaded speech.exe. See D-20 for the size increase.
 
 ### D-11 Queue ETA 【実装済み（承認により v1 で実装）】
@@ -97,12 +97,12 @@ They are listed under "Decisions pending" at the end.
 
 ### D-18 The installer (NSIS) build 【検証済み（turn 3）】
 - **What**: Up to turn 2, the E2E used the `tauri build --no-bundle` executable.
-- **Turn 3 result**: Built `Voice Studio_0.1.0_x64-setup.exe` (2.04 MiB). A silent per-user install (`/S`) went to `%LOCALAPPDATA%\Voice Studio`, and the uninstall entry was registered in HKCU.
+- **Turn 3 result**: Built `Speechorus_0.1.0_x64-setup.exe` (2.04 MiB). A silent per-user install (`/S`) went to `%LOCALAPPDATA%\Speechorus`, and the uninstall entry was registered in HKCU.
   With the settings moved aside to simulate a first run, the following all worked: start → download speech.cpp from Settings (SHA checked) → Drama-3 Q4_K from the catalog (an existing file in the destination is SHA-checked and reused) → profile created automatically → engine started → generation.
   A silent uninstall removed the install folder and the uninstall entry. See D-27 for what stays behind and D-28 for the bug this found.
 
 ### D-19 Debug handle in the GUI 【追加】
-- **What**: `window.__voiceStudio` exposes the stores and actions (for E2E driven over the DevTools protocol).
+- **What**: `window.__speechorus` exposes the stores and actions (for E2E driven over the DevTools protocol).
 - **User impact**: None (it is accessible from the WebView only, and DevTools is disabled in the release build unless an environment variable is set).
 
 ## Added in turn 2 (2026-11-26, after the decisions)
@@ -110,7 +110,7 @@ They are listed under "Decisions pending" at the end.
 ### D-20 The GUI binary gained an HTTP client and zip extraction 【変更】
 - **What**: The Rust side now depends on `ureq` (rustls), `zip` (deflate only), `sha2` and `hex`, for D-10.
 - **Why**: The user chose the in-app download (c).
-- **User impact**: The release build `voice-studio.exe` is 5.2 MB. The memory used while running is unchanged, since the code only runs during a download.
+- **User impact**: The release build `speechorus.exe` is 5.2 MB. The memory used while running is unchanged, since the code only runs during a download.
 
 ### D-21 The `voice_combine` command takes a name 【追加】
 - **What**: An optional `name` was added to name the manual cast voices of D-13. Automatic merging for scenes still names voices as before.
@@ -124,7 +124,7 @@ Requested through the planning session: download models from inside the app, and
 Before starting, the user allowed a test re-download of Q4_K (22 GB, deleted afterwards) and running the installer.
 
 ### D-22 The model catalog is a JSON file bundled with the app; local overrides are possible 【追加・方式】
-- **What**: `assets/models/catalog.json` is built into the app, and `%APPDATA%\dev.voicestudio.app\catalog.json` replaces it when present. The app does not fetch the catalog from the network.
+- **What**: `assets/models/catalog.json` is built into the app, and `%APPDATA%\dev.speechorus.app\catalog.json` replaces it when present. The app does not fetch the catalog from the network.
 - **Why**: Downloading a catalog from a remote source would be another trust boundary. A local file is enough to keep it up to date.
 - **User impact**: Catalog changes reach users with an app update, or by placing the override file by hand.
 
@@ -146,7 +146,7 @@ Before starting, the user allowed a test re-download of Q4_K (22 GB, deleted aft
 - Sidecars are fetched first. A matching file already in the destination is SHA-checked and kept (22 GB took 38 s).
 - The free-space check requires the remaining bytes + 1 GiB.
 - On a SHA mismatch the `.part` file is deleted and an error is shown.
-- Default destination: `%LOCALAPPDATA%\dev.voicestudio.app\models\<model id>` (can be changed).
+- Default destination: `%LOCALAPPDATA%\dev.speechorus.app\models\<model id>` (can be changed).
 - A completed synthesis model gets the profile `<model id>-<variant>` (one with the same id is replaced) and it is selected. Drama-3 gets the three Vulkan env vars and `Vulkan0`. A completed ASR model becomes the transcription model in the settings.
 
 ### D-26 License consent is asked per download and not stored 【仕様】
@@ -154,7 +154,7 @@ Before starting, the user allowed a test re-download of Q4_K (22 GB, deleted aft
 - **User impact**: You agree again on every download (consent is not recorded).
 
 ### D-27 Uninstalling keeps user data 【仕様（Tauri 既定）】
-- **What**: A silent uninstall keeps `%APPDATA%\dev.voicestudio.app` (settings, voices) and `%LOCALAPPDATA%\dev.voicestudio.app` (the downloaded speech.cpp, models, takes of untitled projects). The interactive uninstaller has Tauri's "delete app data" checkbox, but **the interactive uninstall was not verified**.
+- **What**: A silent uninstall keeps `%APPDATA%\dev.speechorus.app` (settings, voices) and `%LOCALAPPDATA%\dev.speechorus.app` (the downloaded speech.cpp, models, takes of untitled projects). The interactive uninstaller has Tauri's "delete app data" checkbox, but **the interactive uninstall was not verified**.
 - **User impact**: Removing the app completely means deleting these folders as well (models can be large).
 
 ### D-28 The development-time speech.exe search (`.engine` under the working folder) is limited to debug builds 【バグ修正】
@@ -189,7 +189,7 @@ Requests: (1) a way to stop playback, (2) choosing a Drama-3 voice by text promp
 - **User impact**: None (no new library; the display is equivalent).
 
 ### D-32 Trimming details 【仕様】
-- **What**: Cutting always starts from the original file. The result is written as 16-bit mono to `%APPDATA%\dev.voicestudio.app\voices\trimmed\<name>_<start>-<end>_<id>.wav`, and the original is not changed. The cut is transcribed again automatically (for Drama-3). "元の音声に戻す" (back to the original) is available. The two handles stay at least 0.2 s apart.
+- **What**: Cutting always starts from the original file. The result is written as 16-bit mono to `%APPDATA%\dev.speechorus.app\voices\trimmed\<name>_<start>-<end>_<id>.wav`, and the original is not changed. The cut is transcribed again automatically (for Drama-3). "元の音声に戻す" (back to the original) is available. The two handles stay at least 0.2 s apart.
 - **Length guide**: 10–30 s is recommended. Under 3 s and over 30 s are warnings; 3–10 s is a note. Nothing is refused.
 - **User impact**: Trimming a multi-channel WAV produces mono (speech voice mixes to mono anyway).
 
@@ -207,8 +207,27 @@ Requests: (1) a way to stop playback, (2) choosing a Drama-3 voice by text promp
 - **User impact**: Each candidate costs about 1 s of ASR.
 
 ### D-35 Debug hook for E2E 【追加】
-- **What**: A window event `vs-add-refs` adds reference audio to the voice library dialog by path. This exists because the native file dialog cannot be driven from a script. It is the same kind of debug handle as `window.__voiceStudio`.
+- **What**: A window event `vs-add-refs` adds reference audio to the voice library dialog by path. This exists because the native file dialog cannot be driven from a script. It is the same kind of debug handle as `window.__speechorus`.
 - **User impact**: None.
+
+### D-36 The app is renamed from Voice Studio to Speechorus 【仕様（ユーザー決定）】
+- **What**: The temporary name "Voice Studio" clashed with existing software, so the app is now **Speechorus** (Speech + Chorus). A web search found no product with a similar name; trademark databases were not checked.
+  - `productName`, the window title and the UI strings are now Speechorus.
+  - The bundle identifier is `dev.voicestudio.app` → `dev.speechorus.app`, which moves the data folders to `%APPDATA%\dev.speechorus.app\` and `%LOCALAPPDATA%\dev.speechorus.app\`.
+  - The NSIS install folder is now `%LOCALAPPDATA%\Speechorus`.
+  - The Cargo package is `speechorus` (exe `speechorus.exe`, lib `speechorus_lib`) and the npm package is `speechorus`.
+  - The User-Agents are `speechorus-downloader` and `speechorus-installer`.
+  - The debug handle is `window.__speechorus`.
+  - The environment variable is `VOICE_STUDIO_SPEECH` → `SPEECHORUS_SPEECH`.
+- **Not changed (user decision)**:
+  - Data in the old folders is **not migrated**: settings, voices and downloaded speech.cpp and models start empty under the new identifier.
+  - The old environment variable name is **not read**.
+  - The project file extension stays `.vsproj`.
+  - The internal event `vs-add-refs` and the repository folder `voice-studio` keep their names.
+- **Docs**: The paths and names in the entries above were rewritten to the new names. Those entries were verified while the app was still called Voice Studio (for example, the Turn 3 installer was `Voice Studio_0.1.0_x64-setup.exe`).
+- **User impact**:
+  - An existing install keeps its old folder and uninstall entry; uninstall it separately.
+  - Voices and models must be registered or downloaded again, or the old folders copied by hand.
 
 ### Note: test data
 - The voices made during the E2E remain in the voice library: 落ち着いた女性, 明るい声, the cast voices, 手動キャスト, プロンプト女性, and **固定した女性** (made from a candidate that stopped early; recommended for deletion). They have not been deleted, since that is permanent and needs the user's confirmation.

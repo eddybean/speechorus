@@ -1,12 +1,12 @@
 [package]
-name = "voice-studio"
+name = "speechorus"
 version = "0.1.0"
 description = "Japanese TTS studio GUI for speech.cpp"
 edition = "2021"
 license = "MIT"
 
 [lib]
-name = "voice_studio_lib"
+name = "speechorus_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]

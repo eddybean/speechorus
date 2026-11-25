@@ -16,7 +16,7 @@ pub enum EngineError {
     NotRunning,
     #[error("the engine could not start: {0}")]
     Fatal(WorkerError),
-    #[error("the engine speaks protocol {0}; Voice Studio needs {PROTOCOL}")]
+    #[error("the engine speaks protocol {0}; Speechorus needs {PROTOCOL}")]
     Protocol(u64),
     #[error("the engine exited: {0}")]
     Exited(String),

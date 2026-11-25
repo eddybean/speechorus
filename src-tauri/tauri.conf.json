@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Voice Studio",
+  "productName": "Speechorus",
   "version": "0.1.0",
-  "identifier": "dev.voicestudio.app",
+  "identifier": "dev.speechorus.app",
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",
@@ -11,7 +11,7 @@
   },
   "app": {
     "windows": [
-      { "title": "Voice Studio", "width": 1400, "height": 880, "minWidth": 960, "minHeight": 600 }
+      { "title": "Speechorus", "width": 1400, "height": 880, "minWidth": 960, "minHeight": 600 }
     ],
     "security": {
       "csp": "default-src 'self'; img-src 'self' asset: http://asset.localhost data:; media-src 'self' asset: http://asset.localhost; style-src 'self' 'unsafe-inline'",

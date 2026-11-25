@@ -10,7 +10,7 @@ use sha2::{Digest, Sha256};
 
 pub const REPO: &str = "nyosegawa/speech.cpp";
 const ASSET_SUFFIX: &str = "windows-x64-vulkan.zip";
-const UA: &str = "voice-studio-installer";
+const UA: &str = "speechorus-installer";
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]

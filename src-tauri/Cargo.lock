@@ -3241,6 +3241,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "speechorus"
+version = "0.1.0"
+dependencies = [
+ "base64 0.22.1",
+ "hex",
+ "hound",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "tauri",
+ "tauri-build",
+ "tauri-plugin-dialog",
+ "tempfile",
+ "thiserror 2.0.21",
+ "tokio",
+ "ureq",
+ "uuid",
+ "zip",
+]
+
+[[package]]
 name = "stable_deref_trait"
 version = "1.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4163,27 +4184,6 @@ name = "version_check"
 version = "0.9.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
-
-[[package]]
-name = "voice-studio"
-version = "0.1.0"
-dependencies = [
- "base64 0.22.1",
- "hex",
- "hound",
- "serde",
- "serde_json",
- "sha2 0.10.9",
- "tauri",
- "tauri-build",
- "tauri-plugin-dialog",
- "tempfile",
- "thiserror 2.0.21",
- "tokio",
- "ureq",
- "uuid",
- "zip",
-]
 
 [[package]]
 name = "vswhom"

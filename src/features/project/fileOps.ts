@@ -18,7 +18,7 @@ export async function newProject() {
 
 export async function openProject(path?: string) {
   if (!confirmDiscard()) return;
-  const p = path ?? (await open({ multiple: false, filters: [{ name: "Voice Studio", extensions: ["vsproj"] }] }));
+  const p = path ?? (await open({ multiple: false, filters: [{ name: "Speechorus", extensions: ["vsproj"] }] }));
   if (!p) return;
   try {
     const r = await ipc.projectLoad(String(p));
@@ -34,7 +34,7 @@ export async function saveProject(as = false): Promise<boolean> {
   const st = useProject.getState();
   let path = st.path;
   if (as || !path) {
-    const p = await save({ defaultPath: `${st.project.name}.vsproj`, filters: [{ name: "Voice Studio", extensions: ["vsproj"] }] });
+    const p = await save({ defaultPath: `${st.project.name}.vsproj`, filters: [{ name: "Speechorus", extensions: ["vsproj"] }] });
     if (!p) return false;
     path = String(p);
   }

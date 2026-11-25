@@ -1,4 +1,4 @@
-//! Voice Studio core: a GUI for speech.cpp.
+//! Speechorus core: a GUI for speech.cpp.
 
 pub mod audio;
 mod commands;
@@ -24,7 +24,7 @@ use events::{AppEvent, Emit};
 
 /// Where a bundled or development `speech.exe` is, if any.
 fn find_speech_exe() -> String {
-    if let Ok(p) = std::env::var("VOICE_STUDIO_SPEECH") {
+    if let Ok(p) = std::env::var("SPEECHORUS_SPEECH") {
         return p;
     }
     let mut c: Vec<PathBuf> = Vec::new();
@@ -144,7 +144,7 @@ pub fn run() {
             commands::default_models_dir,
         ])
         .build(tauri::generate_context!())
-        .expect("error while building Voice Studio")
+        .expect("error while building Speechorus")
         .run(|app, ev| {
             if let tauri::RunEvent::ExitRequested { .. } = ev {
                 let st = app.state::<AppState>();

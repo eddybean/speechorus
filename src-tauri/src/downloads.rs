@@ -291,7 +291,7 @@ pub fn fetch_file(id: &str, url: &str, dest: &Path, size: u64, sha256: &str, can
         have = n;
     }
     let agent = ureq::AgentBuilder::new().timeout_connect(Duration::from_secs(20)).timeout_read(Duration::from_secs(60)).build();
-    let mut req = agent.get(url).set("User-Agent", "voice-studio-downloader");
+    let mut req = agent.get(url).set("User-Agent", "speechorus-downloader");
     if have > 0 && have < size {
         req = req.set("Range", &format!("bytes={have}-"));
     }

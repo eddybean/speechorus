@@ -86,7 +86,7 @@ export function App() {
     };
   }, []);
 
-  if (!ready) return <div className="loading">Voice Studio を起動しています…</div>;
+  if (!ready) return <div className="loading">Speechorus を起動しています…</div>;
   return (
     <div className="app">
       <Toolbar />

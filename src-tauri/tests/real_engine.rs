@@ -7,11 +7,11 @@
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use voice_studio_lib::engine::{EngineState, EngineSupervisor};
-use voice_studio_lib::events::{AppEvent, Emit};
-use voice_studio_lib::jobs::{GenerationQueue, JobSpec, QueueEvent, TakeResult};
-use voice_studio_lib::models::LineRequest;
-use voice_studio_lib::settings::ModelProfile;
+use speechorus_lib::engine::{EngineState, EngineSupervisor};
+use speechorus_lib::events::{AppEvent, Emit};
+use speechorus_lib::jobs::{GenerationQueue, JobSpec, QueueEvent, TakeResult};
+use speechorus_lib::models::LineRequest;
+use speechorus_lib::settings::ModelProfile;
 
 fn env(k: &str) -> Option<String> {
     std::env::var(k).ok().filter(|s| !s.is_empty())

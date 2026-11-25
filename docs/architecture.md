@@ -1,4 +1,4 @@
-# Voice Studio: a GUI for speech.cpp (Drama-3-Japanese first, Irodori-TTS second)
+# Speechorus: a GUI for speech.cpp (Drama-3-Japanese first, Irodori-TTS second)
 
 ## Context
 The goal is an easy-to-use Japanese TTS app built mainly around Drama-3-Japanese (`StudioYebisu-ship-it/Drama-3-Japanese-speech-cpp-gguf`). Model switching (Irodori-TTS and others) is part of the design from the start. `E:\Work\src\voice-studio` is empty and not a git repository, so this is a new build. This session only does research and planning. **Implementation and testing are handed to a separate new session.**
@@ -31,7 +31,7 @@ The goal is an easy-to-use Japanese TTS app built mainly around Drama-3-Japanese
 ## Architecture
 
 ```
-┌──────────── Tauri app (voice-studio) ────────────┐
+┌───────────── Tauri app (speechorus) ─────────────┐
 │ React UI (WebView2)                               │
 │   ScriptEditor / TagPalette / VoiceLibrary /      │
 │   TakePanel / ModelManager / ExportDialog         │
@@ -117,7 +117,7 @@ The goal is an easy-to-use Japanese TTS app built mainly around Drama-3-Japanese
 
 ## Repository layout (proposed)
 ```
-voice-studio/
+voice-studio/   (repository folder; the app was renamed to Speechorus, see D-36)
   src-tauri/            Rust: main.rs, engine/, models/{mod,drama3,irodori}.rs, jobs/, project/, audio/
   src/                  React: app/, features/{script,tags,voices,takes,models,export}/, lib/ipc.ts
   assets/tags/          drama3.json (built from TAG_LIST.md), irodori-emoji.json

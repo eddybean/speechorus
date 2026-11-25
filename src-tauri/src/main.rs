@@ -1,5 +1,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    voice_studio_lib::run()
+    speechorus_lib::run()
 }

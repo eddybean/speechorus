@@ -7,7 +7,7 @@ Env for every Drama-3 run: `GGML_VK_DISABLE_F16=1 GGML_VK_DISABLE_COOPMAT=1 GGML
 
 ## Conclusion
 
-**Use `speech worker`.** It supports everything Voice Studio needs: `add_voice` at runtime (no model reload), streaming PCM chunks, `cancel`, `count_tokens`, `info`. There is no need for the `serve` + restart fallback.
+**Use `speech worker`.** It supports everything Speechorus needs: `add_voice` at runtime (no model reload), streaming PCM chunks, `cancel`, `count_tokens`, `info`. There is no need for the `serve` + restart fallback.
 
 ## Worker protocol (protocol 4)
 
@@ -53,7 +53,7 @@ ASR of the Drama-3 outputs returned the input text (tags removed), so synthesis 
 1. **Multi-speaker `<|speaker:N|>` in one request does not work with Drama-3-Japanese (this finetune).**
    With a 2-speaker cast voice and with `voice none`, with and without spaces/newlines, 4 seeds: the model always speaks only speaker 0's turn and stops with `stop: complete` (ASR hears only speaker 0's text). The base `fishaudio/drama-3` may differ (not tested: not downloaded).
    → Scene mode keeps the single-request `<|speaker:N|>` path (as planned, for models that can do it) but the UI warns, and offers **"per-line scene"**: each line is generated with its own cast voice, in order, and the result is concatenated with the lines' silences. This is the default for Drama-3-Japanese.
-2. **Model names (`qwen3-asr-0.6b`, `irodori-tts-mf`) sometimes re-fetch** the file when speech.exe is started from another program (seen twice: the worker and `asr` printed `Fetching … checked its SHA-256` although the file was in the model folder). `speech pull NAME` answers in 30 ms with the path when it is there. → Voice Studio resolves a catalog name to its path with `speech pull` once and passes **paths** to every subcommand.
+2. **Model names (`qwen3-asr-0.6b`, `irodori-tts-mf`) sometimes re-fetch** the file when speech.exe is started from another program (seen twice: the worker and `asr` printed `Fetching … checked its SHA-256` although the file was in the model folder). `speech pull NAME` answers in 30 ms with the path when it is there. → Speechorus resolves a catalog name to its path with `speech pull` once and passes **paths** to every subcommand.
 3. `speech voice` does not need the GPU or the worker to stop; it runs as a short-lived process beside the worker.
 4. The worker refuses unknown members, so `Drama3Adapter` drops `speed`/`instructions`/`steps` and `IrodoriAdapter` drops `top_k`/`top_p`/`temperature`/`max_seconds`/`experts_on_cpu` before sending.
 
@@ -65,7 +65,7 @@ The throwaway clients used (Python, not part of the app) are described here so t
 
 ## E2E results (release build, 2026-11-26)
 
-Driven through the real GUI (`voice-studio.exe` release build) over the WebView2 DevTools protocol, and through the `real_engine` integration test (`cargo test --test real_engine`).
+Driven through the real GUI (`speechorus.exe` release build) over the WebView2 DevTools protocol, and through the `real_engine` integration test (`cargo test --test real_engine`).
 
 | Check | Result |
 |---|---|
@@ -77,4 +77,4 @@ Driven through the real GUI (`voice-studio.exe` release build) over the WebView2
 | Combined WAV + SRT + txt export (pre 0.2 s / post 0.5 s) | SRT 0.200→5.076, 5.776→7.912, 8.612→11.585; WAV 12.085 s = Σ(pre+take+post); one WAV per line with the template `{index}_{cast}_{text8}`, a second export of the same name became `_2` |
 | Save `.vsproj` → reopen | takes copied to `e2e.takes/`; the reopened project matches the saved one |
 | Switch to Irodori-TTS-mf from the toolbar | ready in 4.7 s; the palette switches to emoji; `🤭ふふ、[笑い]そうなんだ。😮‍💨` + instructions + speed 1.2 → 48 kHz take; the `[笑い]` cue is stripped with a notice; a Drama-3 voice is flagged as not for this model |
-| **GUI memory** (Drama-3 resident, after all of the above) | `voice-studio.exe` working set **28.7 MB** (private 6.7 MB). The WebView2 child processes are separate (renderer about 110–140 MB working set each, GPU process 143 MB) and `speech.exe` 113 MB working set (the model lives in VRAM) |
+| **GUI memory** (Drama-3 resident, after all of the above) | `speechorus.exe` working set **28.7 MB** (private 6.7 MB). The WebView2 child processes are separate (renderer about 110–140 MB working set each, GPU process 143 MB) and `speech.exe` 113 MB working set (the model lives in VRAM) |
