@@ -10,7 +10,8 @@ The main model is **Drama-3-Japanese** (`StudioYebisu-ship-it/Drama-3-Japanese-s
 - Voice library: reference WAV → automatic transcription by ASR (qwen3-asr-0.6b) → `speech voice` creates a `.voice.gguf`
 - Scenes: per line (each cast uses its own voice), or a single request with `<|speaker:N|>` (the cast voices are merged automatically)
 - Export: one WAV per line (filename template with serial numbers) / combined WAV (with silence before and after) / SRT / txt
-- Model profiles: speech.exe, GGUF (or a catalog name), device, environment variables; checks for the sidecar and the VRAM needed
+- **Model catalog**: download Drama-3-Japanese (Q4_K/Q5_K + sidecar), Irodori-TTS-mf and Qwen3-ASR from inside the app (resumable, SHA-256 checked, license consent, VRAM-based recommendation, profile created automatically). Catalog: `assets/models/catalog.json`
+- Model profiles: speech.exe (can be downloaded from the official release), GGUF (or a catalog name), device, environment variables; checks for the sidecar and the VRAM needed
 
 ## Requirements
 

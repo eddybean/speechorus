@@ -40,7 +40,8 @@ export function CatalogDialog() {
 }
 
 function ModelCard({ m, rec, defaultDir }: { m: CatalogModel; rec?: string; defaultDir: string }) {
-  const [variant, setVariant] = useState(rec ?? m.defaultVariant);
+  // The catalog default (Q4_K for Drama-3) is preselected; the variant that fits the GPU best gets the 推奨 badge.
+  const [variant, setVariant] = useState(m.defaultVariant);
   const [dir, setDir] = useState(joinPath(defaultDir, m.id));
   const [agreed, setAgreed] = useState(false);
   const id = `${m.id}:${variant}`;

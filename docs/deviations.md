@@ -95,8 +95,11 @@ They are listed under "Decisions pending" at the end.
 - **What**: When the pasted text is split into several pieces, the first piece is appended to the current line and the rest become new lines. Pasting into an empty line puts the first piece in that line.
 - **User impact**: Pasting into the middle or end of a line also attaches the first sentence to that line.
 
-### D-18 The installer (NSIS) build has not been verified 【未検証】
-- **What**: The E2E used the `tauri build --no-bundle` executable.
+### D-18 The installer (NSIS) build 【検証済み（turn 3）】
+- **What**: Up to turn 2, the E2E used the `tauri build --no-bundle` executable.
+- **Turn 3 result**: Built `Voice Studio_0.1.0_x64-setup.exe` (2.04 MiB). A silent per-user install (`/S`) went to `%LOCALAPPDATA%\Voice Studio`, and the uninstall entry was registered in HKCU.
+  With the settings moved aside to simulate a first run, the following all worked: start → download speech.cpp from Settings (SHA checked) → Drama-3 Q4_K from the catalog (an existing file in the destination is SHA-checked and reused) → profile created automatically → engine started → generation.
+  A silent uninstall removed the install folder and the uninstall entry. See D-27 for what stays behind and D-28 for the bug this found.
 
 ### D-19 Debug handle in the GUI 【追加】
 - **What**: `window.__voiceStudio` exposes the stores and actions (for E2E driven over the DevTools protocol).
@@ -115,8 +118,54 @@ They are listed under "Decisions pending" at the end.
 
 ---
 
+## Added in turn 3 (2026-11-26, model catalog and installer)
+
+Requested through the planning session: download models from inside the app, and verify the installer.
+Before starting, the user allowed a test re-download of Q4_K (22 GB, deleted afterwards) and running the installer.
+
+### D-22 The model catalog is a JSON file bundled with the app; local overrides are possible 【追加・方式】
+- **What**: `assets/models/catalog.json` is built into the app, and `%APPDATA%\dev.voicestudio.app\catalog.json` replaces it when present. The app does not fetch the catalog from the network.
+- **Why**: Downloading a catalog from a remote source would be another trust boundary. A local file is enough to keep it up to date.
+- **User impact**: Catalog changes reach users with an app update, or by placing the override file by hand.
+
+### D-23 Irodori-TTS-mf and Qwen3-ASR are fetched with `speech pull`; the destination cannot be chosen 【変更】
+- **What**: These two are fetched with `speech pull` into speech.cpp's own model folder (`%LOCALAPPDATA%\speech.cpp\models`). The destination field appears only for Hugging Face models (Drama-3).
+  SHA-256 checking and resuming are done by `speech pull` itself (the catalog's `sha256` stays empty). Progress comes from its stderr (`N MB of M MB, P%, R MB/s`), and cancelling kills the process.
+- **Why**: The request allowed `speech pull` for these two, and it keeps them in the same place as speech.cpp's catalog.
+- **Verification**: Both models were already present, so in the E2E only the "done → set the ASR model / create a profile" path ran (0.3 s each). **The progress display and cancel/resume of `speech pull` were not verified end to end** (the progress-line parser has a unit test).
+
+### D-24 Preselected vs recommended quantization 【仕様の明確化】
+- **What**: The catalog default (Drama-3: **Q4_K**) is preselected. The variant that fits best is marked "推奨" (recommended): the largest supported variant whose estimated VRAM (from the model card: Q4_K 23.2 GiB, Q5_K 27.0 GiB) fits the GPU's free memory, or the total minus 1 GiB while the engine is loaded.
+  On the RTX 5090 (30.7 GiB free) **Q5_K is marked 推奨** while Q4_K stays selected.
+  When nothing fits, the smallest supported variant is recommended. The unsupported IQ3_XXS is never recommended.
+- **User impact**: With 24 GB VRAM, Q4_K is marked 推奨 (and some experts may spill to the CPU; the card shows an estimate).
+
+### D-25 Download behavior details 【仕様】
+- Files are written to `.part` and resumed with `Range: bytes=N-`. On resume, the existing part is hashed first, so the final SHA-256 covers the whole file (about 1 s per GB).
+- A server that ignores Range (Hugging Face's small non-LFS files such as `.gguf.json`) gets a fresh download.
+- Sidecars are fetched first. A matching file already in the destination is SHA-checked and kept (22 GB took 38 s).
+- The free-space check requires the remaining bytes + 1 GiB.
+- On a SHA mismatch the `.part` file is deleted and an error is shown.
+- Default destination: `%LOCALAPPDATA%\dev.voicestudio.app\models\<model id>` (can be changed).
+- A completed synthesis model gets the profile `<model id>-<variant>` (one with the same id is replaced) and it is selected. Drama-3 gets the three Vulkan env vars and `Vulkan0`. A completed ASR model becomes the transcription model in the settings.
+
+### D-26 License consent is asked per download and not stored 【仕様】
+- **What**: The checkbox in the dialog has to be ticked for each download. The Rust side also refuses a request without `licenseAccepted`.
+- **User impact**: You agree again on every download (consent is not recorded).
+
+### D-27 Uninstalling keeps user data 【仕様（Tauri 既定）】
+- **What**: A silent uninstall keeps `%APPDATA%\dev.voicestudio.app` (settings, voices) and `%LOCALAPPDATA%\dev.voicestudio.app` (the downloaded speech.cpp, models, takes of untitled projects). The interactive uninstaller has Tauri's "delete app data" checkbox, but **the interactive uninstall was not verified**.
+- **User impact**: Removing the app completely means deleting these folders as well (models can be large).
+
+### D-28 The development-time speech.exe search (`.engine` under the working folder) is limited to debug builds 【バグ修正】
+- **What**: In the installer E2E, the release build picked up the repository's `.engine\speech.exe` on first run. Searching the working folder now happens only in debug builds.
+- **User impact**: On an installed app's first run, speech.exe is unset until you download it with the button or enter its path.
+
+---
+
 ## Decisions
 - D-01: **Approved** (2026-11-26) — "per line" is the default.
 - D-10: **(c) download the zip, check its SHA, extract — approved and implemented** (2026-11-26).
 - D-11, D-12, D-13: **Implement in v1 — implemented** (2026-11-26).
 - D-14, D-15, D-16: **Deferred to v2** (not selected by the user, 2026-11-26).
+- Turn 3: the user **allowed** the test re-download of Q4_K (deleted after the check) and running the installer and uninstaller (2026-11-26). D-22 to D-28 were done within the request and are recorded here for the planning session's check.

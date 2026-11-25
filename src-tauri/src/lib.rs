@@ -34,9 +34,13 @@ fn find_speech_exe() -> String {
             c.push(d.join("speech.exe"));
         }
     }
-    if let Ok(cwd) = std::env::current_dir() {
-        c.push(cwd.join("../.engine/speech.exe"));
-        c.push(cwd.join(".engine/speech.exe"));
+    // The repository's .engine folder, for development builds only: an installed app must not pick up
+    // whatever speech.exe its working folder happens to hold.
+    if cfg!(debug_assertions) {
+        if let Ok(cwd) = std::env::current_dir() {
+            c.push(cwd.join("../.engine/speech.exe"));
+            c.push(cwd.join(".engine/speech.exe"));
+        }
     }
     c.into_iter()
         .find(|p| p.exists())
