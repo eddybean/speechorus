@@ -47,11 +47,23 @@ function LinePanel({ line }: { line: Line }) {
         <div className="grid2">
           <label>
             前の無音 (秒)
-            <input type="number" step={0.05} min={0} value={line.preSilence} onChange={(e) => upd({ preSilence: Number(e.target.value) }, "無音")} />
+            <input
+              type="number"
+              step={0.05}
+              min={0}
+              value={line.preSilence}
+              onChange={(e) => upd({ preSilence: Number(e.target.value) }, "無音")}
+            />
           </label>
           <label>
             後の無音 (秒)
-            <input type="number" step={0.05} min={0} value={line.postSilence} onChange={(e) => upd({ postSilence: Number(e.target.value) }, "無音")} />
+            <input
+              type="number"
+              step={0.05}
+              min={0}
+              value={line.postSilence}
+              onChange={(e) => upd({ postSilence: Number(e.target.value) }, "無音")}
+            />
           </label>
         </div>
         <label className="block">
@@ -139,10 +151,18 @@ function TakeList({ line }: { line: Line }) {
             </span>
           )}
           <span className="spacer" />
-          <button title="お気に入り" className={t.starred ? "star on" : "star"} onClick={() => st().updateTake(line.id, t.id, { starred: !t.starred })}>
+          <button
+            title="お気に入り"
+            className={t.starred ? "star on" : "star"}
+            onClick={() => st().updateTake(line.id, t.id, { starred: !t.starred })}
+          >
             {t.starred ? "★" : "☆"}
           </button>
-          <button title="採用" className={t.id === sel?.id ? "on" : ""} onClick={() => st().updateLine(line.id, { selectedTakeId: t.id }, "テイクを採用")}>
+          <button
+            title="採用"
+            className={t.id === sel?.id ? "on" : ""}
+            onClick={() => st().updateLine(line.id, { selectedTakeId: t.id }, "テイクを採用")}
+          >
             採用
           </button>
           <button title="同じシードで再生成" onClick={() => rerollTake(line.id, t.seed)}>
@@ -204,7 +224,12 @@ function Scenes() {
                     1リクエスト（&lt;|speaker:N|&gt;）
                   </option>
                 </select>
-                <button className="icon" title="シーンを生成" aria-label="シーンを生成" onClick={() => void generateScene(sc.id)}>
+                <button
+                  className="icon"
+                  title="シーンを生成"
+                  aria-label="シーンを生成"
+                  onClick={() => void generateScene(sc.id)}
+                >
                   <Icon name="generate" size={14} />
                 </button>
                 <PlayButton session={session.scene(sc.id)} items={() => sceneItems(sc.id)} />
@@ -223,7 +248,8 @@ function Scenes() {
               </div>
               {sc.mode === "single" && sc.takes.length > 0 && (
                 <div className="muted small-text">
-                  テイク {sc.takes.length}（最新 {sc.takes[sc.takes.length - 1].duration.toFixed(1)}s, 🎲{sc.takes[sc.takes.length - 1].seed ?? "?"}）
+                  テイク {sc.takes.length}（最新 {sc.takes[sc.takes.length - 1].duration.toFixed(1)}s, 🎲
+                  {sc.takes[sc.takes.length - 1].seed ?? "?"}）
                 </div>
               )}
             </li>

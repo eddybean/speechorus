@@ -8,7 +8,8 @@ import type { JobSpec } from "../../lib/types";
 import { useApp } from "../../store/app";
 import { PlayButton } from "../../app/PlayButton";
 
-export const DEFAULT_SAMPLE = "こんにちは。今日はよろしくお願いします。少し緊張していますが、最後まで精一杯がんばりますね。";
+export const DEFAULT_SAMPLE =
+  "こんにちは。今日はよろしくお願いします。少し緊張していますが、最後まで精一杯がんばりますね。";
 
 /** The jobs that make `n` candidates of a described voice, seeds base, base+1, … */
 export function designJobs(prompt: string, sample: string, n: number, baseSeed: number, outDir: string): JobSpec[] {
@@ -85,7 +86,12 @@ export function VoiceDesigner() {
       .catch(() => "")
       .then((asr) => {
         if (!alive) return;
-        useApp.setState((s) => ({ design: { ...s.design, candidates: s.design.candidates.map((c) => (c.path === todo.path ? { ...c, asr } : c)) } }));
+        useApp.setState((s) => ({
+          design: {
+            ...s.design,
+            candidates: s.design.candidates.map((c) => (c.path === todo.path ? { ...c, asr } : c)),
+          },
+        }));
       });
     return () => {
       alive = false;
@@ -97,7 +103,10 @@ export function VoiceDesigner() {
     try {
       const v = await ipc.voiceCreatePrompt(adapter.id, name.trim() || prompt.slice(0, 16), prompt);
       await app().refreshVoices();
-      app().notify("info", `プロンプトのボイス「${v.name}」を登録しました（キャストに割り当てると生成時に説明が付きます）`);
+      app().notify(
+        "info",
+        `プロンプトのボイス「${v.name}」を登録しました（キャストに割り当てると生成時に説明が付きます）`,
+      );
     } catch (e) {
       app().notify("error", String(e));
     }
@@ -106,7 +115,12 @@ export function VoiceDesigner() {
   const makeCandidates = async () => {
     const dir = await ipc.designDir();
     const jobs = designJobs(prompt.trim(), sample.trim(), count, Math.floor(Math.random() * 1e9), dir);
-    useApp.setState((s) => ({ design: { candidates: s.design.candidates, jobs: { ...s.design.jobs, ...Object.fromEntries(jobs.map((j) => [j.jobId, dir])) } } }));
+    useApp.setState((s) => ({
+      design: {
+        candidates: s.design.candidates,
+        jobs: { ...s.design.jobs, ...Object.fromEntries(jobs.map((j) => [j.jobId, dir])) },
+      },
+    }));
     await app().enqueue(jobs);
   };
 
@@ -119,13 +133,26 @@ export function VoiceDesigner() {
 
   const fix = async (path: string, seed: number | null, asr?: string) => {
     if (!profile) return;
-    if (asr !== undefined && !saidAll(asr, sample) && !confirm(`この候補は試し読みの文を最後まで読んでいない可能性があります（認識結果: 「${asr}」）。\n書き起こしと音声が食い違うとボイスの品質が下がります。それでも固定しますか？`)) return;
+    if (
+      asr !== undefined &&
+      !saidAll(asr, sample) &&
+      !confirm(
+        `この候補は試し読みの文を最後まで読んでいない可能性があります（認識結果: 「${asr}」）。\n書き起こしと音声が食い違うとボイスの品質が下がります。それでも固定しますか？`,
+      )
+    )
+      return;
     setBusy(true);
     try {
       const v = await ipc.voiceCreate(
         profile.id,
         name.trim() || prompt.slice(0, 16),
-        [{ path, transcript: adapter?.capabilities.voiceNeedsTranscript ? designTranscript(sample) : null, speaker: null }],
+        [
+          {
+            path,
+            transcript: adapter?.capabilities.voiceNeedsTranscript ? designTranscript(sample) : null,
+            speaker: null,
+          },
+        ],
         `プロンプト: ${prompt.trim()} / シード ${seed ?? "?"}`,
       );
       await app().refreshVoices();
@@ -141,7 +168,9 @@ export function VoiceDesigner() {
     <section>
       <h3>声の説明（プロンプト）からボイスを作る</h3>
       <p className="muted">
-        {isIrodori ? "Irodori では説明を instructions として送ります。" : "Drama-3 では voice=none で、説明を本文の先頭に [..] として付けます。"}
+        {isIrodori
+          ? "Irodori では説明を instructions として送ります。"
+          : "Drama-3 では voice=none で、説明を本文の先頭に [..] として付けます。"}
         説明だけのボイスはシードごとに声が揺れます。候補を生成して1本選び「この声で固定」すると、その音声を参照にしたボイスファイルを作り、以降の声が一定になります。
       </p>
       <div className="grid2">
@@ -151,12 +180,27 @@ export function VoiceDesigner() {
         </label>
         <label>
           候補の数
-          <input type="number" min={1} max={8} value={count} onChange={(e) => setCount(Math.max(1, Math.min(8, Number(e.target.value))))} />
+          <input
+            type="number"
+            min={1}
+            max={8}
+            value={count}
+            onChange={(e) => setCount(Math.max(1, Math.min(8, Number(e.target.value))))}
+          />
         </label>
       </div>
       <label className="block">
         声の説明
-        <textarea rows={2} value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder={isIrodori ? "落ち着いた女性の声で、近い距離感でやわらかく読み上げてください。" : "落ち着いた25歳の女性。親密な相手に耳元で優しく囁く。"} />
+        <textarea
+          rows={2}
+          value={prompt}
+          onChange={(e) => setPrompt(e.target.value)}
+          placeholder={
+            isIrodori
+              ? "落ち着いた女性の声で、近い距離感でやわらかく読み上げてください。"
+              : "落ち着いた25歳の女性。親密な相手に耳元で優しく囁く。"
+          }
+        />
       </label>
       <label className="block">
         試し読みの文（固定するときの書き起こしになります）
@@ -166,7 +210,12 @@ export function VoiceDesigner() {
         <button disabled={!prompt.trim()} onClick={savePromptOnly} title="説明だけを登録（ファイルなし）">
           説明だけで登録
         </button>
-        <button className="primary" disabled={!prompt.trim() || !sample.trim() || !ready || pending > 0} onClick={makeCandidates} title={ready ? "" : "エンジンを起動してください"}>
+        <button
+          className="primary"
+          disabled={!prompt.trim() || !sample.trim() || !ready || pending > 0}
+          onClick={makeCandidates}
+          title={ready ? "" : "エンジンを起動してください"}
+        >
           {pending > 0 ? `生成中…（残り ${pending}）` : `候補を ${count} 本生成`}
         </button>
       </div>
@@ -175,7 +224,11 @@ export function VoiceDesigner() {
         <ul className="takes">
           {design.candidates.map((c, i) => (
             <li key={c.take.id}>
-              <PlayButton session={`design:${c.take.id}`} items={() => [{ path: c.path, pre: 0, post: 0, key: c.take.id }]} title="試聴" />
+              <PlayButton
+                session={`design:${c.take.id}`}
+                items={() => [{ path: c.path, pre: 0, post: 0, key: c.take.id }]}
+                title="試聴"
+              />
               <span className="take-name">候補 {i + 1}</span>
               <span className="muted">{c.take.duration.toFixed(1)}s</span>
               <span className="muted">🎲{c.take.seed ?? "?"}</span>

@@ -1,7 +1,16 @@
 // App-wide state: settings, model adapters, engine, queue, voice library, notices.
 import { create } from "zustand";
 import { inTauri, ipc, joinPath, onAppEvent } from "../lib/ipc";
-import type { Take, DownloadProgress, AdapterDescriptor, AppSettings, EngineState, JobSpec, ModelProfile, Voice } from "../lib/types";
+import type {
+  Take,
+  DownloadProgress,
+  AdapterDescriptor,
+  AppSettings,
+  EngineState,
+  JobSpec,
+  ModelProfile,
+  Voice,
+} from "../lib/types";
 import type { BatchSettings } from "../features/generate/jobs";
 import { useProject } from "./project";
 
@@ -78,7 +87,12 @@ export const useApp = create<AppStore>()((set, get) => ({
   downloads: {},
   design: { jobs: {}, candidates: [] },
   installSpeech: async () => {
-    if (!confirm("speech.cpp の最新公式リリース（Windows Vulkan 版・約30MB）を GitHub からダウンロードし、SHA-256 を確認して展開します。よろしいですか？")) return;
+    if (
+      !confirm(
+        "speech.cpp の最新公式リリース（Windows Vulkan 版・約30MB）を GitHub からダウンロードし、SHA-256 を確認して展開します。よろしいですか？",
+      )
+    )
+      return;
     set({ installing: true });
     try {
       const s = await ipc.installSpeech();
@@ -97,98 +111,105 @@ export const useApp = create<AppStore>()((set, get) => ({
   castOpen: true,
   toggleCast: () => set((s) => ({ castOpen: !s.castOpen })),
 
-  init: () => (starting ??= (async () => {
-    if (!inTauri) {
-      set({ ready: true });
-      return;
-    }
-    const [settings, adapters, engine, voices, workDir] = await Promise.all([
-      ipc.getSettings(),
-      ipc.listAdapters(),
-      ipc.engineState(),
-      ipc.voicesList(),
-      ipc.projectNew(),
-    ]);
-    const p = useProject.getState();
-    p.load(p.project, null, workDir);
-    document.documentElement.dataset.theme = settings.theme;
-    set({ settings, adapters, engine, voices, ready: true });
-    unlisten?.();
-    unlisten = await onAppEvent((ev) => {
-      if (ev.kind === "engine") {
-        set({ engine: ev.data });
-        if (ev.data.state === "failed") get().notify("error", `エンジン: ${ev.data.message}`);
-      } else if (ev.kind === "download") {
-        const d = ev.data;
-        // Terminal events carry no byte counts: keep the last ones so the bar stays meaningful.
-        set((s) => {
-          const prev = s.downloads[d.id];
-          const keep = d.total === 0 && prev ? { done: prev.done, total: prev.total, file: prev.file } : {};
-          return { downloads: { ...s.downloads, [d.id]: { ...d, ...keep } } };
-        });
-        if (d.phase === "done") {
-          get().notify("info", `ダウンロード完了: ${d.message}`);
-          void ipc.getSettings().then((s) => set({ settings: s }));
-        } else if (d.phase === "failed") {
-          get().notify("error", `ダウンロード失敗: ${d.message}`);
-        }
-      } else if (ev.kind === "engineLog") {
-        set((s) => ({ logs: [...s.logs.slice(-199), ev.data.line] }));
-      } else {
-        const q = ev.data;
-        set((s) => {
-          const jobs = { ...s.jobs };
-          let jobOrder = s.jobOrder;
-          let { runningSince, jobDurations } = s;
-          switch (q.type) {
-            case "started":
-              if (jobs[q.jobId]) jobs[q.jobId] = { ...jobs[q.jobId], status: "running" };
-              runningSince = Date.now();
-              break;
-            case "progress":
-              if (jobs[q.jobId]) jobs[q.jobId] = { ...jobs[q.jobId], seconds: q.seconds };
-              break;
-            case "done":
-              if (runningSince) jobDurations = [...jobDurations.slice(-19), Date.now() - runningSince];
-              runningSince = null;
-              delete jobs[q.jobId];
-              jobOrder = jobOrder.filter((j) => j !== q.jobId);
-              break;
-            case "failed":
-            case "cancelled":
-              if (s.jobs[q.jobId]?.status === "running") runningSince = null;
-              delete jobs[q.jobId];
-              jobOrder = jobOrder.filter((j) => j !== q.jobId);
-              break;
+  init: () =>
+    (starting ??= (async () => {
+      if (!inTauri) {
+        set({ ready: true });
+        return;
+      }
+      const [settings, adapters, engine, voices, workDir] = await Promise.all([
+        ipc.getSettings(),
+        ipc.listAdapters(),
+        ipc.engineState(),
+        ipc.voicesList(),
+        ipc.projectNew(),
+      ]);
+      const p = useProject.getState();
+      p.load(p.project, null, workDir);
+      document.documentElement.dataset.theme = settings.theme;
+      set({ settings, adapters, engine, voices, ready: true });
+      unlisten?.();
+      unlisten = await onAppEvent((ev) => {
+        if (ev.kind === "engine") {
+          set({ engine: ev.data });
+          if (ev.data.state === "failed") get().notify("error", `エンジン: ${ev.data.message}`);
+        } else if (ev.kind === "download") {
+          const d = ev.data;
+          // Terminal events carry no byte counts: keep the last ones so the bar stays meaningful.
+          set((s) => {
+            const prev = s.downloads[d.id];
+            const keep = d.total === 0 && prev ? { done: prev.done, total: prev.total, file: prev.file } : {};
+            return { downloads: { ...s.downloads, [d.id]: { ...d, ...keep } } };
+          });
+          if (d.phase === "done") {
+            get().notify("info", `ダウンロード完了: ${d.message}`);
+            void ipc.getSettings().then((s) => set({ settings: s }));
+          } else if (d.phase === "failed") {
+            get().notify("error", `ダウンロード失敗: ${d.message}`);
           }
-          return { jobs, jobOrder, runningSince, jobDurations };
-        });
-        if (q.type === "done") {
-          const proj = useProject.getState();
-          const designDir = get().design.jobs[q.jobId];
-          if (designDir !== undefined) {
+        } else if (ev.kind === "engineLog") {
+          set((s) => ({ logs: [...s.logs.slice(-199), ev.data.line] }));
+        } else {
+          const q = ev.data;
+          set((s) => {
+            const jobs = { ...s.jobs };
+            let jobOrder = s.jobOrder;
+            let { runningSince, jobDurations } = s;
+            switch (q.type) {
+              case "started":
+                if (jobs[q.jobId]) jobs[q.jobId] = { ...jobs[q.jobId], status: "running" };
+                runningSince = Date.now();
+                break;
+              case "progress":
+                if (jobs[q.jobId]) jobs[q.jobId] = { ...jobs[q.jobId], seconds: q.seconds };
+                break;
+              case "done":
+                if (runningSince) jobDurations = [...jobDurations.slice(-19), Date.now() - runningSince];
+                runningSince = null;
+                delete jobs[q.jobId];
+                jobOrder = jobOrder.filter((j) => j !== q.jobId);
+                break;
+              case "failed":
+              case "cancelled":
+                if (s.jobs[q.jobId]?.status === "running") runningSince = null;
+                delete jobs[q.jobId];
+                jobOrder = jobOrder.filter((j) => j !== q.jobId);
+                break;
+            }
+            return { jobs, jobOrder, runningSince, jobDurations };
+          });
+          if (q.type === "done") {
+            const proj = useProject.getState();
+            const designDir = get().design.jobs[q.jobId];
+            if (designDir !== undefined) {
+              set((s) => {
+                const jobs = { ...s.design.jobs };
+                delete jobs[q.jobId];
+                return {
+                  design: {
+                    jobs,
+                    candidates: [...s.design.candidates, { take: q.take, path: joinPath(designDir, q.take.file) }],
+                  },
+                };
+              });
+            } else if (q.sceneId) proj.addSceneTake(q.sceneId, q.take);
+            else if (q.lineId) proj.addTake(q.lineId, q.take);
+            for (const w of q.warnings) get().notify("warn", w);
+            if (q.take.stopReason !== "complete")
+              get().notify("warn", `最大長 (${q.take.stopReason}) で打ち切られました: ${q.take.text.slice(0, 20)}…`);
+          } else if ((q.type === "failed" || q.type === "cancelled") && get().design.jobs[q.jobId] !== undefined) {
             set((s) => {
               const jobs = { ...s.design.jobs };
               delete jobs[q.jobId];
-              return { design: { jobs, candidates: [...s.design.candidates, { take: q.take, path: joinPath(designDir, q.take.file) }] } };
+              return { design: { ...s.design, jobs } };
             });
-          } else if (q.sceneId) proj.addSceneTake(q.sceneId, q.take);
-          else if (q.lineId) proj.addTake(q.lineId, q.take);
-          for (const w of q.warnings) get().notify("warn", w);
-          if (q.take.stopReason !== "complete") get().notify("warn", `最大長 (${q.take.stopReason}) で打ち切られました: ${q.take.text.slice(0, 20)}…`);
-        } else if ((q.type === "failed" || q.type === "cancelled") && get().design.jobs[q.jobId] !== undefined) {
-          set((s) => {
-            const jobs = { ...s.design.jobs };
-            delete jobs[q.jobId];
-            return { design: { ...s.design, jobs } };
-          });
-          if (q.type === "failed") get().notify("error", `候補の生成に失敗: ${q.message}`);
-        } else if (q.type === "failed") {
-          get().notify("error", `生成に失敗: ${q.message}`);
+            if (q.type === "failed") get().notify("error", `候補の生成に失敗: ${q.message}`);
+          } else if (q.type === "failed") {
+            get().notify("error", `生成に失敗: ${q.message}`);
+          }
         }
-      }
-    });
-  })()),
+      });
+    })()),
 
   saveSettings: async (s) => {
     // Update the UI at once (inputs are controlled by it), then persist.
@@ -233,7 +254,9 @@ export const useApp = create<AppStore>()((set, get) => ({
     await ipc.cancelAll();
   },
   cancelLine: async (lineId) => {
-    const ids = Object.entries(get().jobs).filter(([, j]) => j.lineId === lineId).map(([id]) => id);
+    const ids = Object.entries(get().jobs)
+      .filter(([, j]) => j.lineId === lineId)
+      .map(([id]) => id);
     for (const id of ids) await ipc.cancelJob(id);
   },
   setBatch: (b) => set((s) => ({ batch: { ...s.batch, ...b } })),
@@ -252,7 +275,12 @@ export function chosenProfile(settings: AppSettings | null | undefined): ModelPr
 }
 
 /** Seconds until the queue is empty: the mean of the recent jobs × the jobs left, minus the running one's time so far. */
-export function queueEta(remaining: number, durations: number[], runningSince: number | null, now = Date.now()): number | null {
+export function queueEta(
+  remaining: number,
+  durations: number[],
+  runningSince: number | null,
+  now = Date.now(),
+): number | null {
   if (remaining === 0 || durations.length === 0) return null;
   const mean = durations.reduce((a, b) => a + b, 0) / durations.length;
   const elapsed = runningSince !== null ? Math.min(now - runningSince, mean) : 0;

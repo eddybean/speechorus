@@ -1,7 +1,17 @@
 import { useEffect, type ReactNode } from "react";
 import { Icon } from "./icons";
 
-export function Dialog({ title, onClose, children, wide }: { title: string; onClose: () => void; children: ReactNode; wide?: boolean }) {
+export function Dialog({
+  title,
+  onClose,
+  children,
+  wide,
+}: {
+  title: string;
+  onClose: () => void;
+  children: ReactNode;
+  wide?: boolean;
+}) {
   useEffect(() => {
     const k = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", k);

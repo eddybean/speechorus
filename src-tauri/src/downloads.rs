@@ -111,7 +111,10 @@ impl Catalog {
 
     /// The override in the config folder when it parses, else the built-in one.
     pub fn load(override_path: &Path) -> Catalog {
-        std::fs::read_to_string(override_path).ok().and_then(|s| Catalog::parse(&s).ok()).unwrap_or_else(|| Catalog::parse(BUILTIN_CATALOG).expect("built-in catalog"))
+        std::fs::read_to_string(override_path)
+            .ok()
+            .and_then(|s| Catalog::parse(&s).ok())
+            .unwrap_or_else(|| Catalog::parse(BUILTIN_CATALOG).expect("built-in catalog"))
     }
 
     pub fn find(&self, model: &str, variant: &str) -> Option<(&CatalogModel, &Variant)> {
@@ -148,7 +151,17 @@ pub struct Progress {
 
 impl Progress {
     pub fn new(id: &str, phase: &str) -> Self {
-        Progress { id: id.into(), phase: phase.into(), file: String::new(), done: 0, total: 0, bytes_per_sec: 0.0, eta_secs: None, message: String::new(), profile_id: None }
+        Progress {
+            id: id.into(),
+            phase: phase.into(),
+            file: String::new(),
+            done: 0,
+            total: 0,
+            bytes_per_sec: 0.0,
+            eta_secs: None,
+            message: String::new(),
+            profile_id: None,
+        }
     }
 }
 
@@ -242,7 +255,15 @@ fn sha256_file(path: &Path, cancel: &AtomicBool, mut on: impl FnMut(u64)) -> Res
 
 /// Downloads `url` to `dest`, resuming `dest.part` with a Range request, and checks size and SHA-256.
 /// A `dest` that already has the right size and hash is kept as it is.
-pub fn fetch_file(id: &str, url: &str, dest: &Path, size: u64, sha256: &str, cancel: &AtomicBool, on: OnProgress) -> Result<(), DownloadError> {
+pub fn fetch_file(
+    id: &str,
+    url: &str,
+    dest: &Path,
+    size: u64,
+    sha256: &str,
+    cancel: &AtomicBool,
+    on: OnProgress,
+) -> Result<(), DownloadError> {
     let name = dest.file_name().map(|f| f.to_string_lossy().into_owned()).unwrap_or_default();
     let report = |phase: &str, done: u64, rate: f64| {
         let mut p = Progress::new(id, phase);
@@ -290,13 +311,23 @@ pub fn fetch_file(id: &str, url: &str, dest: &Path, size: u64, sha256: &str, can
         hasher = h;
         have = n;
     }
-    let agent = ureq::AgentBuilder::new().timeout_connect(Duration::from_secs(20)).timeout_read(Duration::from_secs(60)).build();
+    let agent = ureq::AgentBuilder::new()
+        .timeout_connect(Duration::from_secs(20))
+        .timeout_read(Duration::from_secs(60))
+        .build();
     let mut req = agent.get(url).set("User-Agent", "speechorus-downloader");
     if have > 0 && have < size {
         req = req.set("Range", &format!("bytes={have}-"));
     }
-    let resp = if have == size { None } else { Some(req.call().map_err(|e| DownloadError::Other(format!("{url}: {e}")))?) };
-    let mut file = std::fs::OpenOptions::new().create(true).append(false).write(true).truncate(false).open(&part).map_err(other)?;
+    let resp =
+        if have == size { None } else { Some(req.call().map_err(|e| DownloadError::Other(format!("{url}: {e}")))?) };
+    let mut file = std::fs::OpenOptions::new()
+        .create(true)
+        .append(false)
+        .write(true)
+        .truncate(false)
+        .open(&part)
+        .map_err(other)?;
     if let Some(resp) = resp {
         if resp.status() == 206 {
             file.seek(SeekFrom::Start(have)).map_err(other)?;
@@ -332,7 +363,9 @@ pub fn fetch_file(id: &str, url: &str, dest: &Path, size: u64, sha256: &str, can
     }
     drop(file);
     if have != size {
-        return Err(DownloadError::Other(format!("{name}: {have} B を受信しましたが {size} B のはずです（再開できます）")));
+        return Err(DownloadError::Other(format!(
+            "{name}: {have} B を受信しましたが {size} B のはずです（再開できます）"
+        )));
     }
     report("verifying", have, 0.0);
     let actual = hex::encode(hasher.finalize());
@@ -350,13 +383,24 @@ pub fn hf_url(repo: &str, revision: &str, file: &str) -> String {
 
 /// Downloads every file of a Hugging Face variant into `dir` (sidecars first; they are small).
 /// Returns the model file's path.
-pub fn fetch_variant(id: &str, repo: &str, revision: &str, v: &Variant, dir: &Path, cancel: &AtomicBool, on: OnProgress) -> Result<PathBuf, DownloadError> {
+pub fn fetch_variant(
+    id: &str,
+    repo: &str,
+    revision: &str,
+    v: &Variant,
+    dir: &Path,
+    cancel: &AtomicBool,
+    on: OnProgress,
+) -> Result<PathBuf, DownloadError> {
     std::fs::create_dir_all(dir).map_err(other)?;
     let missing: u64 = v
         .files
         .iter()
         .map(|f| {
-            let have = std::fs::metadata(dir.join(&f.name)).map(|m| if m.len() == f.size { f.size } else { 0 }).unwrap_or(0).max(std::fs::metadata(dir.join(format!("{}.part", f.name))).map(|m| m.len().min(f.size)).unwrap_or(0));
+            let have = std::fs::metadata(dir.join(&f.name))
+                .map(|m| if m.len() == f.size { f.size } else { 0 })
+                .unwrap_or(0)
+                .max(std::fs::metadata(dir.join(format!("{}.part", f.name))).map(|m| m.len().min(f.size)).unwrap_or(0));
             f.size - have
         })
         .sum();
@@ -380,16 +424,33 @@ pub fn parse_pull_progress(line: &str) -> Option<(u64, u64, f64)> {
     let l = line.trim();
     let (done, rest) = l.split_once(" MB of ")?;
     let (total, rest) = rest.split_once(" MB")?;
-    let rate = rest.rsplit(", ").next().and_then(|r| r.strip_suffix(" MB/s")).and_then(|r| r.trim().parse::<f64>().ok()).unwrap_or(0.0);
+    let rate = rest
+        .rsplit(", ")
+        .next()
+        .and_then(|r| r.strip_suffix(" MB/s"))
+        .and_then(|r| r.trim().parse::<f64>().ok())
+        .unwrap_or(0.0);
     let mb = 1_000_000u64;
     Some((done.trim().parse::<u64>().ok()? * mb, total.trim().parse::<u64>().ok()? * mb, rate * mb as f64))
 }
 
 /// `speech pull NAME`, reporting its progress; returns the path it prints. Cancel kills it (speech pull resumes later).
-pub async fn speech_pull(id: &str, exe: &str, name: &str, cancel: Arc<AtomicBool>, on: Arc<dyn Fn(Progress) + Send + Sync>) -> Result<String, DownloadError> {
+pub async fn speech_pull(
+    id: &str,
+    exe: &str,
+    name: &str,
+    cancel: Arc<AtomicBool>,
+    on: Arc<dyn Fn(Progress) + Send + Sync>,
+) -> Result<String, DownloadError> {
     use tokio::io::{AsyncBufReadExt, AsyncReadExt, BufReader};
     let mut cmd = tokio::process::Command::new(exe);
-    cmd.arg("pull").arg(name).env("SPEECH_NO_UPDATE_CHECK", "1").stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::piped()).kill_on_drop(true);
+    cmd.arg("pull")
+        .arg(name)
+        .env("SPEECH_NO_UPDATE_CHECK", "1")
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .kill_on_drop(true);
     crate::engine::no_window(&mut cmd);
     let mut child = cmd.spawn().map_err(|e| DownloadError::Other(format!("{exe}: {e}")))?;
     let mut stdout = child.stdout.take().unwrap();
@@ -432,7 +493,12 @@ pub async fn speech_pull(id: &str, exe: &str, name: &str, cancel: Arc<AtomicBool
             }
         }
     }
-    out.lines().rev().map(str::trim).find(|l| !l.is_empty()).map(str::to_owned).ok_or_else(|| DownloadError::Other("speech pull printed no path".into()))
+    out.lines()
+        .rev()
+        .map(str::trim)
+        .find(|l| !l.is_empty())
+        .map(str::to_owned)
+        .ok_or_else(|| DownloadError::Other("speech pull printed no path".into()))
 }
 
 /// Cancel flags of the downloads that run.
@@ -494,11 +560,18 @@ mod tests {
                 let text = String::from_utf8_lossy(&req[..n]).to_string();
                 let start = text
                     .lines()
-                    .find_map(|l| l.to_ascii_lowercase().strip_prefix("range: bytes=").map(|r| r.trim_end_matches('-').trim().to_string()))
+                    .find_map(|l| {
+                        l.to_ascii_lowercase()
+                            .strip_prefix("range: bytes=")
+                            .map(|r| r.trim_end_matches('-').trim().to_string())
+                    })
                     .and_then(|r| r.parse::<usize>().ok())
                     .filter(|_| honour_range);
                 let (status, slice) = match start {
-                    Some(st) => (format!("206 Partial Content\r\nContent-Range: bytes {st}-{}/{}", body.len() - 1, body.len()), &body[st..]),
+                    Some(st) => (
+                        format!("206 Partial Content\r\nContent-Range: bytes {st}-{}/{}", body.len() - 1, body.len()),
+                        &body[st..],
+                    ),
                     None => ("200 OK".to_string(), &body[..]),
                 };
                 let head = format!("HTTP/1.1 {status}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n", slice.len());
@@ -544,7 +617,8 @@ mod tests {
 
         let dest2 = d.path().join("g.bin");
         let (url2, _srv2) = serve(b.clone(), true);
-        let e = fetch_file("t", &url2, &dest2, b.len() as u64, &"0".repeat(64), &AtomicBool::new(false), &|_| {}).unwrap_err();
+        let e = fetch_file("t", &url2, &dest2, b.len() as u64, &"0".repeat(64), &AtomicBool::new(false), &|_| {})
+            .unwrap_err();
         assert!(matches!(e, DownloadError::Hash { .. }));
         assert!(!dest2.exists());
     }
@@ -575,7 +649,12 @@ mod tests {
             supported: true,
             unsupported_reason: String::new(),
             vram_bytes: 0,
-            files: vec![CatalogFile { name: "huge.gguf".into(), size: u64::MAX / 4, sha256: String::new(), role: "model".into() }],
+            files: vec![CatalogFile {
+                name: "huge.gguf".into(),
+                size: u64::MAX / 4,
+                sha256: String::new(),
+                role: "model".into(),
+            }],
         };
         let e = fetch_variant("t", "r", "main", &v, d.path(), &AtomicBool::new(false), &|_| {}).unwrap_err();
         assert!(matches!(e, DownloadError::NoSpace { .. }), "{e:?}");

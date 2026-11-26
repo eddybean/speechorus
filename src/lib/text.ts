@@ -162,14 +162,17 @@ function parseCsvRow(row: string, sep: string): string[] {
  */
 export function parseScript(content: string): ImportedLine[] {
   const out: ImportedLine[] = [];
-  const body = content.replace(/^﻿/, "").replace(/\r\n?/g, "\n");
+  const body = content.replace(/^\uFEFF/, "").replace(/\r\n?/g, "\n");
   for (const line of body.split("\n")) {
     if (!line.trim()) continue;
     const sep = line.includes("\t") ? "\t" : ",";
     const f = parseCsvRow(line, sep);
     if (f.length >= 2) {
       const name = f[0].trim();
-      const text = f.slice(1).join(sep === "\t" ? "\t" : ",").trim();
+      const text = f
+        .slice(1)
+        .join(sep === "\t" ? "\t" : ",")
+        .trim();
       if (name && name.length <= 24 && !name.includes("[") && !name.includes("<|") && text) {
         out.push({ castName: name, text });
         continue;

@@ -8,14 +8,29 @@ import { PlayButton } from "../../app/PlayButton";
 export const REF_MIN = 10;
 export const REF_MAX = 30;
 export function refLengthAdvice(secs: number): { level: "ok" | "warn"; text: string } {
-  if (secs < 3) return { level: "warn", text: `短すぎます（${secs.toFixed(1)}秒）。声の特徴が十分に入りません。推奨は ${REF_MIN}〜${REF_MAX} 秒です。` };
-  if (secs < REF_MIN) return { level: "ok", text: `${secs.toFixed(1)}秒（推奨 ${REF_MIN}〜${REF_MAX} 秒。もう少し長いと安定します）` };
+  if (secs < 3)
+    return {
+      level: "warn",
+      text: `短すぎます（${secs.toFixed(1)}秒）。声の特徴が十分に入りません。推奨は ${REF_MIN}〜${REF_MAX} 秒です。`,
+    };
+  if (secs < REF_MIN)
+    return { level: "ok", text: `${secs.toFixed(1)}秒（推奨 ${REF_MIN}〜${REF_MAX} 秒。もう少し長いと安定します）` };
   if (secs <= REF_MAX) return { level: "ok", text: `${secs.toFixed(1)}秒（推奨範囲内）` };
-  return { level: "warn", text: `長すぎます（${secs.toFixed(1)}秒）。推奨は ${REF_MIN}〜${REF_MAX} 秒です。長い参照は生成のたびにプロンプトを長くし、遅くなります。区間を選んで切り出してください。` };
+  return {
+    level: "warn",
+    text: `長すぎます（${secs.toFixed(1)}秒）。推奨は ${REF_MIN}〜${REF_MAX} 秒です。長い参照は生成のたびにプロンプトを長くし、遅くなります。区間を選んで切り出してください。`,
+  };
 }
 
 /** Moves the handle nearest to `t` there, keeping start < end by at least `minGap`. */
-export function dragRange(start: number, end: number, t: number, which: "start" | "end", duration: number, minGap = 0.2): [number, number] {
+export function dragRange(
+  start: number,
+  end: number,
+  t: number,
+  which: "start" | "end",
+  duration: number,
+  minGap = 0.2,
+): [number, number] {
   const x = Math.max(0, Math.min(duration, t));
   return which === "start" ? [Math.min(x, end - minGap), end] : [start, Math.max(x, start + minGap)];
 }
@@ -112,7 +127,12 @@ export function WaveformTrimmer({ path, start, end, onChange }: Props) {
         title="ドラッグで開始・終了を指定"
       />
       <div className="trim-info">
-        <PlayButton session={`range:${path}`} items={() => [{ path, pre: 0, post: 0, key: `range:${path}`, start, end }]} title="選択区間を試聴" label="区間を試聴" />
+        <PlayButton
+          session={`range:${path}`}
+          items={() => [{ path, pre: 0, post: 0, key: `range:${path}`, start, end }]}
+          title="選択区間を試聴"
+          label="区間を試聴"
+        />
         <span className="small-text">
           {start.toFixed(2)}s – {end.toFixed(2)}s / 全体 {wave.duration.toFixed(1)}s
         </span>

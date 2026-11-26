@@ -34,7 +34,13 @@ export function Menu({
   }, [open]);
   return (
     <div className="menu" ref={ref}>
-      <button className={className} aria-label={ariaLabel} aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen(!open)}>
+      <button
+        className={className}
+        aria-label={ariaLabel}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        onClick={() => setOpen(!open)}
+      >
         {label}
       </button>
       {open && (
@@ -46,7 +52,19 @@ export function Menu({
   );
 }
 
-export function MenuItem({ icon, kbd, disabled, onSelect, children }: { icon?: IconName; kbd?: string; disabled?: boolean; onSelect: () => void; children: ReactNode }) {
+export function MenuItem({
+  icon,
+  kbd,
+  disabled,
+  onSelect,
+  children,
+}: {
+  icon?: IconName;
+  kbd?: string;
+  disabled?: boolean;
+  onSelect: () => void;
+  children: ReactNode;
+}) {
   return (
     <button className="menu-item" role="menuitem" disabled={disabled} onClick={onSelect}>
       {icon ? <Icon name={icon} /> : <span className="icon-gap" />}

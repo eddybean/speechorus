@@ -2,8 +2,8 @@
 
 pub mod audio;
 mod commands;
-pub mod engine;
 pub mod downloads;
+pub mod engine;
 pub mod events;
 pub mod installer;
 pub mod jobs;
@@ -55,7 +55,6 @@ fn strip_verbatim(p: &str) -> String {
     p.strip_prefix(r"\\?\").unwrap_or(p).to_string()
 }
 
-
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -83,19 +82,13 @@ pub fn run() {
                     s
                 });
             let voices = voices::VoiceLibrary::open(&data.join("voices"));
-            let _ = app
-                .asset_protocol_scope()
-                .allow_directory(&voices.dir, true);
+            let _ = app.asset_protocol_scope().allow_directory(&voices.dir, true);
             // Trimmed references used to be kept here (before D-39); they now live in the work folder.
             let _ = std::fs::remove_dir_all(voices.dir.join(work::TRIMMED));
             let work = work::WorkDir::open(&local.join("work"))?;
-            let _ = app
-                .asset_protocol_scope()
-                .allow_directory(work.root(), true);
+            let _ = app.asset_protocol_scope().allow_directory(work.root(), true);
             let supervisor = engine::EngineSupervisor::new(emit.clone());
-            let queue = tauri::async_runtime::block_on(async {
-                jobs::GenerationQueue::new(supervisor.clone(), emit)
-            });
+            let queue = tauri::async_runtime::block_on(async { jobs::GenerationQueue::new(supervisor.clone(), emit) });
             app.manage(AppState {
                 settings: Mutex::new(settings),
                 settings_path,
@@ -166,19 +159,13 @@ pub fn run() {
 mod tests {
     #[test]
     fn strips_verbatim_prefix() {
-        assert_eq!(
-            super::strip_verbatim(r"\\?\E:\a\speech.exe"),
-            r"E:\a\speech.exe"
-        );
+        assert_eq!(super::strip_verbatim(r"\\?\E:\a\speech.exe"), r"E:\a\speech.exe");
         assert_eq!(super::strip_verbatim(r"E:\a"), r"E:\a");
     }
 
     #[test]
     fn engine_state_fields_are_camel_case() {
-        let v = serde_json::to_value(crate::engine::EngineState::Loading {
-            profile_id: "p".into(),
-        })
-        .unwrap();
+        let v = serde_json::to_value(crate::engine::EngineState::Loading { profile_id: "p".into() }).unwrap();
         assert_eq!(v, serde_json::json!({"state": "loading", "profileId": "p"}));
     }
 }

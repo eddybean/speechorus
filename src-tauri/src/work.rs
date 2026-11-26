@@ -80,10 +80,7 @@ impl WorkDir {
     /// Whether `dir` is an untitled project's takes folder made by `project_new`.
     pub fn is_project_dir(&self, dir: &Path) -> bool {
         dir.parent() == Some(self.root.as_path())
-            && dir
-                .file_name()
-                .and_then(|n| n.to_str())
-                .is_some_and(|n| n != DESIGN && n != TRIMMED && n != LOCK)
+            && dir.file_name().and_then(|n| n.to_str()).is_some_and(|n| n != DESIGN && n != TRIMMED && n != LOCK)
     }
 }
 

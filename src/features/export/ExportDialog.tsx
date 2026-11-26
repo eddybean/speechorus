@@ -7,7 +7,11 @@ import { useApp } from "../../store/app";
 import { selectedTake, useProject } from "../../store/project";
 import { Dialog } from "../../app/Dialog";
 
-export function exportItems(project: Project, takesDir: string, lineIds: string[] | null): { items: ExportItem[]; missing: number; seconds: number } {
+export function exportItems(
+  project: Project,
+  takesDir: string,
+  lineIds: string[] | null,
+): { items: ExportItem[]; missing: number; seconds: number } {
   let missing = 0;
   let seconds = 0;
   const items: ExportItem[] = [];
@@ -51,14 +55,22 @@ export function ExportDialog() {
     setBusy(true);
     setResult(null);
     try {
-      if (tpl !== project.exportSettings.fileTemplate) useProject.getState().edit("書き出し設定", (d) => void (d.exportSettings.fileTemplate = tpl));
+      if (tpl !== project.exportSettings.fileTemplate)
+        useProject.getState().edit("書き出し設定", (d) => void (d.exportSettings.fileTemplate = tpl));
       if (kind === "joined") {
-        const path = await save({ defaultPath: `${project.name}.wav`, filters: [{ name: "WAV", extensions: ["wav"] }] });
+        const path = await save({
+          defaultPath: `${project.name}.wav`,
+          filters: [{ name: "WAV", extensions: ["wav"] }],
+        });
         if (!path) return;
         const r = await ipc.exportJoined({ items, wavPath: path, srt, txt, srtWithCast: srtCast });
         setResult(r.files);
       } else {
-        const dir = await open({ directory: true, title: "書き出し先フォルダ", defaultPath: project.exportSettings.outDir || undefined });
+        const dir = await open({
+          directory: true,
+          title: "書き出し先フォルダ",
+          defaultPath: project.exportSettings.outDir || undefined,
+        });
         if (!dir) return;
         useProject.getState().edit("書き出し先", (d) => void (d.exportSettings.outDir = String(dir)));
         const r = await ipc.exportEach(items, String(dir), tpl, txt);
@@ -75,7 +87,8 @@ export function ExportDialog() {
     <Dialog title="書き出し" onClose={() => app().openDialog(null)}>
       <div className="radio-row">
         <label>
-          <input type="radio" checked={kind === "joined"} onChange={() => setKind("joined")} /> 結合WAV（前後の無音つき）
+          <input type="radio" checked={kind === "joined"} onChange={() => setKind("joined")} />{" "}
+          結合WAV（前後の無音つき）
         </label>
         <label>
           <input type="radio" checked={kind === "each"} onChange={() => setKind("each")} /> 行ごとのWAV
@@ -86,7 +99,13 @@ export function ExportDialog() {
           <input type="radio" checked={scope === "all"} onChange={() => setScope("all")} /> 全行
         </label>
         <label>
-          <input type="radio" checked={scope === "selection"} disabled={selection.length === 0} onChange={() => setScope("selection")} /> 選択中の行 ({selection.length})
+          <input
+            type="radio"
+            checked={scope === "selection"}
+            disabled={selection.length === 0}
+            onChange={() => setScope("selection")}
+          />{" "}
+          選択中の行 ({selection.length})
         </label>
       </div>
       {kind === "each" ? (
@@ -97,7 +116,8 @@ export function ExportDialog() {
             <span className="muted small-text">{"{index} {cast} {text8} {text} {seed}"} — 同名は _2, _3 … の連番</span>
           </label>
           <label>
-            <input type="checkbox" checked={txt} onChange={(e) => setTxt(e.target.checked)} /> 各WAVと同名の .txt も書き出す
+            <input type="checkbox" checked={txt} onChange={(e) => setTxt(e.target.checked)} /> 各WAVと同名の .txt
+            も書き出す
           </label>
         </>
       ) : (
@@ -106,10 +126,12 @@ export function ExportDialog() {
             <input type="checkbox" checked={srt} onChange={(e) => setSrt(e.target.checked)} /> SRT 字幕
           </label>
           <label>
-            <input type="checkbox" checked={srtCast} disabled={!srt} onChange={(e) => setSrtCast(e.target.checked)} /> 字幕に話者名を入れる
+            <input type="checkbox" checked={srtCast} disabled={!srt} onChange={(e) => setSrtCast(e.target.checked)} />{" "}
+            字幕に話者名を入れる
           </label>
           <label>
-            <input type="checkbox" checked={txt} onChange={(e) => setTxt(e.target.checked)} /> 台本 .txt（キャラ,テキスト）
+            <input type="checkbox" checked={txt} onChange={(e) => setTxt(e.target.checked)} /> 台本
+            .txt（キャラ,テキスト）
           </label>
         </>
       )}

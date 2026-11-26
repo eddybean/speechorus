@@ -57,7 +57,11 @@ export async function rerollTake(lineId: string, seed: number | null) {
   if (!ctx) return;
   const line = ctx.project.lines.find((l) => l.id === lineId);
   if (!line) return;
-  await useApp.getState().enqueue(jobsForLines(ctx, [line], { takesPerLine: 1, seedMode: seed === null ? "random" : "fixed", baseSeed: seed ?? 0 }));
+  await useApp
+    .getState()
+    .enqueue(
+      jobsForLines(ctx, [line], { takesPerLine: 1, seedMode: seed === null ? "random" : "fixed", baseSeed: seed ?? 0 }),
+    );
 }
 
 /** Copies a take's seed to the clipboard, to paste into the seed box later. */
@@ -136,7 +140,14 @@ export function createScene(lineIds: string[]) {
   const caps = useApp.getState().activeAdapter()?.capabilities;
   const mode = caps?.multiSpeaker && caps.multiSpeakerReliable ? "single" : "perLine";
   edit("シーンを作成", (d) => {
-    d.scenes.push({ id: uid(), name: `シーン${d.scenes.length + 1}`, lineIds: ordered, mode, takes: [], selectedTakeId: null });
+    d.scenes.push({
+      id: uid(),
+      name: `シーン${d.scenes.length + 1}`,
+      lineIds: ordered,
+      mode,
+      takes: [],
+      selectedTakeId: null,
+    });
   });
 }
 
@@ -175,7 +186,12 @@ export async function generateScene(sceneId: string) {
   }
   await app.refreshVoices();
   const cueFor = (castId: string) =>
-    voiceIds[speakers.indexOf(castId)] !== null ? null : castVoicing(ctx, ctx.project.cast.find((x) => x.id === castId)).prompt;
+    voiceIds[speakers.indexOf(castId)] !== null
+      ? null
+      : castVoicing(
+          ctx,
+          ctx.project.cast.find((x) => x.id === castId),
+        ).prompt;
   const text = sceneText(ctx.project, scene.lineIds, cueFor);
   const batch = app.batch;
   const jobs = Array.from({ length: Math.max(1, batch.takesPerLine) }, (_, k) => ({
@@ -194,7 +210,8 @@ export async function generateScene(sceneId: string) {
     outDir: ctx.takesDir,
     fileStem: `scene-${scene.id.slice(0, 8)}-${Date.now().toString(36)}-${k}`,
   }));
-  if (!ctx.adapter.capabilities.multiSpeakerReliable) app.notify("warn", "このモデルでは2人目以降が発話されないことがあります（docs/engine-protocol.md）");
+  if (!ctx.adapter.capabilities.multiSpeakerReliable)
+    app.notify("warn", "このモデルでは2人目以降が発話されないことがあります（docs/engine-protocol.md）");
   await app.enqueue(jobs);
 }
 

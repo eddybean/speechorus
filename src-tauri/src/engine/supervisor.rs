@@ -14,25 +14,12 @@ use crate::models::{adapter_for, ModelAdapter};
 use crate::settings::ModelProfile;
 
 #[derive(Debug, Clone, Serialize, PartialEq)]
-#[serde(
-    tag = "state",
-    rename_all = "camelCase",
-    rename_all_fields = "camelCase"
-)]
+#[serde(tag = "state", rename_all = "camelCase", rename_all_fields = "camelCase")]
 pub enum EngineState {
     Stopped,
-    Loading {
-        profile_id: String,
-    },
-    Ready {
-        profile_id: String,
-        model: serde_json::Value,
-        sample_rate: u32,
-    },
-    Failed {
-        profile_id: String,
-        message: String,
-    },
+    Loading { profile_id: String },
+    Ready { profile_id: String, model: serde_json::Value, sample_rate: u32 },
+    Failed { profile_id: String, message: String },
 }
 
 struct Inner {
@@ -93,21 +80,13 @@ impl EngineSupervisor {
     pub fn live(&self) -> Result<Live, EngineError> {
         let g = self.inner.lock().unwrap();
         match (&g.conn, &g.adapter) {
-            (Some(c), Some(a)) if c.is_alive() => Ok(Live {
-                conn: c.clone(),
-                adapter: a.clone(),
-            }),
+            (Some(c), Some(a)) if c.is_alive() => Ok(Live { conn: c.clone(), adapter: a.clone() }),
             _ => Err(EngineError::NotRunning),
         }
     }
 
     /// Attaches an already connected worker (tests, or a custom transport).
-    pub fn attach(
-        &self,
-        conn: Arc<WorkerConnection>,
-        adapter: Arc<dyn ModelAdapter>,
-        profile_id: &str,
-    ) {
+    pub fn attach(&self, conn: Arc<WorkerConnection>, adapter: Arc<dyn ModelAdapter>, profile_id: &str) {
         let mut g = self.inner.lock().unwrap();
         g.generation += 1;
         g.voices.clear();
@@ -121,11 +100,7 @@ impl EngineSupervisor {
     }
 
     /// Stops the current worker (if any) and starts one for `profile`.
-    pub async fn start(
-        self: &Arc<Self>,
-        profile: &ModelProfile,
-        model_path: String,
-    ) -> Result<(), EngineError> {
+    pub async fn start(self: &Arc<Self>, profile: &ModelProfile, model_path: String) -> Result<(), EngineError> {
         self.stop().await;
         let adapter = adapter_for(&profile.adapter)
             .ok_or_else(|| EngineError::Other(format!("unknown adapter {}", profile.adapter)))?;
@@ -134,9 +109,7 @@ impl EngineSupervisor {
             g.generation += 1;
             g.generation
         };
-        self.set_state(EngineState::Loading {
-            profile_id: profile.id.clone(),
-        });
+        self.set_state(EngineState::Loading { profile_id: profile.id.clone() });
 
         let mut cmd = Command::new(&profile.speech_exe);
         cmd.arg("worker").arg(&model_path);
@@ -151,19 +124,13 @@ impl EngineSupervisor {
         for (k, v) in &profile.env {
             cmd.env(k, v);
         }
-        cmd.stdin(Stdio::piped())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .kill_on_drop(true);
+        cmd.stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped()).kill_on_drop(true);
         no_window(&mut cmd);
         let mut child = match cmd.spawn() {
             Ok(c) => c,
             Err(e) => {
                 let msg = format!("{}: {e}", profile.speech_exe);
-                self.set_state(EngineState::Failed {
-                    profile_id: profile.id.clone(),
-                    message: msg.clone(),
-                });
+                self.set_state(EngineState::Failed { profile_id: profile.id.clone(), message: msg.clone() });
                 return Err(EngineError::Other(msg));
             }
         };
@@ -188,11 +155,8 @@ impl EngineSupervisor {
         });
         self.inner.lock().unwrap().child = Some(child);
         let emit = self.emit.clone();
-        let orphan: Arc<dyn Fn(String) + Send + Sync> = Arc::new(move |l| {
-            emit(AppEvent::EngineLog {
-                line: format!("[protocol] {l}"),
-            })
-        });
+        let orphan: Arc<dyn Fn(String) + Send + Sync> =
+            Arc::new(move |l| emit(AppEvent::EngineLog { line: format!("[protocol] {l}") }));
         let res = WorkerConnection::handshake(stdout, stdin, orphan).await;
         let stale = self.inner.lock().unwrap().generation != my_gen;
         match res {
@@ -262,10 +226,7 @@ impl EngineSupervisor {
         }
         if let Some(mut ch) = child {
             // The worker exits 0 once stdin closes; give it a moment, then kill.
-            if tokio::time::timeout(std::time::Duration::from_secs(3), ch.wait())
-                .await
-                .is_err()
-            {
+            if tokio::time::timeout(std::time::Duration::from_secs(3), ch.wait()).await.is_err() {
                 let _ = ch.kill().await;
             }
         }
@@ -275,23 +236,14 @@ impl EngineSupervisor {
     }
 
     /// Adds a voice file to the running worker under `name` unless it is there already.
-    pub async fn ensure_voice(
-        &self,
-        live: &Live,
-        name: &str,
-        path: &str,
-    ) -> Result<(), EngineError> {
+    pub async fn ensure_voice(&self, live: &Live, name: &str, path: &str) -> Result<(), EngineError> {
         let known = self.inner.lock().unwrap().voices.get(name).cloned();
         if known.as_deref() == Some(path) {
             return Ok(());
         }
         // A changed file under a known name gets a fresh name, since a worker cannot replace a voice.
         live.conn.add_voice(name, path).await?;
-        self.inner
-            .lock()
-            .unwrap()
-            .voices
-            .insert(name.into(), path.into());
+        self.inner.lock().unwrap().voices.insert(name.into(), path.into());
         Ok(())
     }
 }

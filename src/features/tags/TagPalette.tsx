@@ -8,7 +8,10 @@ import { useApp } from "../../store/app";
 import { useProject } from "../../store/project";
 import { insertAtCursor } from "../script/LineEditor";
 
-const PALETTES: Record<string, TagPaletteData> = { drama3: drama3 as TagPaletteData, "irodori-emoji": irodori as TagPaletteData };
+const PALETTES: Record<string, TagPaletteData> = {
+  drama3: drama3 as TagPaletteData,
+  "irodori-emoji": irodori as TagPaletteData,
+};
 
 interface Item {
   value: string;
@@ -19,7 +22,11 @@ interface Item {
 function items(p: TagPaletteData, catId: string, showNsfw: boolean): Item[] {
   return p.categories
     .filter((c) => (catId === "*" || c.id === catId) && (showNsfw || !c.nsfw))
-    .flatMap((c) => c.tags.map((t) => (typeof t === "string" ? { value: t, label: t, help: "" } : { value: t.tag, label: t.label, help: t.help })));
+    .flatMap((c) =>
+      c.tags.map((t) =>
+        typeof t === "string" ? { value: t, label: t, help: "" } : { value: t.tag, label: t.label, help: t.help },
+      ),
+    );
 }
 
 export function insertTagEverywhere(tag: string) {
@@ -58,7 +65,9 @@ export function TagPalette() {
     }
   };
 
-  const recent = (settings?.recentTags ?? []).filter((t) => (syntax === "emoji" ? !t.startsWith("[") : t.startsWith("[")));
+  const recent = (settings?.recentTags ?? []).filter((t) =>
+    syntax === "emoji" ? !t.startsWith("[") : t.startsWith("["),
+  );
   return (
     <div className="palette">
       <div className="palette-head">
@@ -106,7 +115,12 @@ export function TagPalette() {
           setFree("");
         }}
       >
-        <input placeholder={syntax === "emoji" ? "絵文字を入力" : "自由入力（例: 寂しそうに）"} value={free} onChange={(e) => setFree(e.target.value)} onMouseDown={(e) => e.stopPropagation()} />
+        <input
+          placeholder={syntax === "emoji" ? "絵文字を入力" : "自由入力（例: 寂しそうに）"}
+          value={free}
+          onChange={(e) => setFree(e.target.value)}
+          onMouseDown={(e) => e.stopPropagation()}
+        />
         <button type="submit" onMouseDown={(e) => e.preventDefault()}>
           挿入
         </button>

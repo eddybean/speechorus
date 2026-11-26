@@ -1,5 +1,16 @@
 import { describe, expect, it } from "vitest";
-import { applyPaste, insertTag, normalizeTag, parseScript, parseSeed, plainText, seedFor, splitForPaste, tokenize, workerVoiceName } from "./text";
+import {
+  applyPaste,
+  insertTag,
+  normalizeTag,
+  parseScript,
+  parseSeed,
+  plainText,
+  seedFor,
+  splitForPaste,
+  tokenize,
+  workerVoiceName,
+} from "./text";
 
 describe("tokenize", () => {
   it("finds cues, speakers and emoji", () => {
@@ -38,7 +49,11 @@ describe("insertTag", () => {
 
 describe("paste splitting", () => {
   it("splits at 。 and newlines but not inside cues", () => {
-    expect(splitForPaste("「こんにちは。」元気？[説明。中]そう。\n\n次の行")).toEqual(["「こんにちは。」", "元気？[説明。中]そう。", "次の行"]);
+    expect(splitForPaste("「こんにちは。」元気？[説明。中]そう。\n\n次の行")).toEqual([
+      "「こんにちは。」",
+      "元気？[説明。中]そう。",
+      "次の行",
+    ]);
   });
   it("applyPaste keeps a single piece in the line", () => {
     expect(applyPaste("ab", 1, 1, "X")).toEqual(["aXb"]);
@@ -48,7 +63,9 @@ describe("paste splitting", () => {
 
 describe("parseScript", () => {
   it("reads VOICEVOX style txt, csv quoting and bare lines", () => {
-    const r = parseScript('﻿ずんだ,こんにちは、元気？\r\n\r\n"めたん","言った, ""はい""。"\n[囁き]地の文だけ\nナレーション\tむかしむかし');
+    const r = parseScript(
+      '﻿ずんだ,こんにちは、元気？\r\n\r\n"めたん","言った, ""はい""。"\n[囁き]地の文だけ\nナレーション\tむかしむかし',
+    );
     expect(r).toEqual([
       { castName: "ずんだ", text: "こんにちは、元気？" },
       { castName: "めたん", text: '言った, "はい"。' },
@@ -69,7 +86,14 @@ describe("seeds and names", () => {
     expect(parseSeed(" 🎲4212077026712288 ")).toBe(4212077026712288);
     expect(parseSeed("1,234")).toBe(1234);
     expect(parseSeed("0")).toBe(0);
-    expect(["", "?", "-1", "1.5", "abc", "99999999999999999999"].map(parseSeed)).toEqual([null, null, null, null, null, null]);
+    expect(["", "?", "-1", "1.5", "abc", "99999999999999999999"].map(parseSeed)).toEqual([
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+    ]);
   });
   it("matches the Rust worker voice name", () => {
     expect(workerVoiceName("12ab-cd")).toBe("v12abcd");

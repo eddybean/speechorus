@@ -25,7 +25,12 @@ export function TopBar() {
       </div>
       <div className="zone center">
         <GenerateButton />
-        <PlayButton session={session.sequence} items={() => fromItems(activeLineId)} title="選択行から連続再生" label="連続再生" />
+        <PlayButton
+          session={session.sequence}
+          items={() => fromItems(activeLineId)}
+          title="選択行から連続再生"
+          label="連続再生"
+        />
         {active && (
           <button onClick={() => usePlayer.getState().stop()} title="停止（位置を破棄して頭に戻す）">
             <Icon name="stop" />
@@ -47,7 +52,17 @@ function FileMenu() {
   const canUndo = useProject((s) => s.undoStack.length > 0);
   const canRedo = useProject((s) => s.redoStack.length > 0);
   return (
-    <Menu className="ghost" label={<><Icon name="file" />ファイル<Icon name="chevron" size={14} /></>} ariaLabel="ファイル">
+    <Menu
+      className="ghost"
+      label={
+        <>
+          <Icon name="file" />
+          ファイル
+          <Icon name="chevron" size={14} />
+        </>
+      }
+      ariaLabel="ファイル"
+    >
       {(close) => {
         const run = (f: () => unknown) => () => {
           close();
@@ -55,15 +70,37 @@ function FileMenu() {
         };
         return (
           <>
-            <MenuItem icon="file" onSelect={run(newProject)}>新規</MenuItem>
-            <MenuItem icon="open" kbd={`${modKey}O`} onSelect={run(() => openProject())}>開く…</MenuItem>
-            <MenuItem icon="save" kbd={`${modKey}S`} onSelect={run(() => saveProject())}>保存</MenuItem>
+            <MenuItem icon="file" onSelect={run(newProject)}>
+              新規
+            </MenuItem>
+            <MenuItem icon="open" kbd={`${modKey}O`} onSelect={run(() => openProject())}>
+              開く…
+            </MenuItem>
+            <MenuItem icon="save" kbd={`${modKey}S`} onSelect={run(() => saveProject())}>
+              保存
+            </MenuItem>
             <MenuItem onSelect={run(() => saveProject(true))}>名前を付けて保存…</MenuItem>
-            <MenuItem icon="import" onSelect={run(importScript)}>台本（txt/csv）を取り込み…</MenuItem>
+            <MenuItem icon="import" onSelect={run(importScript)}>
+              台本（txt/csv）を取り込み…
+            </MenuItem>
             <hr />
             <MenuHeading>編集</MenuHeading>
-            <MenuItem icon="undo" kbd={`${modKey}Z`} disabled={!canUndo} onSelect={run(() => useProject.getState().undo())}>元に戻す</MenuItem>
-            <MenuItem icon="redo" kbd={modKey === "⌘" ? "⇧⌘Z" : "Ctrl+Y"} disabled={!canRedo} onSelect={run(() => useProject.getState().redo())}>やり直し</MenuItem>
+            <MenuItem
+              icon="undo"
+              kbd={`${modKey}Z`}
+              disabled={!canUndo}
+              onSelect={run(() => useProject.getState().undo())}
+            >
+              元に戻す
+            </MenuItem>
+            <MenuItem
+              icon="redo"
+              kbd={modKey === "⌘" ? "⇧⌘Z" : "Ctrl+Y"}
+              disabled={!canRedo}
+              onSelect={run(() => useProject.getState().redo())}
+            >
+              やり直し
+            </MenuItem>
           </>
         );
       }}
@@ -76,21 +113,57 @@ function GenerateButton() {
   const set = useApp((s) => s.setBatch);
   return (
     <div className="split">
-      <button className="primary" onClick={() => void generateSelected()} title={`選択行を生成 (${modKey}Enter)`} aria-label="選択行を生成">
+      <button
+        className="primary"
+        onClick={() => void generateSelected()}
+        title={`選択行を生成 (${modKey}Enter)`}
+        aria-label="選択行を生成"
+      >
         <Icon name="generate" />
         選択行を生成
       </button>
       <Menu className="primary split-toggle" label={<Icon name="chevron" size={14} />} ariaLabel="生成の種類と設定">
         {(close) => (
           <>
-            <MenuItem icon="generate" kbd={`${modKey}↩`} onSelect={() => { close(); void generateSelected(); }}>選択行を生成</MenuItem>
-            <MenuItem icon="generate" onSelect={() => { close(); void generateMissing(); }}>テイクが無い行だけ生成</MenuItem>
-            <MenuItem icon="generate" onSelect={() => { close(); void generateAll(); }}>全行を生成</MenuItem>
+            <MenuItem
+              icon="generate"
+              kbd={`${modKey}↩`}
+              onSelect={() => {
+                close();
+                void generateSelected();
+              }}
+            >
+              選択行を生成
+            </MenuItem>
+            <MenuItem
+              icon="generate"
+              onSelect={() => {
+                close();
+                void generateMissing();
+              }}
+            >
+              テイクが無い行だけ生成
+            </MenuItem>
+            <MenuItem
+              icon="generate"
+              onSelect={() => {
+                close();
+                void generateAll();
+              }}
+            >
+              全行を生成
+            </MenuItem>
             <hr />
             <div className="menu-form">
               <label>
                 1行あたりのテイク
-                <input type="number" min={1} max={20} value={batch.takesPerLine} onChange={(e) => set({ takesPerLine: Math.max(1, Number(e.target.value)) })} />
+                <input
+                  type="number"
+                  min={1}
+                  max={20}
+                  value={batch.takesPerLine}
+                  onChange={(e) => set({ takesPerLine: Math.max(1, Number(e.target.value)) })}
+                />
               </label>
               <label>
                 シード
@@ -103,7 +176,12 @@ function GenerateButton() {
               {batch.seedMode !== "random" && (
                 <label>
                   シード値
-                  <input type="number" min={0} value={batch.baseSeed} onChange={(e) => set({ baseSeed: Number(e.target.value) })} />
+                  <input
+                    type="number"
+                    min={0}
+                    value={batch.baseSeed}
+                    onChange={(e) => set({ baseSeed: Number(e.target.value) })}
+                  />
                 </label>
               )}
             </div>

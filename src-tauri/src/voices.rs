@@ -44,10 +44,7 @@ impl VoiceLibrary {
             .ok()
             .and_then(|s| serde_json::from_str(&s).ok())
             .unwrap_or_default();
-        VoiceLibrary {
-            dir: dir.to_path_buf(),
-            voices,
-        }
+        VoiceLibrary { dir: dir.to_path_buf(), voices }
     }
 
     pub fn save(&self) -> std::io::Result<()> {
@@ -75,12 +72,7 @@ impl VoiceLibrary {
         std::fs::create_dir_all(&refs)?;
         let mut kept = Vec::new();
         for (n, i) in inputs.into_iter().enumerate() {
-            let ext = i
-                .path
-                .extension()
-                .and_then(|e| e.to_str())
-                .unwrap_or("wav")
-                .to_string();
+            let ext = i.path.extension().and_then(|e| e.to_str()).unwrap_or("wav").to_string();
             let dst = refs.join(format!("{id}-{n}.{ext}"));
             std::fs::copy(&i.path, &dst)?;
             kept.push(VoiceInput { path: dst, ..i });
@@ -99,30 +91,17 @@ impl VoiceLibrary {
                 .unwrap_or(0),
             ..Default::default()
         };
-        Ok((
-            VoiceBuild {
-                model: model.into(),
-                inputs: kept,
-                out: file,
-            },
-            voice,
-        ))
+        Ok((VoiceBuild { model: model.into(), inputs: kept, out: file }, voice))
     }
 
     /// Plans a cast voice whose speaker N is `ids[N]` (a None leaves that speaker to the model).
     /// An existing combination of the same voices is reused.
-    pub fn plan_combined(
-        &self,
-        model: &str,
-        ids: &[Option<String>],
-    ) -> Result<CombinePlan, String> {
+    pub fn plan_combined(&self, model: &str, ids: &[Option<String>]) -> Result<CombinePlan, String> {
         let mut inputs = Vec::new();
         let mut from = Vec::new();
         for (n, id) in ids.iter().enumerate() {
             let Some(id) = id else { continue };
-            let v = self
-                .get(id)
-                .ok_or_else(|| format!("ボイス {id} がありません"))?;
+            let v = self.get(id).ok_or_else(|| format!("ボイス {id} がありません"))?;
             if v.file.is_empty() {
                 // A description alone has no recordings: that speaker is left to the model (its cue goes in the text).
                 continue;
@@ -130,11 +109,7 @@ impl VoiceLibrary {
             if v.family != "drama3" {
                 return Err(format!("{} は Drama-3 のボイスではありません", v.name));
             }
-            inputs.push(VoiceInput {
-                path: PathBuf::from(&v.file),
-                transcript: None,
-                speaker: Some(n as u32),
-            });
+            inputs.push(VoiceInput { path: PathBuf::from(&v.file), transcript: None, speaker: Some(n as u32) });
             from.push(format!("{n}:{id}"));
         }
         if inputs.is_empty() {
@@ -149,12 +124,7 @@ impl VoiceLibrary {
         let file = self.dir.join(format!("{id}.voice.gguf"));
         let names: Vec<String> = ids
             .iter()
-            .map(|i| {
-                i.as_ref()
-                    .and_then(|i| self.get(i))
-                    .map(|v| v.name.clone())
-                    .unwrap_or_else(|| "-".into())
-            })
+            .map(|i| i.as_ref().and_then(|i| self.get(i)).map(|v| v.name.clone()).unwrap_or_else(|| "-".into()))
             .collect();
         let voice = Voice {
             id,
@@ -165,14 +135,7 @@ impl VoiceLibrary {
             combined_from: from,
             ..Default::default()
         };
-        Ok(CombinePlan::Build(
-            VoiceBuild {
-                model: model.into(),
-                inputs,
-                out: file,
-            },
-            voice,
-        ))
+        Ok(CombinePlan::Build(VoiceBuild { model: model.into(), inputs, out: file }, voice))
     }
 
     pub fn insert(&mut self, v: Voice) -> std::io::Result<()> {
@@ -205,7 +168,10 @@ impl VoiceLibrary {
             speakers: 1,
             prompt: prompt.trim().into(),
             note: note.into(),
-            created_at: std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_millis() as u64).unwrap_or(0),
+            created_at: std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_millis() as u64)
+                .unwrap_or(0),
             ..Default::default()
         };
         self.insert(v.clone())?;
@@ -235,11 +201,7 @@ mod tests {
                 &Drama3Adapter,
                 "m.gguf",
                 "私",
-                vec![VoiceInput {
-                    path: wav,
-                    transcript: Some("こんにちは".into()),
-                    speaker: None,
-                }],
+                vec![VoiceInput { path: wav, transcript: Some("こんにちは".into()), speaker: None }],
             )
             .unwrap();
         assert!(b.inputs[0].path.starts_with(&lib.dir));
@@ -252,12 +214,8 @@ mod tests {
         lib.insert(v).unwrap();
         assert!(VoiceLibrary::open(&lib.dir).get(&vid).is_some());
 
-        let plan = lib
-            .plan_combined("m.gguf", &[None, Some(vid.clone())])
-            .unwrap();
-        let CombinePlan::Build(b, cv) = plan else {
-            panic!()
-        };
+        let plan = lib.plan_combined("m.gguf", &[None, Some(vid.clone())]).unwrap();
+        let CombinePlan::Build(b, cv) = plan else { panic!() };
         assert_eq!(b.inputs[0].speaker, Some(1));
         assert_eq!(cv.speakers, 2);
         std::fs::write(&cv.file, b"GGUF").unwrap();
@@ -266,10 +224,7 @@ mod tests {
         assert!(
             matches!(lib.plan_combined("m.gguf", &[None, Some(vid.clone())]).unwrap(), CombinePlan::Existing(v) if v.id == cid)
         );
-        assert!(matches!(
-            lib.plan_combined("m.gguf", &[None, None]).unwrap(),
-            CombinePlan::NoneNeeded
-        ));
+        assert!(matches!(lib.plan_combined("m.gguf", &[None, None]).unwrap(), CombinePlan::NoneNeeded));
         lib.remove(&vid).unwrap();
         assert!(lib.get(&vid).is_none());
 

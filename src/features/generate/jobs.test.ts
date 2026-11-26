@@ -13,7 +13,18 @@ const drama: AdapterDescriptor = {
   ],
 };
 
-const voice: Voice = { id: "aaaa-bbbb", name: "me", family: "drama3", file: "C:/v/me.voice.gguf", sources: [], speakers: 1, combinedFrom: [], createdAt: 0, note: "", prompt: "" };
+const voice: Voice = {
+  id: "aaaa-bbbb",
+  name: "me",
+  family: "drama3",
+  file: "C:/v/me.voice.gguf",
+  sources: [],
+  speakers: 1,
+  combinedFrom: [],
+  createdAt: 0,
+  note: "",
+  prompt: "",
+};
 
 describe("jobsForLines", () => {
   it("makes N takes per line with sequential seeds and the cast's voice", () => {
@@ -22,7 +33,11 @@ describe("jobsForLines", () => {
     p.cast.push(c);
     const a = newLine({ castId: c.id, text: "[囁き]ねえ", optionsOverride: { top_k: 10 } });
     const empty = newLine({ text: "  " });
-    const jobs = jobsForLines({ project: p, voices: [voice], adapter: drama, takesDir: "D:/t" }, [a, empty], { takesPerLine: 3, seedMode: "sequential", baseSeed: 100 });
+    const jobs = jobsForLines({ project: p, voices: [voice], adapter: drama, takesDir: "D:/t" }, [a, empty], {
+      takesPerLine: 3,
+      seedMode: "sequential",
+      baseSeed: 100,
+    });
     expect(jobs).toHaveLength(3);
     expect(jobs.map((j) => j.request.seed)).toEqual([100, 101, 102]);
     expect(jobs[0].request.voice).toBe("vaaaabbbb");
@@ -37,14 +52,20 @@ describe("jobsForLines", () => {
     const c = newCast("A", 0, { voiceId: "x", designPrompt: "落ち着いた女性" });
     p.cast.push(c);
     const iro: Voice = { ...voice, id: "x", family: "irodori" };
-    const [j] = jobsForLines({ project: p, voices: [iro], adapter: drama, takesDir: "" }, [newLine({ castId: c.id, text: "a" })], { takesPerLine: 1, seedMode: "random", baseSeed: 0 });
+    const [j] = jobsForLines(
+      { project: p, voices: [iro], adapter: drama, takesDir: "" },
+      [newLine({ castId: c.id, text: "a" })],
+      { takesPerLine: 1, seedMode: "random", baseSeed: 0 },
+    );
     expect(j.request.voice).toBeNull();
     expect(j.request.designPrompt).toBe("落ち着いた女性");
     expect(j.request.seed).toBeNull();
   });
 
   it("mergedOptions keeps known options only", () => {
-    expect(mergedOptions(drama, undefined, newLine({ optionsOverride: { top_k: 5, steps: 3, temperature: null } }))).toEqual({ top_k: 5 });
+    expect(
+      mergedOptions(drama, undefined, newLine({ optionsOverride: { top_k: 5, steps: 3, temperature: null } })),
+    ).toEqual({ top_k: 5 });
   });
 });
 
@@ -54,11 +75,17 @@ describe("scenes", () => {
     const a = newCast("A", 0, { designPrompt: "明るい少女" });
     const b = newCast("B", 1, { voiceId: "v" });
     p.cast = [a, b];
-    const l = [newLine({ castId: b.id, text: "晴れたね。" }), newLine({ castId: a.id, text: "うん！" }), newLine({ castId: a.id, text: "行こう。" })];
+    const l = [
+      newLine({ castId: b.id, text: "晴れたね。" }),
+      newLine({ castId: a.id, text: "うん！" }),
+      newLine({ castId: a.id, text: "行こう。" }),
+    ];
     p.lines = l;
     const ids = l.map((x) => x.id);
     expect(sceneSpeakers(p, ids)).toEqual([b.id, a.id]);
-    expect(sceneText(p, ids, (c) => (c === b.id ? null : "明るい少女"))).toBe("<|speaker:0|> 晴れたね。 <|speaker:1|> [明るい少女]うん！ <|speaker:1|> 行こう。");
+    expect(sceneText(p, ids, (c) => (c === b.id ? null : "明るい少女"))).toBe(
+      "<|speaker:0|> 晴れたね。 <|speaker:1|> [明るい少女]うん！ <|speaker:1|> 行こう。",
+    );
   });
 });
 
@@ -70,7 +97,11 @@ describe("prompt voices", () => {
     const c = newCast("A", 0, { voiceId: "pv" });
     p.cast.push(c);
     const ctx = { project: p, voices: [promptVoice], adapter: drama, takesDir: "" };
-    const [j] = jobsForLines(ctx, [newLine({ castId: c.id, text: "ねえ" })], { takesPerLine: 1, seedMode: "random", baseSeed: 0 });
+    const [j] = jobsForLines(ctx, [newLine({ castId: c.id, text: "ねえ" })], {
+      takesPerLine: 1,
+      seedMode: "random",
+      baseSeed: 0,
+    });
     expect(j.request.voice).toBeNull();
     expect(j.voicePath).toBeNull();
     expect(j.request.designPrompt).toBe("落ち着いた25歳の女性。");

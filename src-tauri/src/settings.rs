@@ -41,9 +41,7 @@ impl Default for ModelProfile {
 
 impl ModelProfile {
     pub fn new(id: &str, name: &str, adapter: &str, model: &str, speech_exe: &str) -> Self {
-        let env = adapter_for(adapter)
-            .map(|a| a.default_env().into_iter().collect())
-            .unwrap_or_default();
+        let env = adapter_for(adapter).map(|a| a.default_env().into_iter().collect()).unwrap_or_default();
         ModelProfile {
             id: id.into(),
             name: name.into(),
@@ -92,17 +90,8 @@ impl Default for AppSettings {
 impl AppSettings {
     /// Settings for a first run: one Drama-3 and one Irodori profile, with paths to fill in.
     pub fn first_run(speech_exe: &str) -> Self {
-        let mut s = AppSettings {
-            speech_exe: speech_exe.into(),
-            ..Default::default()
-        };
-        s.profiles.push(ModelProfile::new(
-            "drama3-ja-q4k",
-            "Drama-3-Japanese Q4_K (Vulkan)",
-            "drama3",
-            "",
-            speech_exe,
-        ));
+        let mut s = AppSettings { speech_exe: speech_exe.into(), ..Default::default() };
+        s.profiles.push(ModelProfile::new("drama3-ja-q4k", "Drama-3-Japanese Q4_K (Vulkan)", "drama3", "", speech_exe));
         s.profiles.push(ModelProfile::new(
             "irodori-mf",
             "Irodori-TTS v4.1 Small-MF",
@@ -145,10 +134,7 @@ mod tests {
     fn first_run_profiles_have_vulkan_env_for_drama() {
         let s = AppSettings::first_run("speech.exe");
         let d = s.profile("drama3-ja-q4k").unwrap();
-        assert_eq!(
-            d.env.get("GGML_VK_DISABLE_COOPMAT2").map(String::as_str),
-            Some("1")
-        );
+        assert_eq!(d.env.get("GGML_VK_DISABLE_COOPMAT2").map(String::as_str), Some("1"));
         assert_eq!(d.env.len(), 3);
         assert!(s.profile("irodori-mf").unwrap().env.is_empty());
     }

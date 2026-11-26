@@ -40,7 +40,10 @@ export function isPromptVoice(v: Voice | undefined): boolean {
  * What a cast sends: a voice file, or `voice none` with a description — the cast's own design prompt,
  * else the prompt voice's (Drama-3 writes it as a leading cue, Irodori sends it as `instructions`).
  */
-export function castVoicing(ctx: Pick<BuildContext, "voices" | "adapter">, cast: Cast | undefined): { file: Voice | undefined; prompt: string | null } {
+export function castVoicing(
+  ctx: Pick<BuildContext, "voices" | "adapter">,
+  cast: Cast | undefined,
+): { file: Voice | undefined; prompt: string | null } {
   const v = castVoice(ctx, cast);
   const own = cast?.designPrompt?.trim() ?? "";
   if (isPromptVoice(v)) return { file: undefined, prompt: own || v!.prompt.trim() };
@@ -82,7 +85,11 @@ export function jobsForLines(ctx: BuildContext, lines: Line[], batch: BatchSetti
 
 /** A re-roll of a take with its own seed and options. */
 export function rerollJob(ctx: BuildContext, line: Line, seed: number | null): JobSpec[] {
-  const jobs = jobsForLines(ctx, [line], { takesPerLine: 1, seedMode: seed === null ? "random" : "fixed", baseSeed: seed ?? 0 });
+  const jobs = jobsForLines(ctx, [line], {
+    takesPerLine: 1,
+    seedMode: seed === null ? "random" : "fixed",
+    baseSeed: seed ?? 0,
+  });
   return jobs;
 }
 

@@ -21,10 +21,7 @@ pub fn working_set() -> u64 {
         fn GetCurrentProcess() -> isize;
         fn K32GetProcessMemoryInfo(process: isize, pmc: *mut Pmc, cb: u32) -> i32;
     }
-    let mut p = Pmc {
-        cb: std::mem::size_of::<Pmc>() as u32,
-        ..Default::default()
-    };
+    let mut p = Pmc { cb: std::mem::size_of::<Pmc>() as u32, ..Default::default() };
     // SAFETY: the pseudo handle needs no closing, and `p` is a correctly sized PROCESS_MEMORY_COUNTERS.
     let ok = unsafe { K32GetProcessMemoryInfo(GetCurrentProcess(), &mut p, p.cb) };
     if ok != 0 {

@@ -45,12 +45,22 @@ export async function saveProject(as = false): Promise<boolean> {
   const st = useProject.getState();
   let path = st.path;
   if (as || !path) {
-    const p = await save({ defaultPath: `${st.project.name}.vsproj`, filters: [{ name: "Speechorus", extensions: ["vsproj"] }] });
+    const p = await save({
+      defaultPath: `${st.project.name}.vsproj`,
+      filters: [{ name: "Speechorus", extensions: ["vsproj"] }],
+    });
     if (!p) return false;
     path = String(p);
   }
-  const name = path.split(/[\\/]/).pop()!.replace(/\.vsproj$/i, "");
-  const project: Project = { ...st.project, name, modelProfileId: useApp.getState().activeProfile()?.id ?? st.project.modelProfileId };
+  const name = path
+    .split(/[\\/]/)
+    .pop()!
+    .replace(/\.vsproj$/i, "");
+  const project: Project = {
+    ...st.project,
+    name,
+    modelProfileId: useApp.getState().activeProfile()?.id ?? st.project.modelProfileId,
+  };
   try {
     // Takes the Undo history can bring back stay on disk (and move with Save As); other deleted ones go now.
     const keep = historyTakeFiles(st);

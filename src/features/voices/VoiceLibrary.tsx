@@ -56,8 +56,17 @@ export function VoiceLibrary() {
   const addRefPaths = async (paths: string[]) => {
     if (!paths.length) return;
     const start = refs.length;
-    setRefs((r) => [...r, ...paths.map((p) => ({ original: p, path: p, transcript: "", busy: needsText, start: 0, end: 0, duration: 0 }))]);
-    if (!name) setName(paths[0].split(/[\\/]/).pop()!.replace(/\.wav$/i, ""));
+    setRefs((r) => [
+      ...r,
+      ...paths.map((p) => ({ original: p, path: p, transcript: "", busy: needsText, start: 0, end: 0, duration: 0 })),
+    ]);
+    if (!name)
+      setName(
+        paths[0]
+          .split(/[\\/]/)
+          .pop()!
+          .replace(/\.wav$/i, ""),
+      );
     for (const [k, p] of paths.entries()) {
       await ipc.allowFile(p);
       if (needsText) await transcribe(start + k, p);
@@ -115,7 +124,8 @@ export function VoiceLibrary() {
       <section>
         <h3>新しいボイス（{adapter?.displayName ?? "-"} 用）</h3>
         <p className="muted">
-          参照音声（WAV、数秒〜30秒程度）を選ぶと{needsText ? "自動で書き起こします。誤りがあれば直してから" : ""}「作成」で .voice.gguf を作ります（CPUで数秒、モデル全体は読み込みません）。
+          参照音声（WAV、数秒〜30秒程度）を選ぶと{needsText ? "自動で書き起こします。誤りがあれば直してから" : ""}
+          「作成」で .voice.gguf を作ります（CPUで数秒、モデル全体は読み込みません）。
         </p>
         <div className="grid2">
           <label>
@@ -129,42 +139,59 @@ export function VoiceLibrary() {
         </div>
         {refs.map((r, i) => (
           <div key={r.original + i} className="ref-block">
-          <WaveformTrimmer
-            path={r.original}
-            start={r.start}
-            end={r.end}
-            onChange={(start, end, duration) => setRefs((x) => x.map((y, j) => (j === i ? { ...y, start, end, duration } : y)))}
-          />
-          <div className="row-buttons left">
-            <button disabled={r.busy || r.duration === 0} onClick={() => applyTrim(i)} title="選んだ区間を新しいファイルに切り出し、書き起こし直します（元のファイルは残ります）">
-              ✂ この区間で切り出す{needsText ? "（再書き起こし）" : ""}
-            </button>
-            {r.path !== r.original && (
-              <button disabled={r.busy} onClick={() => resetTrim(i)}>
-                元の音声に戻す
-              </button>
-            )}
-          </div>
-          <div className="ref">
-            <PlayButton session={`ref:${r.path}`} items={() => [{ path: r.path, pre: 0, post: 0, key: r.path }]} title="使う音声を試聴" />
-            <span className="path" title={r.path}>
-              {r.path !== r.original ? "✂ " : ""}
-              {r.path.split(/[\\/]/).pop()}
-            </span>
-            <textarea
-              rows={2}
-              placeholder={needsText ? (r.busy ? "書き起こし中…" : "書き起こし（必須）") : "書き起こし不要"}
-              value={r.transcript}
-              disabled={r.busy || !needsText}
-              onChange={(e) => setRefs((x) => x.map((y, j) => (j === i ? { ...y, transcript: e.target.value } : y)))}
+            <WaveformTrimmer
+              path={r.original}
+              start={r.start}
+              end={r.end}
+              onChange={(start, end, duration) =>
+                setRefs((x) => x.map((y, j) => (j === i ? { ...y, start, end, duration } : y)))
+              }
             />
-            {needsText && (
-              <button disabled={r.busy} onClick={() => transcribe(i, r.path)} title="もう一度書き起こす">
-                ASR
+            <div className="row-buttons left">
+              <button
+                disabled={r.busy || r.duration === 0}
+                onClick={() => applyTrim(i)}
+                title="選んだ区間を新しいファイルに切り出し、書き起こし直します（元のファイルは残ります）"
+              >
+                ✂ この区間で切り出す{needsText ? "（再書き起こし）" : ""}
               </button>
-            )}
-            <button onClick={() => { dropCut(r); setRefs((x) => x.filter((_, j) => j !== i)); }}>✕</button>
-          </div>
+              {r.path !== r.original && (
+                <button disabled={r.busy} onClick={() => resetTrim(i)}>
+                  元の音声に戻す
+                </button>
+              )}
+            </div>
+            <div className="ref">
+              <PlayButton
+                session={`ref:${r.path}`}
+                items={() => [{ path: r.path, pre: 0, post: 0, key: r.path }]}
+                title="使う音声を試聴"
+              />
+              <span className="path" title={r.path}>
+                {r.path !== r.original ? "✂ " : ""}
+                {r.path.split(/[\\/]/).pop()}
+              </span>
+              <textarea
+                rows={2}
+                placeholder={needsText ? (r.busy ? "書き起こし中…" : "書き起こし（必須）") : "書き起こし不要"}
+                value={r.transcript}
+                disabled={r.busy || !needsText}
+                onChange={(e) => setRefs((x) => x.map((y, j) => (j === i ? { ...y, transcript: e.target.value } : y)))}
+              />
+              {needsText && (
+                <button disabled={r.busy} onClick={() => transcribe(i, r.path)} title="もう一度書き起こす">
+                  ASR
+                </button>
+              )}
+              <button
+                onClick={() => {
+                  dropCut(r);
+                  setRefs((x) => x.filter((_, j) => j !== i));
+                }}
+              >
+                ✕
+              </button>
+            </div>
           </div>
         ))}
         <div className="row-buttons">
@@ -212,14 +239,24 @@ function VoiceRow({ v }: { v: Voice }) {
   return (
     <tr>
       <td>
-        <input value={name} onChange={(e) => setName(e.target.value)} onBlur={() => name !== v.name && ipc.voiceUpdate({ ...v, name }).then(() => app().refreshVoices())} />
+        <input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          onBlur={() => name !== v.name && ipc.voiceUpdate({ ...v, name }).then(() => app().refreshVoices())}
+        />
         {v.note && <div className="muted small-text">{v.note}</div>}
       </td>
       <td>{v.family}</td>
       <td>{v.speakers}</td>
       <td>
         {v.sources.map((s, i) => (
-          <PlayButton key={i} session={`src:${v.id}:${i}`} items={() => [{ path: s.path, pre: 0, post: 0, key: s.path }]} title={s.transcript ?? "参照音声"} label={String(i + 1)} />
+          <PlayButton
+            key={i}
+            session={`src:${v.id}:${i}`}
+            items={() => [{ path: s.path, pre: 0, post: 0, key: s.path }]}
+            title={s.transcript ?? "参照音声"}
+            label={String(i + 1)}
+          />
         ))}
         {v.combinedFrom.length > 0 && <span className="muted">合成</span>}
         {!v.file && v.prompt && (
@@ -272,11 +309,17 @@ function CastVoiceComposer() {
   return (
     <section>
       <h3>キャストボイス（複数話者）を作成</h3>
-      <p className="muted">話者番号ごとにボイスを割り当てて1つのボイスファイルにまとめます。台本では {"<|speaker:N|>"} で話者を指定します（「なし」の話者はモデルにおまかせ）。</p>
+      <p className="muted">
+        話者番号ごとにボイスを割り当てて1つのボイスファイルにまとめます。台本では {"<|speaker:N|>"}{" "}
+        で話者を指定します（「なし」の話者はモデルにおまかせ）。
+      </p>
       {slots.map((id, n) => (
         <div key={n} className="slot">
           <span className="tok-speaker">{`<|speaker:${n}|>`}</span>
-          <select value={id ?? ""} onChange={(e) => setSlots((s) => s.map((x, j) => (j === n ? e.target.value || null : x)))}>
+          <select
+            value={id ?? ""}
+            onChange={(e) => setSlots((s) => s.map((x, j) => (j === n ? e.target.value || null : x)))}
+          >
             <option value="">（なし）</option>
             {singles.map((v) => (
               <option key={v.id} value={v.id}>

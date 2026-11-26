@@ -60,16 +60,7 @@ impl OptionSpec {
         step: f64,
         help: &'static str,
     ) -> Self {
-        OptionSpec {
-            name,
-            label,
-            kind,
-            default,
-            min: Some(min),
-            max: Some(max),
-            step: Some(step),
-            help,
-        }
+        OptionSpec { name, label, kind, default, min: Some(min), max: Some(max), step: Some(step), help }
     }
 }
 
@@ -217,16 +208,10 @@ fn clamp(f: f64, s: &OptionSpec) -> f64 {
     f
 }
 
-pub(crate) fn check_family(
-    adapter: &dyn ModelAdapter,
-    req: &LineRequest,
-) -> Result<(), AdapterError> {
+pub(crate) fn check_family(adapter: &dyn ModelAdapter, req: &LineRequest) -> Result<(), AdapterError> {
     if let (Some(_), Some(fam)) = (&req.voice, &req.voice_family) {
         if fam != adapter.id() {
-            return Err(AdapterError::VoiceFamily {
-                voice: fam.clone(),
-                model: adapter.id().into(),
-            });
+            return Err(AdapterError::VoiceFamily { voice: fam.clone(), model: adapter.id().into() });
         }
     }
     Ok(())
@@ -237,8 +222,5 @@ pub(crate) fn path_str(p: &std::path::Path) -> String {
 }
 
 pub(crate) fn is_voice_file(p: &std::path::Path) -> bool {
-    p.extension()
-        .and_then(|e| e.to_str())
-        .map(|e| e.eq_ignore_ascii_case("gguf"))
-        .unwrap_or(false)
+    p.extension().and_then(|e| e.to_str()).map(|e| e.eq_ignore_ascii_case("gguf")).unwrap_or(false)
 }
