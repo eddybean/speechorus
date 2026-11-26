@@ -1,0 +1,139 @@
+# Release: builds the NSIS installer and creates a draft GitHub Release for the version in package.json.
+# Runs when a push to main changes the version (normally the merge of a bump.yml PR), or by hand
+# (to release the current version as is, or to retry a failed run). Pushes no commits, only the vX.Y.Z tag.
+name: Release
+
+on:
+  push:
+    branches: [main]
+    paths: [package.json]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+env:
+  HUSKY: "0"
+  CARGO_TERM_COLOR: always
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.ver.outputs.version }}
+      release: ${{ steps.ver.outputs.release }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Decide whether to release
+        id: ver
+        env:
+          EVENT: ${{ github.event_name }}
+          BEFORE: ${{ github.event.before }}
+        run: |
+          if [ "$GITHUB_REF" != "refs/heads/main" ]; then
+            echo "::error::Release only from main (got $GITHUB_REF)."
+            exit 1
+          fi
+          version=$(node -p "require('./package.json').version")
+          tauri=$(node -p "require('./src-tauri/tauri.conf.json').version")
+          cargo=$(sed -n '/^\[package\]/,/^\[/{s/^version = "\(.*\)"/\1/p}' src-tauri/Cargo.toml)
+          if [ "$tauri" != "$version" ] || [ "$cargo" != "$version" ]; then
+            echo "::error::Versions differ: package.json $version, tauri.conf.json $tauri, Cargo.toml $cargo"
+            exit 1
+          fi
+          release=true
+          if [ "$EVENT" = "push" ]; then
+            previous=$(git show "$BEFORE:package.json" 2>/dev/null | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{console.log(JSON.parse(s).version)}catch{console.log("")}})')
+            if [ "$previous" = "$version" ]; then
+              echo "The version is still $version: nothing to release."
+              release=false
+            fi
+          fi
+          if [ "$release" = true ] && git ls-remote --exit-code --tags origin "refs/tags/v$version" >/dev/null; then
+            if [ "$EVENT" = "push" ]; then
+              echo "Tag v$version already exists: nothing to release."
+              release=false
+            else
+              echo "::error::Tag v$version already exists. Delete the tag (and its release) to rebuild it."
+              exit 1
+            fi
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "release=$release" >> "$GITHUB_OUTPUT"
+
+  release:
+    needs: gate
+    if: needs.gate.outputs.release == 'true'
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+    env:
+      VERSION: ${{ needs.gate.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - run: npm ci
+
+      - name: Checks
+        run: npm run check
+
+      - name: Build the installer
+        run: npx tauri build --bundles nsis
+
+      - name: Locate the installer
+        id: out
+        run: |
+          dir=src-tauri/target/release/bundle/nsis
+          name="Speechorus_${VERSION}_x64-setup.exe"
+          if [ ! -f "$dir/$name" ]; then
+            echo "::error::Installer not found: $dir/$name"
+            ls -la "$dir" || true
+            exit 1
+          fi
+          (cd "$dir" && sha256sum "$name" > SHA256SUMS.txt && cat SHA256SUMS.txt)
+          echo "exe=$dir/$name" >> "$GITHUB_OUTPUT"
+          echo "sums=$dir/SHA256SUMS.txt" >> "$GITHUB_OUTPUT"
+
+      - name: Tag
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "v$VERSION" -m "v$VERSION" "$GITHUB_SHA"
+          git push origin "refs/tags/v$VERSION"
+
+      - name: Create the draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          flags=(--draft --generate-notes --verify-tag --title "Speechorus v$VERSION")
+          if [[ "$VERSION" == *-* ]]; then flags+=(--prerelease); fi
+          gh release create "v$VERSION" "${flags[@]}" "${{ steps.out.outputs.exe }}" "${{ steps.out.outputs.sums }}"
+          echo "Draft release v$VERSION created from $GITHUB_SHA." >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Delete the merged bump branch
+        continue-on-error: true
+        run: |
+          if git ls-remote --exit-code --heads origin "refs/heads/release/v$VERSION" >/dev/null; then
+            git push origin --delete "release/v$VERSION"
+          fi
