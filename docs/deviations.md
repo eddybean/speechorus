@@ -256,3 +256,10 @@ Requests: (1) a way to stop playback, (2) choosing a Drama-3 voice by text promp
 - **Supersedes**: the toolbar placements in D-11 (the ETA, now in the status bar), D-12 (the ⧉/📋 buttons) and D-29 ("■ 停止", now beside 連続再生 in the top bar). The behavior is unchanged; only the place moved.
 - **Not changed**: dialogs other than their close button keep their own buttons and glyphs. The keyboard shortcuts are unchanged.
 - **User impact**: Pasting lines no longer has a button; use Ctrl/⌘+V. Copying is also in the selection bar.
+
+### D-38 A take's seed is copied by clicking it, and a pasted seed generates one take 【追加（ユーザー要望）】
+- **What**: In the take list, clicking 🎲<seed> copies the number to the clipboard. Under the take panel's heading, a seed box (「🎲 シードを貼り付け」) and 「このシードで生成」 (or Enter) make one take of the active line with that seed, using the line's current text, voice and options. The box keeps its value when another line is selected, so one seed can be tried on several lines.
+  - Pasting accepts `🎲123`, spaces and `,`. Anything that is not a whole number from 0 to 2^53−1 disables the button (a larger value would be rounded as a JS number and not reproduce the take).
+  - Ctrl/⌘+C/V in any `<input>`/`<textarea>` now always act on the field, even with several lines selected (before, they could copy or paste whole lines).
+- **Why**: The user asked for it. The ▾ 固定 seed already existed, but it is a batch setting for every line and is hidden in a menu.
+- **User impact**: None to existing projects; the seed is not saved in the project.

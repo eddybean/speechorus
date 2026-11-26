@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { applyPaste, insertTag, normalizeTag, parseScript, plainText, seedFor, splitForPaste, tokenize, workerVoiceName } from "./text";
+import { applyPaste, insertTag, normalizeTag, parseScript, parseSeed, plainText, seedFor, splitForPaste, tokenize, workerVoiceName } from "./text";
 
 describe("tokenize", () => {
   it("finds cues, speakers and emoji", () => {
@@ -63,6 +63,13 @@ describe("seeds and names", () => {
     expect([0, 1, 2].map((k) => seedFor("sequential", 10, k))).toEqual([10, 11, 12]);
     expect(seedFor("fixed", 7, 3)).toBe(7);
     expect(seedFor("random", 7, 3)).toBeNull();
+  });
+
+  it("reads a pasted seed", () => {
+    expect(parseSeed(" 🎲4212077026712288 ")).toBe(4212077026712288);
+    expect(parseSeed("1,234")).toBe(1234);
+    expect(parseSeed("0")).toBe(0);
+    expect(["", "?", "-1", "1.5", "abc", "99999999999999999999"].map(parseSeed)).toEqual([null, null, null, null, null, null]);
   });
   it("matches the Rust worker voice name", () => {
     expect(workerVoiceName("12ab-cd")).toBe("v12abcd");

@@ -24,6 +24,8 @@ function isTyping(e: KeyboardEvent) {
 
 /** Ctrl+C/X/V act on whole lines when several lines are selected, or when no text field has focus. */
 function lineClipboardMode(e: KeyboardEvent, selected: number): boolean {
+  // A plain form field (such as the seed box) keeps its own copy and paste.
+  if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return false;
   if (selected > 1) {
     const v = activeEditor();
     return !v || v.state.selection.main.empty;

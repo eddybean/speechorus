@@ -189,6 +189,17 @@ export function seedFor(mode: SeedMode, base: number, k: number): number | null 
   return base + k;
 }
 
+/**
+ * A seed typed or pasted by hand: `123`, ` 🎲123 `, `1,234`. Null when empty or not a whole number
+ * a JS number holds exactly (larger seeds would be rounded and not reproduce the take).
+ */
+export function parseSeed(s: string): number | null {
+  const t = s.replace(/🎲|[\s,_]/gu, "");
+  if (!/^\d+$/.test(t)) return null;
+  const n = Number(t);
+  return Number.isSafeInteger(n) ? n : null;
+}
+
 export function uid(): string {
   return crypto.randomUUID();
 }
