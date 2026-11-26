@@ -181,14 +181,15 @@ export const useProject = create<ProjectStore>()((set, get) => {
     addTake: (lineId, take) =>
       get().silent((d) => {
         const l = d.lines.find((x) => x.id === lineId);
-        if (!l) return;
+        // A take arrives once per job; ignore a repeat delivery of the same one.
+        if (!l || l.takes.some((t) => t.id === take.id)) return;
         l.takes.push(take);
         if (!l.selectedTakeId) l.selectedTakeId = take.id;
       }),
     addSceneTake: (sceneId, take) =>
       get().silent((d) => {
         const s = d.scenes.find((x) => x.id === sceneId);
-        if (!s) return;
+        if (!s || s.takes.some((t) => t.id === take.id)) return;
         s.takes.push(take);
         s.selectedTakeId = take.id;
       }),

@@ -61,6 +61,14 @@ describe("undo / redo", () => {
     expect(s().project.lines[0].takes).toHaveLength(2);
   });
 
+  it("adds a take delivered twice only once", () => {
+    const s = useProject.getState;
+    const id = s().project.lines[0].id;
+    s().addTake(id, take("t1"));
+    s().addTake(id, take("t1"));
+    expect(s().project.lines[0].takes.map((t) => t.id)).toEqual(["t1"]);
+  });
+
   it("moves and duplicates lines", () => {
     const s = useProject.getState;
     const a = s().project.lines[0].id;

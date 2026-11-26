@@ -89,8 +89,8 @@ function TakeList({ line }: { line: Line }) {
         <li key={t.id} className={`${t.id === sel?.id ? "adopted" : ""}${playingKey === t.id ? " playing" : ""}`}>
           <PlayButton session={session.take(t.id)} items={() => lineItems(line.id, t.id)} />
           <span className="take-name">#{line.takes.length - i}</span>
-          <span className="muted">{t.duration.toFixed(1)}s</span>
-          <span className="muted" title="シード">
+          <span className="muted take-dur">{t.duration.toFixed(1)}s</span>
+          <span className="muted take-seed" title={`シード ${t.seed ?? "?"}`}>
             🎲{t.seed ?? "?"}
           </span>
           {t.stopReason !== "complete" && (

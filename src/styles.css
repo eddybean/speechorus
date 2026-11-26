@@ -724,6 +724,19 @@ label.block {
 }
 .takes button {
   padding: 0 5px;
+  flex-shrink: 0;
+}
+.take-dur,
+.takes .badge {
+  flex-shrink: 0;
+}
+/* A long seed gives way so the row's buttons stay inside the panel. */
+.take-seed {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .take-name {
   font-weight: 600;

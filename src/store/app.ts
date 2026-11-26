@@ -60,6 +60,9 @@ interface AppStore {
 
 let noticeSeq = 1;
 let unlisten: (() => void) | null = null;
+// StrictMode runs the mount effect twice: both calls must share one start, or each registers a listener
+// and every event (a finished take among them) is handled twice.
+let starting: Promise<void> | null = null;
 
 export const useApp = create<AppStore>()((set, get) => ({
   ready: false,
@@ -94,7 +97,7 @@ export const useApp = create<AppStore>()((set, get) => ({
   castOpen: true,
   toggleCast: () => set((s) => ({ castOpen: !s.castOpen })),
 
-  init: async () => {
+  init: () => (starting ??= (async () => {
     if (!inTauri) {
       set({ ready: true });
       return;
@@ -185,7 +188,7 @@ export const useApp = create<AppStore>()((set, get) => ({
         }
       }
     });
-  },
+  })()),
 
   saveSettings: async (s) => {
     // Update the UI at once (inputs are controlled by it), then persist.
