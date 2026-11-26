@@ -169,7 +169,10 @@ export function parseScript(content: string): ImportedLine[] {
     const f = parseCsvRow(line, sep);
     if (f.length >= 2) {
       const name = f[0].trim();
-      const text = f.slice(1).join(sep === "\t" ? "\t" : ",").trim();
+      const text = f
+        .slice(1)
+        .join(sep === "\t" ? "\t" : ",")
+        .trim();
       if (name && name.length <= 24 && !name.includes("[") && !name.includes("<|") && text) {
         out.push({ castName: name, text });
         continue;

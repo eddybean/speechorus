@@ -66,61 +66,34 @@ pub fn save_settings(st: State<'_, AppState>, settings: AppSettings) -> R<()> {
 }
 
 #[tauri::command]
-pub fn new_profile(
-    adapter: String,
-    id: String,
-    name: String,
-    model: String,
-    speech_exe: String,
-) -> R<ModelProfile> {
+pub fn new_profile(adapter: String, id: String, name: String, model: String, speech_exe: String) -> R<ModelProfile> {
     adapter_for(&adapter).ok_or("unknown adapter")?;
     Ok(ModelProfile::new(&id, &name, &adapter, &model, &speech_exe))
 }
 
 #[tauri::command]
 pub fn list_adapters() -> Vec<AdapterDescriptor> {
-    all_adapters()
-        .iter()
-        .map(|a| describe(a.as_ref()))
-        .collect()
+    all_adapters().iter().map(|a| describe(a.as_ref())).collect()
 }
 
 #[tauri::command]
 pub async fn speech_version(exe: String) -> R<String> {
     let env = BTreeMap::new();
-    Speech {
-        exe: &exe,
-        env: &env,
-    }
-    .version()
-    .await
-    .map_err(e)
+    Speech { exe: &exe, env: &env }.version().await.map_err(e)
 }
 
 #[tauri::command]
 pub async fn list_devices(st: State<'_, AppState>) -> R<Value> {
     let exe = st.exe();
     let env = BTreeMap::new();
-    Speech {
-        exe: &exe,
-        env: &env,
-    }
-    .devices()
-    .await
-    .map_err(e)
+    Speech { exe: &exe, env: &env }.devices().await.map_err(e)
 }
 
 #[tauri::command]
 pub async fn model_catalog(st: State<'_, AppState>) -> R<Value> {
     let exe = st.exe();
     let env = BTreeMap::new();
-    Speech {
-        exe: &exe,
-        env: &env,
-    }
-    .catalog()
-    .await
-    .map_err(e)
+    Speech { exe: &exe, env: &env }.catalog().await.map_err(e)
 }
 
 #[derive(Serialize)]
@@ -135,18 +108,11 @@ pub struct ModelInfo {
 #[tauri::command]
 pub async fn model_info(st: State<'_, AppState>, profile_id: String) -> R<ModelInfo> {
     let p = st.profile(&profile_id)?;
-    let s = Speech {
-        exe: &p.speech_exe,
-        env: &p.env,
-    };
+    let s = Speech { exe: &p.speech_exe, env: &p.env };
     let path = s.resolve_model(&p.model).await.map_err(e)?;
     let info = s.info(&path).await.map_err(e)?;
     let sidecar = Path::new(&format!("{path}.json")).exists();
-    Ok(ModelInfo {
-        path,
-        info,
-        sidecar,
-    })
+    Ok(ModelInfo { path, info, sidecar })
 }
 
 #[tauri::command]
@@ -160,13 +126,7 @@ pub async fn engine_start(st: State<'_, AppState>, profile_id: String) -> R<()> 
     if p.model.trim().is_empty() {
         return Err("モデル (GGUF) のパスが設定されていません".into());
     }
-    let path = Speech {
-        exe: &p.speech_exe,
-        env: &p.env,
-    }
-    .resolve_model(&p.model)
-    .await
-    .map_err(e)?;
+    let path = Speech { exe: &p.speech_exe, env: &p.env }.resolve_model(&p.model).await.map_err(e)?;
     st.supervisor.start(&p, path).await.map_err(e)
 }
 
@@ -218,36 +178,19 @@ pub fn voices_list(app: AppHandle, st: State<'_, AppState>) -> Vec<Voice> {
 pub async fn voice_transcribe(app: AppHandle, st: State<'_, AppState>, path: String) -> R<String> {
     let (exe, model, device) = {
         let s = st.settings.lock().unwrap();
-        (
-            s.speech_exe.clone(),
-            s.asr_model.clone(),
-            s.asr_device.clone(),
-        )
+        (s.speech_exe.clone(), s.asr_model.clone(), s.asr_device.clone())
     };
     if let Some(d) = Path::new(&path).parent() {
         let _ = app.asset_protocol_scope().allow_file(Path::new(&path));
         let _ = d;
     }
     let env = BTreeMap::new();
-    Speech {
-        exe: &exe,
-        env: &env,
-    }
-    .transcribe(&model, &device, &path)
-    .await
-    .map_err(e)
+    Speech { exe: &exe, env: &env }.transcribe(&model, &device, &path).await.map_err(e)
 }
 
 async fn build_voice(p: &ModelProfile, args: Vec<String>) -> R<()> {
     // Vulkan flags do not matter on the CPU, but the profile's env is passed for consistency.
-    Speech {
-        exe: &p.speech_exe,
-        env: &p.env,
-    }
-    .run(&args)
-    .await
-    .map(|_| ())
-    .map_err(e)
+    Speech { exe: &p.speech_exe, env: &p.env }.run(&args).await.map(|_| ()).map_err(e)
 }
 
 #[tauri::command]
@@ -260,20 +203,9 @@ pub async fn voice_create(
 ) -> R<Voice> {
     let p = st.profile(&profile_id)?;
     let adapter = adapter_for(&p.adapter).ok_or("unknown adapter")?;
-    let model = Speech {
-        exe: &p.speech_exe,
-        env: &p.env,
-    }
-    .resolve_model(&p.model)
-    .await
-    .map_err(e)?;
+    let model = Speech { exe: &p.speech_exe, env: &p.env }.resolve_model(&p.model).await.map_err(e)?;
     let sources: Vec<PathBuf> = inputs.iter().map(|i| i.path.clone()).collect();
-    let (build, mut voice) = st
-        .voices
-        .lock()
-        .unwrap()
-        .plan(adapter.as_ref(), &model, &name, inputs)
-        .map_err(e)?;
+    let (build, mut voice) = st.voices.lock().unwrap().plan(adapter.as_ref(), &model, &name, inputs).map_err(e)?;
     let args = adapter.prepare_voice(&build).map_err(e)?;
     build_voice(&p, args).await?;
     voice.note = note.unwrap_or_default();
@@ -298,18 +230,8 @@ pub async fn voice_combine(
 ) -> R<Option<Voice>> {
     let p = st.profile(&profile_id)?;
     let adapter = adapter_for(&p.adapter).ok_or("unknown adapter")?;
-    let model = Speech {
-        exe: &p.speech_exe,
-        env: &p.env,
-    }
-    .resolve_model(&p.model)
-    .await
-    .map_err(e)?;
-    let plan = st
-        .voices
-        .lock()
-        .unwrap()
-        .plan_combined(&model, &voice_ids)?;
+    let model = Speech { exe: &p.speech_exe, env: &p.env }.resolve_model(&p.model).await.map_err(e)?;
+    let plan = st.voices.lock().unwrap().plan_combined(&model, &voice_ids)?;
     let name = name.map(|n| n.trim().to_string()).filter(|n| !n.is_empty());
     let mut voice = match plan {
         CombinePlan::NoneNeeded => return Ok(None),
@@ -415,11 +337,7 @@ pub fn project_load(app: AppHandle, st: State<'_, AppState>, path: String) -> R<
     let mut s = st.settings.lock().unwrap();
     s.push_recent_project(&path);
     let _ = s.save(&st.settings_path);
-    Ok(OpenedProject {
-        project,
-        takes_dir: dir.to_string_lossy().into_owned(),
-        path: Some(path),
-    })
+    Ok(OpenedProject { project, takes_dir: dir.to_string_lossy().into_owned(), path: Some(path) })
 }
 
 #[tauri::command]
@@ -437,9 +355,7 @@ pub fn read_text_file(path: String) -> R<String> {
 
 #[tauri::command]
 pub fn allow_file(app: AppHandle, path: String) -> R<()> {
-    app.asset_protocol_scope()
-        .allow_file(Path::new(&path))
-        .map_err(e)
+    app.asset_protocol_scope().allow_file(Path::new(&path)).map_err(e)
 }
 
 // ---- export ----
@@ -484,19 +400,11 @@ pub async fn export_joined(req: JoinedExport) -> R<ExportResult> {
 }
 
 #[tauri::command]
-pub async fn export_each(
-    items: Vec<ExportItem>,
-    dir: String,
-    template: String,
-    write_txt: bool,
-) -> R<ExportResult> {
+pub async fn export_each(items: Vec<ExportItem>, dir: String, template: String, write_txt: bool) -> R<ExportResult> {
     tauri::async_runtime::spawn_blocking(move || {
         let files = audio::export_each(&items, Path::new(&dir), &template, write_txt).map_err(e)?;
         Ok(ExportResult {
-            files: files
-                .into_iter()
-                .map(|p| p.to_string_lossy().into_owned())
-                .collect(),
+            files: files.into_iter().map(|p| p.to_string_lossy().into_owned()).collect(),
             cues: Vec::new(),
         })
     })
@@ -527,7 +435,11 @@ pub async fn install_speech(app: AppHandle, st: State<'_, AppState>) -> R<AppSet
     let emit_app = app.clone();
     let installed = tauri::async_runtime::spawn_blocking(move || {
         crate::installer::install_latest(&root, &|line| {
-            let _ = tauri::Emitter::emit(&emit_app, "vs://event", crate::events::AppEvent::EngineLog { line: format!("[install] {line}") });
+            let _ = tauri::Emitter::emit(
+                &emit_app,
+                "vs://event",
+                crate::events::AppEvent::EngineLog { line: format!("[install] {line}") },
+            );
         })
     })
     .await
@@ -575,14 +487,17 @@ pub async fn catalog_list(app: AppHandle, st: State<'_, AppState>) -> R<CatalogV
     let devs = Speech { exe: &exe, env: &env }.devices().await.ok();
     let gpu = devs
         .as_ref()
-        .and_then(|d| d.get("devices")?.as_array()?.iter().find(|x| x.get("kind").and_then(Value::as_str) == Some("gpu")).cloned())
+        .and_then(|d| {
+            d.get("devices")?.as_array()?.iter().find(|x| x.get("kind").and_then(Value::as_str) == Some("gpu")).cloned()
+        })
         .map(|g| GpuInfo {
             name: g.get("description").and_then(Value::as_str).unwrap_or("").trim().to_string(),
             free: g.get("memory_free").and_then(Value::as_u64).unwrap_or(0),
             total: g.get("memory_total").and_then(Value::as_u64).unwrap_or(0),
         });
     // A loaded engine holds VRAM itself, so then judge by the total minus a desktop reserve.
-    let budget = gpu.as_ref().map(|g| if st.supervisor.live().is_ok() { g.total.saturating_sub(1 << 30) } else { g.free });
+    let budget =
+        gpu.as_ref().map(|g| if st.supervisor.live().is_ok() { g.total.saturating_sub(1 << 30) } else { g.free });
     let recommended = catalog.models.iter().filter_map(|m| recommend(m, budget).map(|v| (m.id.clone(), v))).collect();
     let default_dir = app.path().app_local_data_dir().map_err(e)?.join("models").to_string_lossy().into_owned();
     let running = st.downloads.running.lock().unwrap().keys().cloned().collect();
@@ -604,7 +519,14 @@ pub fn download_cancel(st: State<'_, AppState>, id: String) {
 /// Starts a catalog download in the background; progress and the result come as `download` events.
 /// On success a synthesis model gets a profile (created or replaced, and selected); a recognition model becomes the ASR model.
 #[tauri::command]
-pub fn catalog_download(app: AppHandle, st: State<'_, AppState>, model_id: String, variant_id: String, dest_dir: String, license_accepted: bool) -> R<String> {
+pub fn catalog_download(
+    app: AppHandle,
+    st: State<'_, AppState>,
+    model_id: String,
+    variant_id: String,
+    dest_dir: String,
+    license_accepted: bool,
+) -> R<String> {
     use crate::downloads::{Catalog, DownloadError, Progress, Source};
     use std::sync::atomic::AtomicBool;
     let catalog = Catalog::load(&st.catalog_override);
@@ -634,19 +556,32 @@ pub fn catalog_download(app: AppHandle, st: State<'_, AppState>, model_id: Strin
         });
         let result: Result<String, DownloadError> = match &m.source {
             Source::Huggingface { repo, revision } => {
-                let (repo, revision, v2, dir, c, on2, id3) = (repo.clone(), revision.clone(), v.clone(), PathBuf::from(dest_dir.replace('/', std::path::MAIN_SEPARATOR_STR)), cancel.clone(), on.clone(), id2.clone());
-                tauri::async_runtime::spawn_blocking(move || crate::downloads::fetch_variant(&id3, &repo, &revision, &v2, &dir, &c, &*on2))
-                    .await
-                    .map_err(|x| DownloadError::Other(x.to_string()))
-                    .and_then(|r| r)
-                    .map(|p| p.to_string_lossy().into_owned())
+                let (repo, revision, v2, dir, c, on2, id3) = (
+                    repo.clone(),
+                    revision.clone(),
+                    v.clone(),
+                    PathBuf::from(dest_dir.replace('/', std::path::MAIN_SEPARATOR_STR)),
+                    cancel.clone(),
+                    on.clone(),
+                    id2.clone(),
+                );
+                tauri::async_runtime::spawn_blocking(move || {
+                    crate::downloads::fetch_variant(&id3, &repo, &revision, &v2, &dir, &c, &*on2)
+                })
+                .await
+                .map_err(|x| DownloadError::Other(x.to_string()))
+                .and_then(|r| r)
+                .map(|p| p.to_string_lossy().into_owned())
             }
             Source::SpeechPull { name } => {
                 // speech.cpp keeps its catalog in %LOCALAPPDATA%\speech.cpp.
                 let need = v.total_bytes();
                 let dir = std::env::var("LOCALAPPDATA").map(PathBuf::from).unwrap_or_default();
                 match crate::downloads::free_space(&dir) {
-                    Some(free) if free < need + (1 << 30) => Err(DownloadError::NoSpace { need: crate::downloads::gib(need + (1 << 30)), free: crate::downloads::gib(free) }),
+                    Some(free) if free < need + (1 << 30) => Err(DownloadError::NoSpace {
+                        need: crate::downloads::gib(need + (1 << 30)),
+                        free: crate::downloads::gib(free),
+                    }),
                     _ => crate::downloads::speech_pull(&id2, &exe, name, cancel.clone(), on.clone()).await,
                 }
             }
@@ -662,7 +597,8 @@ pub fn catalog_download(app: AppHandle, st: State<'_, AppState>, model_id: Strin
                     p.message = format!("書き起こしモデルに設定しました: {path}");
                 } else {
                     let pid = format!("{}-{}", m.id, v.id);
-                    let mut prof = ModelProfile::new(&pid, &format!("{} {}", m.name, v.label), &m.adapter, &path, &s.speech_exe);
+                    let mut prof =
+                        ModelProfile::new(&pid, &format!("{} {}", m.name, v.label), &m.adapter, &path, &s.speech_exe);
                     prof.env = m.env.clone();
                     if !m.device.is_empty() {
                         prof.device = m.device.clone();
@@ -702,15 +638,24 @@ pub async fn wav_peaks(app: AppHandle, path: String, buckets: usize) -> R<audio:
 pub async fn wav_trim(app: AppHandle, st: State<'_, AppState>, path: String, start: f64, end: f64) -> R<String> {
     let dir = st.work.sub(crate::work::TRIMMED).map_err(e)?;
     let stem = Path::new(&path).file_stem().map(|s| s.to_string_lossy().into_owned()).unwrap_or_else(|| "ref".into());
-    let dst = dir.join(format!("{stem}_{:.2}-{:.2}_{}.wav", start, end, &uuid::Uuid::new_v4().simple().to_string()[..6]));
+    let dst =
+        dir.join(format!("{stem}_{:.2}-{:.2}_{}.wav", start, end, &uuid::Uuid::new_v4().simple().to_string()[..6]));
     let d2 = dst.clone();
-    tauri::async_runtime::spawn_blocking(move || audio::trim(Path::new(&path), &d2, start, end).map_err(e)).await.map_err(e)??;
+    tauri::async_runtime::spawn_blocking(move || audio::trim(Path::new(&path), &d2, start, end).map_err(e))
+        .await
+        .map_err(e)??;
     let _ = app.asset_protocol_scope().allow_file(&dst);
     Ok(dst.to_string_lossy().into_owned())
 }
 
 #[tauri::command]
-pub fn voice_create_prompt(st: State<'_, AppState>, family: String, name: String, prompt: String, note: Option<String>) -> R<Voice> {
+pub fn voice_create_prompt(
+    st: State<'_, AppState>,
+    family: String,
+    name: String,
+    prompt: String,
+    note: Option<String>,
+) -> R<Voice> {
     adapter_for(&family).ok_or("unknown adapter")?;
     if prompt.trim().is_empty() {
         return Err("声の説明が空です".into());

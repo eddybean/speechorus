@@ -19,22 +19,35 @@ export function ModelManager() {
   const [sel, setSel] = useState(settings.activeProfileId ?? settings.profiles[0]?.id ?? "");
   const [devices, setDevices] = useState<Devices>([]);
   const [catalog, setCatalog] = useState<Catalog>([]);
-  const [check, setCheck] = useState<{ path: string; info: Record<string, Json>; sidecar: boolean } | string | null>(null);
+  const [check, setCheck] = useState<{ path: string; info: Record<string, Json>; sidecar: boolean } | string | null>(
+    null,
+  );
   const [version, setVersion] = useState("");
   const app = useApp.getState;
   const prof = settings.profiles.find((p) => p.id === sel);
   const adapter = adapters.find((a) => a.id === prof?.adapter);
 
   useEffect(() => {
-    ipc.listDevices().then((d) => setDevices(d.devices)).catch(() => setDevices([]));
-    ipc.modelCatalog().then((c) => setCatalog(c.models.filter((m) => m.task === "synthesis"))).catch(() => setCatalog([]));
+    ipc
+      .listDevices()
+      .then((d) => setDevices(d.devices))
+      .catch(() => setDevices([]));
+    ipc
+      .modelCatalog()
+      .then((c) => setCatalog(c.models.filter((m) => m.task === "synthesis")))
+      .catch(() => setCatalog([]));
   }, [settings.speechExe]);
   useEffect(() => {
     setCheck(null);
-    if (prof?.speechExe) ipc.speechVersion(prof.speechExe).then(setVersion).catch((e) => setVersion(`エラー: ${e}`));
+    if (prof?.speechExe)
+      ipc
+        .speechVersion(prof.speechExe)
+        .then(setVersion)
+        .catch((e) => setVersion(`エラー: ${e}`));
   }, [sel, prof?.speechExe]);
 
-  const save = (p: ModelProfile) => app().saveSettings({ ...settings, profiles: settings.profiles.map((x) => (x.id === p.id ? p : x)) });
+  const save = (p: ModelProfile) =>
+    app().saveSettings({ ...settings, profiles: settings.profiles.map((x) => (x.id === p.id ? p : x)) });
   const pickFile = async (ext: string[], title: string) => {
     const f = await open({ multiple: false, title, filters: [{ name: ext.join("/"), extensions: ext }] });
     return f ? String(f) : null;
@@ -42,7 +55,13 @@ export function ModelManager() {
 
   const addProfile = async (adapterId: string) => {
     const a = adapters.find((x) => x.id === adapterId)!;
-    const p = await ipc.newProfile(adapterId, uid().slice(0, 8), `${a.displayName} 新規`, adapterId === "irodori" ? "irodori-tts-mf" : "", settings.speechExe);
+    const p = await ipc.newProfile(
+      adapterId,
+      uid().slice(0, 8),
+      `${a.displayName} 新規`,
+      adapterId === "irodori" ? "irodori-tts-mf" : "",
+      settings.speechExe,
+    );
     await app().saveSettings({ ...settings, profiles: [...settings.profiles, p] });
     setSel(p.id);
   };
@@ -58,7 +77,9 @@ export function ModelManager() {
           {settings.profiles.map((p) => (
             <button key={p.id} className={p.id === sel ? "on" : ""} onClick={() => setSel(p.id)}>
               {p.name}
-              {engine.state !== "stopped" && "profileId" in engine && engine.profileId === p.id && <span className={`dot ${engine.state}`} />}
+              {engine.state !== "stopped" && "profileId" in engine && engine.profileId === p.id && (
+                <span className={`dot ${engine.state}`} />
+              )}
             </button>
           ))}
           <button className="small primary" onClick={() => app().openDialog("catalog")}>
@@ -91,16 +112,36 @@ export function ModelManager() {
               speech.exe
               <span className="with-button">
                 <input value={prof.speechExe} onChange={(e) => save({ ...prof, speechExe: e.target.value })} />
-                <button onClick={async () => { const f = await pickFile(["exe"], "speech.exe"); if (f) await save({ ...prof, speechExe: f }); }}>…</button>
+                <button
+                  onClick={async () => {
+                    const f = await pickFile(["exe"], "speech.exe");
+                    if (f) await save({ ...prof, speechExe: f });
+                  }}
+                >
+                  …
+                </button>
               </span>
-              <span className="muted small-text">{version || "（未確認）"} — 公式 Windows 版は Vulkan ビルドです。</span>
+              <span className="muted small-text">
+                {version || "（未確認）"} — 公式 Windows 版は Vulkan ビルドです。
+              </span>
               <InstallButton />
             </label>
             <label className="block">
               モデル（GGUF のパス、または speech.cpp のモデル名）
               <span className="with-button">
-                <input value={prof.model} placeholder="E:\models\Drama-35B-A3B-Japanese-v3-Q4_K.gguf" onChange={(e) => save({ ...prof, model: e.target.value })} />
-                <button onClick={async () => { const f = await pickFile(["gguf"], "モデル"); if (f) await save({ ...prof, model: f }); }}>…</button>
+                <input
+                  value={prof.model}
+                  placeholder="E:\models\Drama-35B-A3B-Japanese-v3-Q4_K.gguf"
+                  onChange={(e) => save({ ...prof, model: e.target.value })}
+                />
+                <button
+                  onClick={async () => {
+                    const f = await pickFile(["gguf"], "モデル");
+                    if (f) await save({ ...prof, model: f });
+                  }}
+                >
+                  …
+                </button>
               </span>
             </label>
             {prof.adapter === "irodori" && catalog.length > 0 && (
@@ -110,8 +151,14 @@ export function ModelManager() {
                   .map((m) => {
                     const f = m.files[0];
                     return (
-                      <button key={m.name} className={prof.model === m.name ? "on small" : "small"} onClick={() => save({ ...prof, model: m.name })} title={f?.path}>
-                        {m.name} ({(f.size / 1e9).toFixed(2)} GB{f.fetched ? "・取得済" : "・未取得: 起動時にダウンロード"})
+                      <button
+                        key={m.name}
+                        className={prof.model === m.name ? "on small" : "small"}
+                        onClick={() => save({ ...prof, model: m.name })}
+                        title={f?.path}
+                      >
+                        {m.name} ({(f.size / 1e9).toFixed(2)} GB
+                        {f.fetched ? "・取得済" : "・未取得: 起動時にダウンロード"})
                       </button>
                     );
                   })}
@@ -127,19 +174,29 @@ export function ModelManager() {
                       {d.name} — {d.description.trim()} ({gib(d.memory_free)} 空き / {gib(d.memory_total)})
                     </option>
                   ))}
-                  {!devices.some((d) => d.name === prof.device) && prof.device !== "auto" && <option value={prof.device}>{prof.device}</option>}
+                  {!devices.some((d) => d.name === prof.device) && prof.device !== "auto" && (
+                    <option value={prof.device}>{prof.device}</option>
+                  )}
                 </select>
               </label>
               <label>
                 スレッド
-                <input type="number" min={0} value={prof.threads ?? ""} placeholder="自動" onChange={(e) => save({ ...prof, threads: e.target.value ? Number(e.target.value) : null })} />
+                <input
+                  type="number"
+                  min={0}
+                  value={prof.threads ?? ""}
+                  placeholder="自動"
+                  onChange={(e) => save({ ...prof, threads: e.target.value ? Number(e.target.value) : null })}
+                />
               </label>
             </div>
             <label className="block">
               環境変数（1行に KEY=VALUE）
               <textarea
                 rows={3}
-                defaultValue={Object.entries(prof.env).map(([k, v]) => `${k}=${v}`).join("\n")}
+                defaultValue={Object.entries(prof.env)
+                  .map(([k, v]) => `${k}=${v}`)
+                  .join("\n")}
                 onBlur={(e) => {
                   const env: Record<string, string> = {};
                   for (const l of e.target.value.split("\n")) {
@@ -149,11 +206,18 @@ export function ModelManager() {
                   void save({ ...prof, env });
                 }}
               />
-              {prof.adapter === "drama3" && <span className="muted small-text">Drama-3 Q4_K/Q5_K は Vulkan で GGML_VK_DISABLE_F16 / COOPMAT / COOPMAT2 = 1 が必要です（CUDA 不可）。</span>}
+              {prof.adapter === "drama3" && (
+                <span className="muted small-text">
+                  Drama-3 Q4_K/Q5_K は Vulkan で GGML_VK_DISABLE_F16 / COOPMAT / COOPMAT2 = 1 が必要です（CUDA 不可）。
+                </span>
+              )}
             </label>
             <label className="block">
               追加の引数（スペース区切り）
-              <input defaultValue={prof.extraArgs.join(" ")} onBlur={(e) => save({ ...prof, extraArgs: e.target.value.split(/\s+/).filter(Boolean) })} />
+              <input
+                defaultValue={prof.extraArgs.join(" ")}
+                onBlur={(e) => save({ ...prof, extraArgs: e.target.value.split(/\s+/).filter(Boolean) })}
+              />
             </label>
             <p className="license">⚖ {adapter.capabilities.licenseNote}</p>
             <div className="row-buttons">
@@ -193,11 +257,16 @@ export function ModelManager() {
             {check && typeof check !== "string" && (
               <div className="check">
                 <div>
-                  <b>{String(check.info.name ?? "")}</b> {String(check.info.weight_type ?? "")} — {String(check.info.architecture ?? "")}, {String(check.info.sample_rate ?? "")} Hz
+                  <b>{String(check.info.name ?? "")}</b> {String(check.info.weight_type ?? "")} —{" "}
+                  {String(check.info.architecture ?? "")}, {String(check.info.sample_rate ?? "")} Hz
                 </div>
                 <div className="muted small-text">{check.path}</div>
                 {prof.model.toLowerCase().endsWith(".gguf") && (
-                  <div className={check.sidecar ? "ok-text" : "warn-text"}>{check.sidecar ? "✓ .gguf.json サイドカーあり" : "⚠ .gguf.json サイドカーが見つかりません（モデルの横に置いてください）"}</div>
+                  <div className={check.sidecar ? "ok-text" : "warn-text"}>
+                    {check.sidecar
+                      ? "✓ .gguf.json サイドカーあり"
+                      : "⚠ .gguf.json サイドカーが見つかりません（モデルの横に置いてください）"}
+                  </div>
                 )}
                 {need > 0 && free !== undefined && (
                   <div className={free > need * 1.1 ? "ok-text" : "warn-text"}>
@@ -217,7 +286,12 @@ export function ModelManager() {
 export function InstallButton() {
   const installing = useApp((s) => s.installing);
   return (
-    <button className="small" disabled={installing} onClick={() => useApp.getState().installSpeech()} title="GitHub の公式リリースから zip を取得し、SHA256SUMS で検証して展開します">
+    <button
+      className="small"
+      disabled={installing}
+      onClick={() => useApp.getState().installSpeech()}
+      title="GitHub の公式リリースから zip を取得し、SHA256SUMS で検証して展開します"
+    >
       {installing ? "ダウンロード中…" : "⤓ speech.cpp をダウンロード（公式・SHA検証）"}
     </button>
   );

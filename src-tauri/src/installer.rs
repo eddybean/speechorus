@@ -86,7 +86,9 @@ fn get(url: &str) -> Result<ureq::Response, String> {
 /// Downloads, verifies and extracts the latest release into `root/<tag>/`.
 pub fn install_latest(root: &Path, log: &dyn Fn(String)) -> Result<Installed, String> {
     log(format!("fetching the latest release of {REPO}"));
-    let body = get(&format!("https://api.github.com/repos/{REPO}/releases/latest"))?.into_string().map_err(|e| e.to_string())?;
+    let body = get(&format!("https://api.github.com/repos/{REPO}/releases/latest"))?
+        .into_string()
+        .map_err(|e| e.to_string())?;
     let release: Value = serde_json::from_str(&body).map_err(|e| e.to_string())?;
     let a = pick_assets(&release)?;
     let sums = get(&a.sums_url)?.into_string().map_err(|e| e.to_string())?;
@@ -146,7 +148,8 @@ mod tests {
         assert_eq!(a.sums_url, "https://x/SHA256SUMS");
         assert!(pick_assets(&json!({"tag_name":"v1","assets":[]})).is_err());
         let h = "2cf46f0351a2a90b9ce0bfb83cf63ac209ca31c88df9a5bc0126898a20a58586";
-        let sums = format!("{}  speech-0.11.2-linux-x64-cpu.zip\n{h} *speech-0.11.2-windows-x64-vulkan.zip\n", "0".repeat(64));
+        let sums =
+            format!("{}  speech-0.11.2-linux-x64-cpu.zip\n{h} *speech-0.11.2-windows-x64-vulkan.zip\n", "0".repeat(64));
         assert_eq!(parse_sums(&sums, &a.zip_name).as_deref(), Some(h));
         assert_eq!(parse_sums(&sums, "nope.zip"), None);
     }

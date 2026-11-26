@@ -30,11 +30,30 @@ export const MERGE_MS = 1200;
 const MAX_HISTORY = 300;
 
 export function newLine(partial: Partial<Line> = {}): Line {
-  return { id: uid(), castId: null, text: "", optionsOverride: {}, preSilence: 0, postSilence: 0.3, takes: [], selectedTakeId: null, memo: "", ...partial };
+  return {
+    id: uid(),
+    castId: null,
+    text: "",
+    optionsOverride: {},
+    preSilence: 0,
+    postSilence: 0.3,
+    takes: [],
+    selectedTakeId: null,
+    memo: "",
+    ...partial,
+  };
 }
 
 export function newCast(name: string, index: number, partial: Partial<Cast> = {}): Cast {
-  return { id: uid(), name, voiceId: null, designPrompt: "", defaultOptions: {}, color: CAST_COLORS[index % CAST_COLORS.length], ...partial };
+  return {
+    id: uid(),
+    name,
+    voiceId: null,
+    designPrompt: "",
+    defaultOptions: {},
+    color: CAST_COLORS[index % CAST_COLORS.length],
+    ...partial,
+  };
 }
 
 export function emptyProject(): Project {
@@ -46,7 +65,12 @@ export function emptyProject(): Project {
     cast: [narrator],
     lines: [newLine({ castId: narrator.id })],
     scenes: [],
-    exportSettings: { fileTemplate: "{index}_{cast}_{text8}", outDir: "", defaultPreSilence: 0, defaultPostSilence: 0.3 },
+    exportSettings: {
+      fileTemplate: "{index}_{cast}_{text8}",
+      outDir: "",
+      defaultPreSilence: 0,
+      defaultPostSilence: 0.3,
+    },
   };
 }
 
@@ -58,7 +82,10 @@ export function normalizeProject(p: Partial<Project>): Project {
     ...p,
     cast: (p.cast ?? base.cast).map((c, i) => ({ ...newCast(c.name ?? `キャスト${i + 1}`, i), ...c })),
     lines: (p.lines ?? []).map((l) => ({ ...newLine(), ...l })),
-    scenes: (p.scenes ?? []).map((s: Partial<Scene>) => ({ name: "", lineIds: [], takes: [], selectedTakeId: null, mode: "perLine", ...s }) as Scene),
+    scenes: (p.scenes ?? []).map(
+      (s: Partial<Scene>) =>
+        ({ name: "", lineIds: [], takes: [], selectedTakeId: null, mode: "perLine", ...s }) as Scene,
+    ),
     exportSettings: { ...base.exportSettings, ...(p.exportSettings ?? {}) },
   };
 }
@@ -98,7 +125,10 @@ export const useProject = create<ProjectStore>()((set, get) => {
     const last = s.undoStack[s.undoStack.length - 1];
     let undoStack: HistoryEntry[];
     if (key && last && last.key === key && now - last.at < MERGE_MS) {
-      undoStack = [...s.undoStack.slice(0, -1), { ...last, patches: [...last.patches, ...patches], inverse: [...inverse, ...last.inverse], at: now }];
+      undoStack = [
+        ...s.undoStack.slice(0, -1),
+        { ...last, patches: [...last.patches, ...patches], inverse: [...inverse, ...last.inverse], at: now },
+      ];
     } else {
       undoStack = [...s.undoStack, { patches, inverse, key, at: now, label }].slice(-MAX_HISTORY);
     }
@@ -124,16 +154,35 @@ export const useProject = create<ProjectStore>()((set, get) => {
       const s = get();
       const e = s.undoStack[s.undoStack.length - 1];
       if (!e) return;
-      set({ project: keepUnknownTakes(s.project, applyPatches(s.project, e.inverse), e), undoStack: s.undoStack.slice(0, -1), redoStack: [...s.redoStack, { ...e, key: undefined }], dirty: true });
+      set({
+        project: keepUnknownTakes(s.project, applyPatches(s.project, e.inverse), e),
+        undoStack: s.undoStack.slice(0, -1),
+        redoStack: [...s.redoStack, { ...e, key: undefined }],
+        dirty: true,
+      });
     },
     redo: () => {
       const s = get();
       const e = s.redoStack[s.redoStack.length - 1];
       if (!e) return;
-      set({ project: keepUnknownTakes(s.project, applyPatches(s.project, e.patches), e), redoStack: s.redoStack.slice(0, -1), undoStack: [...s.undoStack, e], dirty: true });
+      set({
+        project: keepUnknownTakes(s.project, applyPatches(s.project, e.patches), e),
+        redoStack: s.redoStack.slice(0, -1),
+        undoStack: [...s.undoStack, e],
+        dirty: true,
+      });
     },
     load: (project, path, takesDir) =>
-      set({ project: normalizeProject(project), path, takesDir, dirty: false, undoStack: [], redoStack: [], selection: [], activeLineId: null }),
+      set({
+        project: normalizeProject(project),
+        path,
+        takesDir,
+        dirty: false,
+        undoStack: [],
+        redoStack: [],
+        selection: [],
+        activeLineId: null,
+      }),
     markSaved: (path, takesDir) => set({ path, takesDir, dirty: false }),
     select: (ids, active) => set({ selection: ids, activeLineId: active === undefined ? get().activeLineId : active }),
     setActive: (id) => set({ activeLineId: id }),
@@ -175,7 +224,9 @@ export const useProject = create<ProjectStore>()((set, get) => {
     duplicateLines: (ids) =>
       record("行を複製", (d) => {
         const lastIdx = Math.max(...ids.map((id) => d.lines.findIndex((l) => l.id === id)));
-        const copies = d.lines.filter((l) => ids.includes(l.id)).map((l) => ({ ...JSON.parse(JSON.stringify(l)), id: uid(), takes: [], selectedTakeId: null }));
+        const copies = d.lines
+          .filter((l) => ids.includes(l.id))
+          .map((l) => ({ ...JSON.parse(JSON.stringify(l)), id: uid(), takes: [], selectedTakeId: null }));
         d.lines.splice(lastIdx + 1, 0, ...copies);
       }),
     addTake: (lineId, take) =>
@@ -236,15 +287,21 @@ function keepUnknownTakes(before: Project, after: Project, e: HistoryEntry): Pro
     (prev?.takes ?? []).filter((t) => !known.has(t.id) && !next.takes.some((x) => x.id === t.id));
   const lines = new Map(before.lines.map((l) => [l.id, l]));
   const scenes = new Map(before.scenes.map((x) => [x.id, x]));
-  const missing = after.lines.some((l) => lost(lines.get(l.id), l).length) || after.scenes.some((x) => lost(scenes.get(x.id), x).length);
+  const missing =
+    after.lines.some((l) => lost(lines.get(l.id), l).length) ||
+    after.scenes.some((x) => lost(scenes.get(x.id), x).length);
   if (!missing) return after;
   return produce(after, (d) => {
-    for (const o of [...d.lines.map((l) => [l, lines.get(l.id)] as const), ...d.scenes.map((x) => [x, scenes.get(x.id)] as const)]) {
+    for (const o of [
+      ...d.lines.map((l) => [l, lines.get(l.id)] as const),
+      ...d.scenes.map((x) => [x, scenes.get(x.id)] as const),
+    ]) {
       const [next, prev] = o;
       const back = lost(prev, next);
       if (!back.length) continue;
       next.takes.push(...back);
-      if (!next.selectedTakeId || !next.takes.some((t) => t.id === next.selectedTakeId)) next.selectedTakeId = prev!.selectedTakeId;
+      if (!next.selectedTakeId || !next.takes.some((t) => t.id === next.selectedTakeId))
+        next.selectedTakeId = prev!.selectedTakeId;
     }
   });
 }
@@ -255,7 +312,12 @@ function keepUnknownTakes(before: Project, after: Project, e: HistoryEntry): Pro
  */
 export function historyTakeFiles(s: Pick<ProjectState, "undoStack" | "redoStack">): string[] {
   const out = new Set<string>();
-  for (const e of [...s.undoStack, ...s.redoStack]) patchTakes([...e.patches, ...e.inverse], (t) => out.add(t.file), (f) => out.add(f));
+  for (const e of [...s.undoStack, ...s.redoStack])
+    patchTakes(
+      [...e.patches, ...e.inverse],
+      (t) => out.add(t.file),
+      (f) => out.add(f),
+    );
   return [...out];
 }
 

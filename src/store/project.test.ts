@@ -2,7 +2,18 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { emptyProject, historyTakeFiles, newLine, normalizeProject, selectedTake, useProject } from "./project";
 import type { Take } from "../lib/types";
 
-const take = (id: string): Take => ({ id, seed: 1, optionsSnapshot: {}, file: `${id}.wav`, duration: 1, sampleRate: 44100, stopReason: "complete", createdAt: 0, starred: false, text: "" });
+const take = (id: string): Take => ({
+  id,
+  seed: 1,
+  optionsSnapshot: {},
+  file: `${id}.wav`,
+  duration: 1,
+  sampleRate: 44100,
+  stopReason: "complete",
+  createdAt: 0,
+  starred: false,
+  text: "",
+});
 
 beforeEach(() => {
   useProject.getState().load(emptyProject(), null, "work");

@@ -7,7 +7,11 @@
       "task": "synthesis",
       "adapter": "drama3",
       "description": "日本語向けに調整された Drama-3（35B-A3B MoE）。演技タグ・ボイスクローンに対応。公式 speech.cpp の Vulkan 版で動作。",
-      "source": { "kind": "huggingface", "repo": "StudioYebisu-ship-it/Drama-3-Japanese-speech-cpp-gguf", "revision": "main" },
+      "source": {
+        "kind": "huggingface",
+        "repo": "StudioYebisu-ship-it/Drama-3-Japanese-speech-cpp-gguf",
+        "revision": "main"
+      },
       "license": {
         "name": "Fish Audio Community License 1.0",
         "url": "https://huggingface.co/StudioYebisu-ship-it/Drama-3-Japanese-speech-cpp-gguf/blob/main/LICENSE",
@@ -23,8 +27,18 @@
           "label": "Q4_K（推奨・標準）",
           "vramBytes": 24921000000,
           "files": [
-            { "name": "Drama-35B-A3B-Japanese-v3-Q4_K.gguf", "size": 22359473504, "sha256": "f624da9d84a5f133f2b0894aa8728ba8c560873d90c019a2bca2321daa8482dd", "role": "model" },
-            { "name": "Drama-35B-A3B-Japanese-v3-Q4_K.gguf.json", "size": 1629, "sha256": "eb2fd5c62cf0bc32bcca1977c5a5685c50b8baeacc3cb95e093a19f973487db7", "role": "sidecar" }
+            {
+              "name": "Drama-35B-A3B-Japanese-v3-Q4_K.gguf",
+              "size": 22359473504,
+              "sha256": "f624da9d84a5f133f2b0894aa8728ba8c560873d90c019a2bca2321daa8482dd",
+              "role": "model"
+            },
+            {
+              "name": "Drama-35B-A3B-Japanese-v3-Q4_K.gguf.json",
+              "size": 1629,
+              "sha256": "eb2fd5c62cf0bc32bcca1977c5a5685c50b8baeacc3cb95e093a19f973487db7",
+              "role": "sidecar"
+            }
           ]
         },
         {
@@ -32,8 +46,18 @@
           "label": "Q5_K（高品質・VRAM 多め）",
           "vramBytes": 28948000000,
           "files": [
-            { "name": "Drama-35B-A3B-Japanese-v3-Q5_K.gguf", "size": 26386005344, "sha256": "fde34cca2062e364e1cc2eb89471faf3d3f76a02edcc13972e189d60e30aa28d", "role": "model" },
-            { "name": "Drama-35B-A3B-Japanese-v3-Q5_K.gguf.json", "size": 1629, "sha256": "efc6346823e4ace0ac8cfe8d3d31600de733a85c18b4748fe77dbecc27abcdf1", "role": "sidecar" }
+            {
+              "name": "Drama-35B-A3B-Japanese-v3-Q5_K.gguf",
+              "size": 26386005344,
+              "sha256": "fde34cca2062e364e1cc2eb89471faf3d3f76a02edcc13972e189d60e30aa28d",
+              "role": "model"
+            },
+            {
+              "name": "Drama-35B-A3B-Japanese-v3-Q5_K.gguf.json",
+              "size": 1629,
+              "sha256": "efc6346823e4ace0ac8cfe8d3d31600de733a85c18b4748fe77dbecc27abcdf1",
+              "role": "sidecar"
+            }
           ]
         },
         {
@@ -53,12 +77,22 @@
       "adapter": "irodori",
       "description": "軽量・高速な日本語 TTS（4 ステップ MeanFlow）。絵文字タグ・instructions・話速に対応。",
       "source": { "kind": "speechPull", "name": "irodori-tts-mf" },
-      "license": { "name": "MIT", "url": "https://huggingface.co/Aratako/Irodori-TTS-v4.1-Small-MF", "summary": "MIT License", "requiresConsent": false },
+      "license": {
+        "name": "MIT",
+        "url": "https://huggingface.co/Aratako/Irodori-TTS-v4.1-Small-MF",
+        "summary": "MIT License",
+        "requiresConsent": false
+      },
       "env": {},
       "device": "Vulkan0",
       "defaultVariant": "f16",
       "variants": [
-        { "id": "f16", "label": "F16", "vramBytes": 3000000000, "files": [ { "name": "Irodori-TTS-866M-MF-v4.1-F16.gguf", "size": 1920321792, "sha256": "", "role": "model" } ] }
+        {
+          "id": "f16",
+          "label": "F16",
+          "vramBytes": 3000000000,
+          "files": [{ "name": "Irodori-TTS-866M-MF-v4.1-F16.gguf", "size": 1920321792, "sha256": "", "role": "model" }]
+        }
       ]
     },
     {
@@ -68,12 +102,22 @@
       "adapter": "",
       "description": "ボイス作成時に参照音声を書き起こす ASR モデル。",
       "source": { "kind": "speechPull", "name": "qwen3-asr-0.6b" },
-      "license": { "name": "Apache-2.0", "url": "https://huggingface.co/Qwen/Qwen3-ASR-0.6B", "summary": "Apache License 2.0", "requiresConsent": false },
+      "license": {
+        "name": "Apache-2.0",
+        "url": "https://huggingface.co/Qwen/Qwen3-ASR-0.6B",
+        "summary": "Apache License 2.0",
+        "requiresConsent": false
+      },
       "env": {},
       "device": "auto",
       "defaultVariant": "q8_0",
       "variants": [
-        { "id": "q8_0", "label": "Q8_0", "vramBytes": 1500000000, "files": [ { "name": "Qwen3-ASR-0.6B-Q8_0.gguf", "size": 841502336, "sha256": "", "role": "model" } ] }
+        {
+          "id": "q8_0",
+          "label": "Q8_0",
+          "vramBytes": 1500000000,
+          "files": [{ "name": "Qwen3-ASR-0.6B-Q8_0.gguf", "size": 841502336, "sha256": "", "role": "model" }]
+        }
       ]
     }
   ]

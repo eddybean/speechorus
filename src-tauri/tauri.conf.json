@@ -10,9 +10,7 @@
     "frontendDist": "../dist"
   },
   "app": {
-    "windows": [
-      { "title": "Speechorus", "width": 1400, "height": 880, "minWidth": 960, "minHeight": 600 }
-    ],
+    "windows": [{ "title": "Speechorus", "width": 1400, "height": 880, "minWidth": 960, "minHeight": 600 }],
     "security": {
       "csp": "default-src 'self'; img-src 'self' asset: http://asset.localhost data:; media-src 'self' asset: http://asset.localhost; style-src 'self' 'unsafe-inline'",
       "assetProtocol": { "enable": true, "scope": { "allow": [], "requireLiteralLeadingDot": false } }

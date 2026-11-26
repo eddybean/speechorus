@@ -18,7 +18,10 @@ export function CatalogDialog() {
   const [view, setView] = useState<CatalogView | null>(null);
   const [err, setErr] = useState("");
   useEffect(() => {
-    ipc.catalogList().then(setView).catch((e) => setErr(String(e)));
+    ipc
+      .catalogList()
+      .then(setView)
+      .catch((e) => setErr(String(e)));
   }, []);
   return (
     <Dialog title="モデルを入手" onClose={() => useApp.getState().openDialog(null)} wide>
@@ -27,8 +30,11 @@ export function CatalogDialog() {
       {view && (
         <>
           <p className="muted">
-            {view.gpu ? `GPU: ${view.gpu.name}（空き ${gib(view.gpu.free)} / ${gib(view.gpu.total)}）` : "GPU 情報を取得できません（speech.exe を設定してください）"}
-            ・ダウンロードは中断しても続きから再開でき、SHA-256 で検証されます。完了するとモデルプロファイルが作成・選択されます。
+            {view.gpu
+              ? `GPU: ${view.gpu.name}（空き ${gib(view.gpu.free)} / ${gib(view.gpu.total)}）`
+              : "GPU 情報を取得できません（speech.exe を設定してください）"}
+            ・ダウンロードは中断しても続きから再開でき、SHA-256
+            で検証されます。完了するとモデルプロファイルが作成・選択されます。
           </p>
           {view.catalog.models.map((m) => (
             <ModelCard key={m.id} m={m} rec={view.recommended[m.id]} defaultDir={view.defaultDir} />
@@ -53,7 +59,23 @@ function ModelCard({ m, rec, defaultDir }: { m: CatalogModel; rec?: string; defa
   const start = async () => {
     try {
       await ipc.catalogDownload(m.id, variant, dir, agreed);
-      useApp.setState((s) => ({ downloads: { ...s.downloads, [id]: { ...(s.downloads[id] ?? {}), id, phase: "checking", file: "", done: 0, total: size, bytesPerSec: 0, etaSecs: null, message: "", profileId: null } } }));
+      useApp.setState((s) => ({
+        downloads: {
+          ...s.downloads,
+          [id]: {
+            ...(s.downloads[id] ?? {}),
+            id,
+            phase: "checking",
+            file: "",
+            done: 0,
+            total: size,
+            bytesPerSec: 0,
+            etaSecs: null,
+            message: "",
+            profileId: null,
+          },
+        },
+      }));
     } catch (e) {
       useApp.getState().notify("error", String(e));
     }
@@ -62,19 +84,34 @@ function ModelCard({ m, rec, defaultDir }: { m: CatalogModel; rec?: string; defa
   return (
     <section className="catalog-card">
       <h3>
-        {m.name} <span className="muted small-text">{m.task === "recognition" ? "書き起こし (ASR)" : `音声合成 / ${m.adapter}`}</span>
+        {m.name}{" "}
+        <span className="muted small-text">
+          {m.task === "recognition" ? "書き起こし (ASR)" : `音声合成 / ${m.adapter}`}
+        </span>
       </h3>
       <p className="muted small-text">{m.description}</p>
       <div className="variants">
         {m.variants.map((x) => (
-          <label key={x.id} className={`variant${x.supported === false ? " unsupported" : ""}`} title={x.unsupportedReason}>
-            <input type="radio" name={`v-${m.id}`} disabled={x.supported === false || !!running} checked={variant === x.id} onChange={() => setVariant(x.id)} />
+          <label
+            key={x.id}
+            className={`variant${x.supported === false ? " unsupported" : ""}`}
+            title={x.unsupportedReason}
+          >
+            <input
+              type="radio"
+              name={`v-${m.id}`}
+              disabled={x.supported === false || !!running}
+              checked={variant === x.id}
+              onChange={() => setVariant(x.id)}
+            />
             <span>
               {x.label}
               {rec === x.id && <span className="badge takes">推奨</span>}
               <br />
               <span className="muted small-text">
-                {x.supported === false ? `非対応: ${x.unsupportedReason}` : `${gib(x.files.reduce((a, f) => a + f.size, 0))}・VRAM 目安 ${gib(x.vramBytes)}`}
+                {x.supported === false
+                  ? `非対応: ${x.unsupportedReason}`
+                  : `${gib(x.files.reduce((a, f) => a + f.size, 0))}・VRAM 目安 ${gib(x.vramBytes)}`}
               </span>
             </span>
           </label>
@@ -97,7 +134,9 @@ function ModelCard({ m, rec, defaultDir }: { m: CatalogModel; rec?: string; defa
           </span>
         </label>
       ) : (
-        <p className="muted small-text">speech.cpp の `speech pull` で speech.cpp のモデルフォルダに取得します（中断しても再開できます）。</p>
+        <p className="muted small-text">
+          speech.cpp の `speech pull` で speech.cpp のモデルフォルダに取得します（中断しても再開できます）。
+        </p>
       )}
       <div className="license-box">
         <b>ライセンス: {m.license.name}</b>
@@ -105,7 +144,13 @@ function ModelCard({ m, rec, defaultDir }: { m: CatalogModel; rec?: string; defa
         <span className="muted small-text">{m.license.url}</span>
         {m.license.requiresConsent && (
           <label>
-            <input type="checkbox" checked={agreed} disabled={!!running} onChange={(e) => setAgreed(e.target.checked)} /> ライセンスを読み、その条件に従って利用することに同意します
+            <input
+              type="checkbox"
+              checked={agreed}
+              disabled={!!running}
+              onChange={(e) => setAgreed(e.target.checked)}
+            />{" "}
+            ライセンスを読み、その条件に従って利用することに同意します
           </label>
         )}
       </div>
@@ -116,7 +161,8 @@ function ModelCard({ m, rec, defaultDir }: { m: CatalogModel; rec?: string; defa
           </div>
           <span className="small-text">
             {phaseLabel(prog.phase)} {prog.file} {gib(prog.done)} / {gib(prog.total)}
-            {prog.phase === "downloading" && ` ・${(prog.bytesPerSec / 1e6).toFixed(1)} MB/s ・残り ${fmtEta(prog.etaSecs)}`}
+            {prog.phase === "downloading" &&
+              ` ・${(prog.bytesPerSec / 1e6).toFixed(1)} MB/s ・残り ${fmtEta(prog.etaSecs)}`}
             {prog.message && <div className={prog.phase === "failed" ? "warn-text" : "muted"}>{prog.message}</div>}
           </span>
         </div>
@@ -125,7 +171,11 @@ function ModelCard({ m, rec, defaultDir }: { m: CatalogModel; rec?: string; defa
         {running ? (
           <button onClick={() => ipc.downloadCancel(id)}>■ キャンセル</button>
         ) : (
-          <button className="primary" disabled={v.supported === false || (m.license.requiresConsent && !agreed)} onClick={start}>
+          <button
+            className="primary"
+            disabled={v.supported === false || (m.license.requiresConsent && !agreed)}
+            onClick={start}
+          >
             ⤓ {prog?.phase === "cancelled" || prog?.phase === "failed" ? "再開" : "ダウンロード"}（{gib(size)}）
           </button>
         )}
@@ -135,5 +185,14 @@ function ModelCard({ m, rec, defaultDir }: { m: CatalogModel; rec?: string; defa
 }
 
 function phaseLabel(p: string) {
-  return { checking: "既存ファイルを確認中", downloading: "ダウンロード中", verifying: "SHA-256 検証中", done: "✓ 完了", failed: "失敗", cancelled: "中断" }[p] ?? p;
+  return (
+    {
+      checking: "既存ファイルを確認中",
+      downloading: "ダウンロード中",
+      verifying: "SHA-256 検証中",
+      done: "✓ 完了",
+      failed: "失敗",
+      cancelled: "中断",
+    }[p] ?? p
+  );
 }

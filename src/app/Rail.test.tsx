@@ -5,11 +5,27 @@ import { useApp } from "../store/app";
 import type { AppSettings, EngineState, ModelProfile } from "../lib/types";
 
 const profile = (id: string, name: string, model = "/m.gguf"): ModelProfile => ({
-  id, name, adapter: "irodori", model, speechExe: "speech", device: "auto", threads: null, env: {}, extraArgs: [],
+  id,
+  name,
+  adapter: "irodori",
+  model,
+  speechExe: "speech",
+  device: "auto",
+  threads: null,
+  env: {},
+  extraArgs: [],
 });
 const settings = (active: string, p1Model = "/m.gguf"): AppSettings => ({
-  version: 1, profiles: [profile("p1", "Irodori Small", p1Model), profile("p2", "Drama-3")], activeProfileId: active,
-  speechExe: "speech", asrModel: "", asrDevice: "auto", showNsfwTags: false, theme: "dark", recentTags: [], recentProjects: [],
+  version: 1,
+  profiles: [profile("p1", "Irodori Small", p1Model), profile("p2", "Drama-3")],
+  activeProfileId: active,
+  speechExe: "speech",
+  asrModel: "",
+  asrDevice: "auto",
+  showNsfwTags: false,
+  theme: "dark",
+  recentTags: [],
+  recentProjects: [],
 });
 
 const startEngine = vi.fn(async () => {});
@@ -17,7 +33,15 @@ const stopEngine = vi.fn(async () => {});
 const saveSettings = vi.fn(async () => {});
 
 function setup(engine: EngineState, active = "p1", p1Model?: string) {
-  useApp.setState({ engine, settings: settings(active, p1Model), dialog: null, castOpen: true, startEngine, stopEngine, saveSettings });
+  useApp.setState({
+    engine,
+    settings: settings(active, p1Model),
+    dialog: null,
+    castOpen: true,
+    startEngine,
+    stopEngine,
+    saveSettings,
+  });
   render(<Rail />);
 }
 

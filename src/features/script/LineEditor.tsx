@@ -47,7 +47,11 @@ export function insertAtCursor(text: string): boolean {
   // Do not split an existing tag.
   let at = from;
   for (const t of tokenize(v.state.doc.toString())) if (t.kind !== "text" && t.from < at && at < t.to) at = t.to;
-  v.dispatch({ changes: { from: at, to: at === from ? to : at, insert: text }, selection: { anchor: at + text.length }, scrollIntoView: true });
+  v.dispatch({
+    changes: { from: at, to: at === from ? to : at, insert: text },
+    selection: { anchor: at + text.length },
+    scrollIntoView: true,
+  });
   v.focus();
   return true;
 }
@@ -80,7 +84,8 @@ export function LineEditor(props: LineEditorProps) {
           placeholder(props.placeholderText ?? ""),
           EditorState.transactionFilter.of((tr) => (tr.docChanged && tr.newDoc.lines > 1 ? [] : tr)),
           EditorView.updateListener.of((u) => {
-            if (u.docChanged && !u.transactions.some((t) => t.annotation(external))) cb.current.onChange(u.state.doc.toString());
+            if (u.docChanged && !u.transactions.some((t) => t.annotation(external)))
+              cb.current.onChange(u.state.doc.toString());
           }),
           EditorView.domEventHandlers({
             focus: (_e, v) => {
@@ -95,7 +100,10 @@ export function LineEditor(props: LineEditorProps) {
               }
               if ((e.key === "ArrowUp" || e.key === "ArrowDown") && !e.isComposing) {
                 const sel = v.state.selection.main;
-                const atEdge = e.key === "ArrowUp" ? sel.head === 0 || !v.lineWrapping : sel.head === v.state.doc.length || !v.lineWrapping;
+                const atEdge =
+                  e.key === "ArrowUp"
+                    ? sel.head === 0 || !v.lineWrapping
+                    : sel.head === v.state.doc.length || !v.lineWrapping;
                 if (atEdge) {
                   e.preventDefault();
                   cb.current.onArrow(e.key === "ArrowUp" ? -1 : 1);
@@ -133,7 +141,11 @@ export function LineEditor(props: LineEditorProps) {
     const v = view.current;
     if (v && v.state.doc.toString() !== props.value) {
       const head = Math.min(v.state.selection.main.head, props.value.length);
-      v.dispatch({ changes: { from: 0, to: v.state.doc.length, insert: props.value }, selection: { anchor: head }, annotations: external.of(true) });
+      v.dispatch({
+        changes: { from: 0, to: v.state.doc.length, insert: props.value },
+        selection: { anchor: head },
+        annotations: external.of(true),
+      });
     }
   }, [props.value]);
 

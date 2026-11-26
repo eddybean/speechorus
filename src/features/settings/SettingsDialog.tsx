@@ -17,11 +17,19 @@ export function SettingsDialog() {
   return (
     <Dialog title="設定" onClose={() => app().openDialog(null)}>
       <label>
-        <input type="checkbox" checked={s.showNsfwTags} onChange={(e) => app().saveSettings({ ...s, showNsfwTags: e.target.checked })} /> NSFW タグをパレットに表示する
+        <input
+          type="checkbox"
+          checked={s.showNsfwTags}
+          onChange={(e) => app().saveSettings({ ...s, showNsfwTags: e.target.checked })}
+        />{" "}
+        NSFW タグをパレットに表示する
       </label>
       <label className="block">
         テーマ
-        <select value={s.theme} onChange={(e) => app().saveSettings({ ...s, theme: e.target.value as "dark" | "light" })}>
+        <select
+          value={s.theme}
+          onChange={(e) => app().saveSettings({ ...s, theme: e.target.value as "dark" | "light" })}
+        >
           <option value="dark">ダーク</option>
           <option value="light">ライト</option>
         </select>

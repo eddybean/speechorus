@@ -8,16 +8,25 @@ import { newCast, newLine, useProject } from "../../store/project";
 let internal: { text: string; lines: Line[] } | null = null;
 
 export function linesToText(lines: Line[], cast: Cast[]): string {
-  return lines.map((l) => {
-    const name = cast.find((c) => c.id === l.castId)?.name;
-    return name ? `${name},${l.text}` : l.text;
-  }).join("\n");
+  return lines
+    .map((l) => {
+      const name = cast.find((c) => c.id === l.castId)?.name;
+      return name ? `${name},${l.text}` : l.text;
+    })
+    .join("\n");
 }
 
 /** Lines for a paste: the copied lines (fresh ids, no takes) when the text is ours, else parsed `キャラ,テキスト`. */
-export function linesFromClipboard(text: string, copied: { text: string; lines: Line[] } | null, cast: Cast[]): { lines: Line[]; newCast: Cast[] } {
+export function linesFromClipboard(
+  text: string,
+  copied: { text: string; lines: Line[] } | null,
+  cast: Cast[],
+): { lines: Line[]; newCast: Cast[] } {
   if (copied && copied.text === text) {
-    return { lines: copied.lines.map((l) => ({ ...structuredClone(l), id: uid(), takes: [], selectedTakeId: null })), newCast: [] };
+    return {
+      lines: copied.lines.map((l) => ({ ...structuredClone(l), id: uid(), takes: [], selectedTakeId: null })),
+      newCast: [],
+    };
   }
   const added: Cast[] = [];
   const all = [...cast];
@@ -71,5 +80,8 @@ export async function pasteLines() {
     d.cast.push(...added);
     d.lines.splice(lastIdx < 0 ? d.lines.length : lastIdx + 1, 0, ...lines);
   });
-  st.select(lines.map((l) => l.id), null);
+  st.select(
+    lines.map((l) => l.id),
+    null,
+  );
 }

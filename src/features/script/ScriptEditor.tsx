@@ -172,22 +172,50 @@ const Row = memo(function Row({ line, index, cast }: { line: Line; index: number
         {status === "running" && <span className="badge run">生成中 {secs}s</span>}
         {status === "queued" && <span className="badge wait">待機 {n}</span>}
         {status === "running" && Number(n) > 1 && <span className="badge wait">+{Number(n) - 1}</span>}
-        {line.takes.length > 0 && <span className="badge takes" title="テイク数">{line.takes.length}</span>}
-        {line.takes.some((t) => t.stopReason !== "complete") && <span className="badge warn" title="最大長で打ち切り">!</span>}
+        {line.takes.length > 0 && (
+          <span className="badge takes" title="テイク数">
+            {line.takes.length}
+          </span>
+        )}
+        {line.takes.some((t) => t.stopReason !== "complete") && (
+          <span className="badge warn" title="最大長で打ち切り">
+            !
+          </span>
+        )}
       </span>
       <span className="row-actions">
-        <PlayButton className="icon" session={session.line(line.id)} items={() => lineItems(line.id)} disabled={!line.takes.length} />
+        <PlayButton
+          className="icon"
+          session={session.line(line.id)}
+          items={() => lineItems(line.id)}
+          disabled={!line.takes.length}
+        />
         {job ? (
-          <button className="icon" title="キャンセル" aria-label="キャンセル" onClick={() => void useApp.getState().cancelLine(line.id)}>
+          <button
+            className="icon"
+            title="キャンセル"
+            aria-label="キャンセル"
+            onClick={() => void useApp.getState().cancelLine(line.id)}
+          >
             <Icon name="stop" size={14} />
           </button>
         ) : (
-          <button className="icon" title="この行を生成" aria-label="この行を生成" onClick={() => void generateIds([line.id])}>
+          <button
+            className="icon"
+            title="この行を生成"
+            aria-label="この行を生成"
+            onClick={() => void generateIds([line.id])}
+          >
             <Icon name="generate" size={14} />
           </button>
         )}
         {/* Its takes go with it; Undo brings the line back. */}
-        <button className="icon" title="行を削除" aria-label="行を削除" onClick={() => useProject.getState().removeLines([line.id])}>
+        <button
+          className="icon"
+          title="行を削除"
+          aria-label="行を削除"
+          onClick={() => useProject.getState().removeLines([line.id])}
+        >
           <Icon name="trash" size={14} />
         </button>
       </span>

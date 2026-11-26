@@ -12,9 +12,12 @@ export function StatusBar() {
   const eta = useApp((s) => queueEta(s.jobOrder.length, s.jobDurations, s.runningSince));
   const engine = useApp((s) => s.engine);
   const profiles = useApp((s) => s.settings?.profiles);
-  const profileName = "profileId" in engine ? (profiles?.find((p) => p.id === engine.profileId)?.name ?? engine.profileId) : null;
+  const profileName =
+    "profileId" in engine ? (profiles?.find((p) => p.id === engine.profileId)?.name ?? engine.profileId) : null;
   // Nothing is loaded and the chosen profile has no model: starting would fail, so point to the catalog instead.
-  const missing = useApp((s) => (s.engine.state === "stopped" || s.engine.state === "failed" ? chosenProfile(s.settings) : undefined));
+  const missing = useApp((s) =>
+    s.engine.state === "stopped" || s.engine.state === "failed" ? chosenProfile(s.settings) : undefined,
+  );
   const needsModel = missing && !missing.model ? missing : null;
   return (
     <footer className="statusbar">
@@ -40,13 +43,15 @@ export function StatusBar() {
               モデルを入手…
             </button>
           </>
-        ) : engine.state === "ready"
-          ? `${profileName} · ${engine.sampleRate / 1000} kHz`
-          : engine.state === "loading"
-            ? `${profileName} を読み込み中…`
-            : engine.state === "failed"
-              ? `${profileName} の起動に失敗`
-              : "エンジン停止中（左下の「エンジン」から起動）"}
+        ) : engine.state === "ready" ? (
+          `${profileName} · ${engine.sampleRate / 1000} kHz`
+        ) : engine.state === "loading" ? (
+          `${profileName} を読み込み中…`
+        ) : engine.state === "failed" ? (
+          `${profileName} の起動に失敗`
+        ) : (
+          "エンジン停止中（左下の「エンジン」から起動）"
+        )}
       </span>
     </footer>
   );

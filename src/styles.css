@@ -58,7 +58,14 @@ body,
   height: 100%;
   background: var(--bg);
   color: var(--fg);
-  font: 13px/1.5 "Segoe UI", "Yu Gothic UI", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Meiryo", system-ui, sans-serif;
+  font:
+    13px/1.5 "Segoe UI",
+    "Yu Gothic UI",
+    "Hiragino Sans",
+    "Hiragino Kaku Gothic ProN",
+    "Meiryo",
+    system-ui,
+    sans-serif;
 }
 button,
 input,
@@ -274,7 +281,11 @@ button.primary {
 }
 .menu-item kbd,
 .menu-heading kbd {
-  font: 11px ui-monospace, "SF Mono", Consolas, monospace;
+  font:
+    11px ui-monospace,
+    "SF Mono",
+    Consolas,
+    monospace;
   color: var(--muted);
 }
 .icon-gap {

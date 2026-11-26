@@ -21,7 +21,11 @@ export function Rail() {
         S
       </span>
       <div className="rail-group">
-        <button className={`rail-item${castOpen ? " on" : ""}`} aria-pressed={castOpen} onClick={() => app().toggleCast()}>
+        <button
+          className={`rail-item${castOpen ? " on" : ""}`}
+          aria-pressed={castOpen}
+          onClick={() => app().toggleCast()}
+        >
           <Icon name="users" size={18} />
           キャスト
         </button>
@@ -62,7 +66,10 @@ export function Rail() {
  * The main action for the chosen profile: start it, switch to it, get a model first (it has none, so starting
  * would only fail), or nothing (it is already loaded or loading).
  */
-export function engineAction(engine: EngineState, profile: ModelProfile | undefined): "start" | "switch" | "getModel" | null {
+export function engineAction(
+  engine: EngineState,
+  profile: ModelProfile | undefined,
+): "start" | "switch" | "getModel" | null {
   if (!profile || engine.state === "loading") return null;
   if (engine.state === "ready" && engine.profileId === profile.id) return null;
   if (!profile.model) return "getModel";
@@ -98,7 +105,13 @@ function EnginePanel({ close }: { close: () => void }) {
       ))}
       <div className="engine-actions">
         {action === "getModel" && (
-          <button className="primary" onClick={() => { close(); app().openDialog("catalog"); }}>
+          <button
+            className="primary"
+            onClick={() => {
+              close();
+              app().openDialog("catalog");
+            }}
+          >
             <Icon name="download" />
             モデルを入手…
           </button>
@@ -116,8 +129,26 @@ function EnginePanel({ close }: { close: () => void }) {
         )}
       </div>
       <hr />
-      {action !== "getModel" && <MenuItem icon="download" onSelect={() => { close(); app().openDialog("catalog"); }}>モデルを入手…</MenuItem>}
-      <MenuItem icon="chip" onSelect={() => { close(); app().openDialog("models"); }}>モデル管理…</MenuItem>
+      {action !== "getModel" && (
+        <MenuItem
+          icon="download"
+          onSelect={() => {
+            close();
+            app().openDialog("catalog");
+          }}
+        >
+          モデルを入手…
+        </MenuItem>
+      )}
+      <MenuItem
+        icon="chip"
+        onSelect={() => {
+          close();
+          app().openDialog("models");
+        }}
+      >
+        モデル管理…
+      </MenuItem>
     </div>
   );
 }

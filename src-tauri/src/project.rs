@@ -131,10 +131,7 @@ pub fn takes_dir_for(project_path: &Path) -> PathBuf {
 }
 
 pub fn write_atomic(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
-    let tmp = path.with_extension(format!(
-        "{}.tmp",
-        path.extension().and_then(|e| e.to_str()).unwrap_or("")
-    ));
+    let tmp = path.with_extension(format!("{}.tmp", path.extension().and_then(|e| e.to_str()).unwrap_or("")));
     std::fs::write(&tmp, bytes)?;
     std::fs::rename(&tmp, path)
 }
@@ -179,8 +176,7 @@ pub fn save_project(
 }
 
 pub fn load_project(path: &Path) -> Result<(Project, PathBuf), ProjectError> {
-    let s = std::fs::read_to_string(path)
-        .map_err(|e| ProjectError::Io(path.display().to_string(), e))?;
+    let s = std::fs::read_to_string(path).map_err(|e| ProjectError::Io(path.display().to_string(), e))?;
     let p: Project = serde_json::from_str(&s)?;
     if p.version > PROJECT_VERSION {
         return Err(ProjectError::TooNew(p.version));
@@ -196,8 +192,7 @@ fn is_plain_name(f: &str) -> bool {
 /// Removes WAV files in the takes folder that no take of the project (nor `extra`) names, except `busy` (a take
 /// being written).
 pub fn prune_orphans(project: &Project, takes_dir: &Path, busy: Option<&Path>, extra: &[String]) -> usize {
-    let keep: std::collections::HashSet<&str> =
-        take_files(project).chain(extra.iter().map(String::as_str)).collect();
+    let keep: std::collections::HashSet<&str> = take_files(project).chain(extra.iter().map(String::as_str)).collect();
     // The same file may be named by different spellings of the folder, so compare resolved paths.
     let busy = busy.and_then(|b| b.canonicalize().ok());
     let Ok(rd) = std::fs::read_dir(takes_dir) else {
@@ -262,11 +257,7 @@ mod tests {
         std::fs::write(work.path().join("a.wav"), b"RIFF").unwrap();
         std::fs::write(work.path().join("orphan.wav"), b"RIFF").unwrap();
         let mut p = Project::default();
-        p.lines.push(Line {
-            id: "l".into(),
-            takes: vec![take("a.wav")],
-            ..Default::default()
-        });
+        p.lines.push(Line { id: "l".into(), takes: vec![take("a.wav")], ..Default::default() });
         let out = tempfile::tempdir().unwrap();
         let path = out.path().join("drama.vsproj");
         std::fs::write(work.path().join("undo.wav"), b"RIFF").unwrap();

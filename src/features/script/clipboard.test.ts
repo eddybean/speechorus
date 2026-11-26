@@ -6,7 +6,14 @@ import { queueEta } from "../../store/app";
 describe("line clipboard", () => {
   const a = newCast("ミカ", 0);
   const lines = [
-    newLine({ castId: a.id, text: "[囁き]ねえ", optionsOverride: { top_k: 5 }, preSilence: 0.4, takes: [{ id: "t" } as never], selectedTakeId: "t" }),
+    newLine({
+      castId: a.id,
+      text: "[囁き]ねえ",
+      optionsOverride: { top_k: 5 },
+      preSilence: 0.4,
+      takes: [{ id: "t" } as never],
+      selectedTakeId: "t",
+    }),
     newLine({ castId: null, text: "地の文" }),
   ];
 

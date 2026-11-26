@@ -53,8 +53,16 @@ function CastCard({ cast, open, toggle }: { cast: Cast; open: boolean; toggle: (
   return (
     <div className="cast-card" style={{ borderLeftColor: cast.color }}>
       <div className="cast-head">
-        <input type="color" value={cast.color} onChange={(e) => edit("色", (c) => (c.color = e.target.value), `color:${cast.id}`)} />
-        <input className="cast-name" value={cast.name} onChange={(e) => edit("キャスト名", (c) => (c.name = e.target.value), `name:${cast.id}`)} />
+        <input
+          type="color"
+          value={cast.color}
+          onChange={(e) => edit("色", (c) => (c.color = e.target.value), `color:${cast.id}`)}
+        />
+        <input
+          className="cast-name"
+          value={cast.name}
+          onChange={(e) => edit("キャスト名", (c) => (c.name = e.target.value), `name:${cast.id}`)}
+        />
         <span className="muted" title="行数">
           {lineCount}
         </span>
@@ -71,13 +79,23 @@ function CastCard({ cast, open, toggle }: { cast: Cast; open: boolean; toggle: (
             {!v.file && v.prompt ? "（説明のみ）" : ""}
           </option>
         ))}
-        {voice && mismatch && <option value={voice.id}>{voice.name}（{voice.family} 用・現在のモデルでは無効）</option>}
+        {voice && mismatch && (
+          <option value={voice.id}>
+            {voice.name}（{voice.family} 用・現在のモデルでは無効）
+          </option>
+        )}
       </select>
-      {mismatch && <div className="warn-text">このボイスは {voice.family} 用です。現在のモデルでは「ボイスなし」として生成します。</div>}
+      {mismatch && (
+        <div className="warn-text">
+          このボイスは {voice.family} 用です。現在のモデルでは「ボイスなし」として生成します。
+        </div>
+      )}
       {open && (
         <>
           <label className="block">
-            {adapter?.capabilities.designPrompt === "instructions" ? "声と話し方の説明 (instructions)" : "ボイスデザイン（先頭に [..] として挿入）"}
+            {adapter?.capabilities.designPrompt === "instructions"
+              ? "声と話し方の説明 (instructions)"
+              : "ボイスデザイン（先頭に [..] として挿入）"}
             <textarea
               rows={3}
               placeholder="例: 落ち着いた25歳の女性。親密な相手に耳元で優しく囁く。"

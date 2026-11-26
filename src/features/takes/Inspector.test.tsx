@@ -13,7 +13,18 @@ vi.mock("../tags/TagPalette", () => ({ TagPalette: () => null }));
 
 import { copySeed, rerollTake } from "../generate/actions";
 
-const take: Take = { id: "t1", seed: 4212077026712288, optionsSnapshot: {}, file: "t1.wav", duration: 1, sampleRate: 44100, stopReason: "complete", createdAt: 0, starred: false, text: "" };
+const take: Take = {
+  id: "t1",
+  seed: 4212077026712288,
+  optionsSnapshot: {},
+  file: "t1.wav",
+  duration: 1,
+  sampleRate: 44100,
+  stopReason: "complete",
+  createdAt: 0,
+  starred: false,
+  text: "",
+};
 
 describe("Inspector seeds", () => {
   beforeEach(() => {
