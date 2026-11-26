@@ -186,6 +186,10 @@ const Row = memo(function Row({ line, index, cast }: { line: Line; index: number
             <Icon name="generate" size={14} />
           </button>
         )}
+        {/* Its takes go with it; Undo brings the line back. */}
+        <button className="icon" title="行を削除" aria-label="行を削除" onClick={() => useProject.getState().removeLines([line.id])}>
+          <Icon name="trash" size={14} />
+        </button>
       </span>
     </div>
   );
