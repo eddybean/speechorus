@@ -9,17 +9,23 @@ Speechorus (repo folder `voice-studio`; renamed in D-36) is a Windows desktop Ja
 ## Commands
 
 ```sh
-npm install
+npm install                  # also sets up the husky pre-commit hook (lint-staged)
 npm run tauri dev            # run the app (Vite on port 1420, strictPort)
 npm test                     # vitest (jsdom, globals)
 npx vitest run src/lib/text.test.ts        # one test file
 npx vitest run -t "test name"              # by test name
-npm run lint                 # tsc -b --noEmit
+npm run typecheck            # tsc -b --noEmit
+npm run lint                 # typecheck + ESLint
+npm run format               # Prettier --write (format:check to check)
 npm run test:rust            # cargo test, using the mock worker
 cargo test --manifest-path src-tauri/Cargo.toml <test_name>   # one Rust test
 npm run lint:rust            # clippy, all targets, -D warnings
+npm run format:rust          # cargo fmt (format:rust:check to check)
+npm run check                # all format checks, lints and tests
 npx tauri build --no-bundle
 ```
+
+Tooling: Prettier (`printWidth` 120, `.prettierrc.json`; Markdown is not formatted), ESLint flat config (`eslint.config.js`: typescript-eslint recommended + the classic react-hooks rules, not the React Compiler ones), rustfmt (`src-tauri/rustfmt.toml`: `max_width` 120). The pre-commit hook runs ESLint `--fix`, Prettier and rustfmt on staged files. There is deliberately no GitHub Actions CI (private repo, saving CI minutes): run `npm run check` before pushing.
 
 E2E against the real engine (`src-tauri/tests/real_engine.rs`; each section is skipped when its env var is not set):
 

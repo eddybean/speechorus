@@ -25,12 +25,19 @@ The app does not ship any GGUF files. Enter their paths in the model management 
 ## Development
 
 ```sh
-npm install
+npm install                # also installs the pre-commit hook (husky + lint-staged)
 npm run tauri dev          # development
 npm test                   # vitest
 npm run test:rust          # cargo test (mock worker)
+npm run lint               # tsc + ESLint
+npm run lint:rust          # clippy (-D warnings)
+npm run format             # Prettier (format:check to check only)
+npm run format:rust        # rustfmt (format:rust:check to check only)
+npm run check              # every format check, lint and test above, in one go
 npx tauri build --no-bundle
 ```
+
+There is no CI. Run `npm run check` before you push. The pre-commit hook formats and lints only the staged files (ESLint `--fix`, Prettier, rustfmt); skip it with `git commit --no-verify` when you need to.
 
 `speech.exe` is looked up in this order: the `SPEECHORUS_SPEECH` environment variable, next to the executable (`speech/speech.exe`, `speech.exe`), then `.engine/speech.exe` (for development).
 

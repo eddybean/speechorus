@@ -162,7 +162,7 @@ function parseCsvRow(row: string, sep: string): string[] {
  */
 export function parseScript(content: string): ImportedLine[] {
   const out: ImportedLine[] = [];
-  const body = content.replace(/^﻿/, "").replace(/\r\n?/g, "\n");
+  const body = content.replace(/^\uFEFF/, "").replace(/\r\n?/g, "\n");
   for (const line of body.split("\n")) {
     if (!line.trim()) continue;
     const sep = line.includes("\t") ? "\t" : ",";
