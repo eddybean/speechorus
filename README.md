@@ -55,4 +55,10 @@ VS_SPEECH_EXE=.engine/speech.exe VS_DRAMA_MODEL=E:/models/Drama-35B-A3B-Japanese
 
 ## License
 
-The code is MIT. Model weights follow their own licenses: Drama-3 uses the Fish Audio Community License, and Irodori-TTS v4.1 uses MIT.
+The code is licensed under the [PolyForm Noncommercial License 1.0.0](LICENSE.md) (`PolyForm-Noncommercial-1.0.0`). You may use, change and share it for any noncommercial purpose; commercial use needs a separate license from the author.
+
+Third-party parts keep their own licenses:
+
+- Libraries (npm and Rust crates): MIT, Apache-2.0, BSD, ISC, Zlib, Unicode-3.0 and similar permissive licenses, plus a few MPL-2.0 crates that Tauri uses (`cssparser`, `selectors` and others) and `webpki-roots` (CDLA-Permissive-2.0).
+- speech.cpp (the engine, not bundled): MIT.
+- Model weights (not bundled; downloaded by the user): Drama-3 uses the Fish Audio Community License, Irodori-TTS v4.1 uses MIT, and v4-Large uses the Gemma Terms of Use.
