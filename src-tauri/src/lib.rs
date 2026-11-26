@@ -13,6 +13,7 @@ pub mod project;
 pub mod settings;
 pub mod tools;
 pub mod voices;
+pub mod work;
 
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
@@ -85,6 +86,12 @@ pub fn run() {
             let _ = app
                 .asset_protocol_scope()
                 .allow_directory(&voices.dir, true);
+            // Trimmed references used to be kept here (before D-39); they now live in the work folder.
+            let _ = std::fs::remove_dir_all(voices.dir.join(work::TRIMMED));
+            let work = work::WorkDir::open(&local.join("work"))?;
+            let _ = app
+                .asset_protocol_scope()
+                .allow_directory(work.root(), true);
             let supervisor = engine::EngineSupervisor::new(emit.clone());
             let queue = tauri::async_runtime::block_on(async {
                 jobs::GenerationQueue::new(supervisor.clone(), emit)
@@ -95,7 +102,7 @@ pub fn run() {
                 supervisor,
                 queue,
                 voices: Mutex::new(voices),
-                work_root: local.join("work"),
+                work,
                 downloads: Default::default(),
                 catalog_override: cfg.join("catalog.json"),
             });
@@ -128,6 +135,8 @@ pub fn run() {
             commands::project_save,
             commands::project_load,
             commands::project_prune,
+            commands::project_release,
+            commands::design_dir,
             commands::read_text_file,
             commands::allow_file,
             commands::export_joined,

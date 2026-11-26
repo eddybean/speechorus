@@ -183,9 +183,11 @@ pub fn load_project(path: &Path) -> Result<(Project, PathBuf), ProjectError> {
     Ok((p, takes_dir_for(path)))
 }
 
-/// Removes WAV files in the takes folder that no take of the project names.
-pub fn prune_orphans(project: &Project, takes_dir: &Path) -> usize {
+/// Removes WAV files in the takes folder that no take of the project names, except `busy` (a take being written).
+pub fn prune_orphans(project: &Project, takes_dir: &Path, busy: Option<&Path>) -> usize {
     let keep: std::collections::HashSet<&str> = take_files(project).collect();
+    // The same file may be named by different spellings of the folder, so compare resolved paths.
+    let busy = busy.and_then(|b| b.canonicalize().ok());
     let Ok(rd) = std::fs::read_dir(takes_dir) else {
         return 0;
     };
@@ -194,6 +196,7 @@ pub fn prune_orphans(project: &Project, takes_dir: &Path) -> usize {
         let name = e.file_name().to_string_lossy().into_owned();
         if name.ends_with(".wav")
             && !keep.contains(name.as_str())
+            && (busy.is_none() || e.path().canonicalize().ok() != busy)
             && std::fs::remove_file(e.path()).is_ok()
         {
             n += 1;
@@ -262,7 +265,10 @@ mod tests {
         assert_eq!(q, p);
         assert_eq!(d2, dir);
         std::fs::write(dir.join("stale.wav"), b"x").unwrap();
-        assert_eq!(prune_orphans(&q, &dir), 1);
+        std::fs::write(dir.join("writing.wav"), b"x").unwrap();
+        assert_eq!(prune_orphans(&q, &dir, Some(&dir.join("writing.wav"))), 1);
+        assert!(dir.join("a.wav").exists());
+        assert!(dir.join("writing.wav").exists());
         std::fs::write(&path, r#"{"version":99}"#).unwrap();
         assert!(matches!(load_project(&path), Err(ProjectError::TooNew(99))));
     }

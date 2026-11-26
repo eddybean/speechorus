@@ -86,12 +86,17 @@ export function VoiceLibrary() {
     }
   };
 
+  /** A cut being replaced is a scratch file of ours (never the user's original), so it is deleted. */
+  const dropCut = (r: { original: string; path: string }) => {
+    if (r.path !== r.original) ipc.deleteFile(r.path).catch(() => {});
+  };
   /** Cuts the chosen range out of the original (Rust, hound) and transcribes the cut again. */
   const applyTrim = async (i: number) => {
     const r = refs[i];
     try {
       const cut = await ipc.wavTrim(r.original, r.start, r.end);
       setRefs((x) => x.map((y, j) => (j === i ? { ...y, path: cut } : y)));
+      dropCut(r);
       if (needsText) await transcribe(i, cut);
     } catch (e) {
       app().notify("error", `切り出せません: ${e}`);
@@ -100,6 +105,7 @@ export function VoiceLibrary() {
   const resetTrim = async (i: number) => {
     const r = refs[i];
     setRefs((x) => x.map((y, j) => (j === i ? { ...y, path: y.original, start: 0, end: y.duration } : y)));
+    dropCut(r);
     if (needsText) await transcribe(i, r.original);
   };
 
@@ -157,7 +163,7 @@ export function VoiceLibrary() {
                 ASR
               </button>
             )}
-            <button onClick={() => setRefs((x) => x.filter((_, j) => j !== i))}>✕</button>
+            <button onClick={() => { dropCut(r); setRefs((x) => x.filter((_, j) => j !== i)); }}>✕</button>
           </div>
           </div>
         ))}

@@ -46,6 +46,9 @@ export const ipc = {
     invoke<string>("project_save", { path, project, fromTakesDir }),
   projectLoad: (path: string) => invoke<{ project: Project; takesDir: string; path: string }>("project_load", { path }),
   projectPrune: (project: Project, takesDir: string) => invoke<number>("project_prune", { project, takesDir }),
+  /** Drops an untitled project's work folder when the UI leaves it; other folders are left alone. */
+  projectRelease: (takesDir: string) => invoke<void>("project_release", { takesDir }),
+  designDir: () => invoke<string>("design_dir"),
   readTextFile: (path: string) => invoke<string>("read_text_file", { path }),
   allowFile: (path: string) => invoke<void>("allow_file", { path }),
   exportJoined: (req: { items: ExportItem[]; wavPath: string; srt: boolean; txt: boolean; srtWithCast: boolean }) =>

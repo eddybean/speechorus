@@ -10,10 +10,17 @@ function confirmDiscard(): boolean {
   return !useProject.getState().dirty || confirm("保存していない変更があります。破棄しますか？");
 }
 
+/** The untitled project being left behind has no other use for its work folder's takes (D-39). */
+function releaseUntitled(takesDir: string, path: string | null) {
+  if (!path && takesDir) ipc.projectRelease(takesDir).catch(() => {});
+}
+
 export async function newProject() {
   if (!confirmDiscard()) return;
+  const prev = useProject.getState();
   const dir = await ipc.projectNew();
   useProject.getState().load(emptyProject(), null, dir);
+  releaseUntitled(prev.takesDir, prev.path);
 }
 
 export async function openProject(path?: string) {
@@ -21,8 +28,12 @@ export async function openProject(path?: string) {
   const p = path ?? (await open({ multiple: false, filters: [{ name: "Speechorus", extensions: ["vsproj"] }] }));
   if (!p) return;
   try {
+    const prev = useProject.getState();
     const r = await ipc.projectLoad(String(p));
     useProject.getState().load(r.project, r.path, r.takesDir);
+    releaseUntitled(prev.takesDir, prev.path);
+    // Takes made but never saved last time (closed without saving, a crash) are removed now (D-39).
+    ipc.projectPrune(r.project, r.takesDir).catch(() => {});
     const s = await ipc.getSettings();
     useApp.setState({ settings: s });
   } catch (e) {

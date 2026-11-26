@@ -263,3 +263,13 @@ Requests: (1) a way to stop playback, (2) choosing a Drama-3 voice by text promp
   - Ctrl/⌘+C/V in any `<input>`/`<textarea>` now always act on the field, even with several lines selected (before, they could copy or paste whole lines).
 - **Why**: The user asked for it. The ▾ 固定 seed already existed, but it is a batch setting for every line and is hidden in a menu.
 - **User impact**: None to existing projects; the seed is not saved in the project.
+
+### D-39 Scratch audio is cleaned up: a per-instance work folder, scratch design/trim files, prune on open 【追加（ユーザー要望）】
+- **What**: Generated WAVs no longer pile up where nothing refers to them.
+  - Each running app gets `work/<uuid>/` in the local app data dir and holds `.lock` in it open without sharing. At start, the app removes every other folder under `work/` that no running instance holds, so folders left by an exit or a crash go away and a second running instance is left alone.
+  - An untitled project's work folder (`project_new`) is deleted once the project has been saved elsewhere, or when the UI leaves it for 新規 / 開く (`project_release`). It is kept while a queued or running job still writes into it; the next start sweeps it then.
+  - Voice-design candidates go to `work/<uuid>/design/` instead of `<takes>/design/` (which prune never looked into). 「候補をクリア」 deletes them.
+  - Trimmed references go to `work/<uuid>/trimmed/` instead of `voices/trimmed/`. A cut is deleted when it is re-cut, reset or removed, and when 「作成」 has copied it into `voices/refs/`. The old `voices/trimmed/` is removed at start.
+  - Opening a project prunes its takes folder too, not only saving. Prune skips the WAV the running job is writing (before, saving during generation could delete it).
+- **Why**: The user asked for it. These files were never removed: the untitled work folders were only copied on save, and design and trim files had no cleanup at all.
+- **User impact**: An untitled project's takes are gone once the project is discarded. They could not be reopened before either. Unsaved takes of a saved project are removed the next time it is opened. Old design candidates under `<project>.takes/design/` from earlier versions are not touched.

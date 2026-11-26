@@ -2,11 +2,10 @@
 // from it with different seeds, pick one by ear and fix it as a voice file (`speech voice` on that take,
 // with the sample sentence as its transcript), so every later line has the same voice.
 import { useEffect, useState } from "react";
-import { ipc, joinPath } from "../../lib/ipc";
+import { ipc } from "../../lib/ipc";
 import { plainText, uid } from "../../lib/text";
 import type { JobSpec } from "../../lib/types";
 import { useApp } from "../../store/app";
-import { useProject } from "../../store/project";
 import { PlayButton } from "../../app/PlayButton";
 
 export const DEFAULT_SAMPLE = "こんにちは。今日はよろしくお願いします。少し緊張していますが、最後まで精一杯がんばりますね。";
@@ -105,10 +104,17 @@ export function VoiceDesigner() {
   };
 
   const makeCandidates = async () => {
-    const dir = joinPath(useProject.getState().takesDir, "design");
+    const dir = await ipc.designDir();
     const jobs = designJobs(prompt.trim(), sample.trim(), count, Math.floor(Math.random() * 1e9), dir);
     useApp.setState((s) => ({ design: { candidates: s.design.candidates, jobs: { ...s.design.jobs, ...Object.fromEntries(jobs.map((j) => [j.jobId, dir])) } } }));
     await app().enqueue(jobs);
+  };
+
+  /** Candidates are scratch files: a fixed voice keeps its own copy, so clearing deletes them. */
+  const clearCandidates = () => {
+    const gone = useApp.getState().design.candidates;
+    useApp.setState((s) => ({ design: { ...s.design, candidates: [] } }));
+    for (const c of gone) ipc.deleteFile(c.path).catch(() => {});
   };
 
   const fix = async (path: string, seed: number | null, asr?: string) => {
@@ -191,7 +197,7 @@ export function VoiceDesigner() {
             </li>
           ))}
           <li>
-            <button className="small" onClick={() => useApp.setState((s) => ({ design: { ...s.design, candidates: [] } }))}>
+            <button className="small" onClick={clearCandidates}>
               候補をクリア
             </button>
           </li>

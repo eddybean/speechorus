@@ -23,7 +23,7 @@ pub struct AppState {
     pub supervisor: Arc<EngineSupervisor>,
     pub queue: Arc<GenerationQueue>,
     pub voices: Mutex<VoiceLibrary>,
-    pub work_root: PathBuf,
+    pub work: crate::work::WorkDir,
     pub downloads: crate::downloads::Downloads,
     /// A catalog.json here replaces the built-in model catalog.
     pub catalog_override: PathBuf,
@@ -267,6 +267,7 @@ pub async fn voice_create(
     .resolve_model(&p.model)
     .await
     .map_err(e)?;
+    let sources: Vec<PathBuf> = inputs.iter().map(|i| i.path.clone()).collect();
     let (build, mut voice) = st
         .voices
         .lock()
@@ -277,6 +278,13 @@ pub async fn voice_create(
     build_voice(&p, args).await?;
     voice.note = note.unwrap_or_default();
     st.voices.lock().unwrap().insert(voice.clone()).map_err(e)?;
+    // The library keeps its own copies of the references, so the trimmed cuts are not needed any more.
+    let trimmed = st.work.root().join(crate::work::TRIMMED);
+    for p in &sources {
+        if p.parent() == Some(trimmed.as_path()) {
+            let _ = std::fs::remove_file(p);
+        }
+    }
     Ok(voice)
 }
 
@@ -346,7 +354,7 @@ pub struct OpenedProject {
 /// A work folder for an untitled project's takes.
 #[tauri::command]
 pub fn project_new(app: AppHandle, st: State<'_, AppState>) -> R<String> {
-    let dir = st.work_root.join(uuid::Uuid::new_v4().simple().to_string());
+    let dir = st.work.root().join(uuid::Uuid::new_v4().simple().to_string());
     std::fs::create_dir_all(&dir).map_err(e)?;
     allow_dir(&app, &dir);
     Ok(dir.to_string_lossy().into_owned())
@@ -367,10 +375,35 @@ pub fn project_save(
     )
     .map_err(e)?;
     allow_dir(&app, &dir);
+    // The takes now live beside the project; an untitled project's work folder is no longer needed.
+    if let Some(from) = from_takes_dir {
+        release_work_dir(&st, Path::new(&from));
+    }
     let mut s = st.settings.lock().unwrap();
     s.push_recent_project(&path);
     let _ = s.save(&st.settings_path);
     Ok(dir.to_string_lossy().into_owned())
+}
+
+/// Deletes an untitled project's work folder (D-39). Anything else, or a folder a job still writes into, is left
+/// alone; the next start sweeps what is left.
+fn release_work_dir(st: &AppState, dir: &Path) {
+    if st.work.is_project_dir(dir) && !st.queue.uses_dir(dir) {
+        let _ = std::fs::remove_dir_all(dir);
+    }
+}
+
+/// Called when the UI leaves a project (new / open): drops the folder if it was an untitled project's.
+#[tauri::command]
+pub fn project_release(st: State<'_, AppState>, takes_dir: String) {
+    release_work_dir(&st, Path::new(&takes_dir));
+}
+
+/// Where voice-design candidates are written: a scratch folder swept at the next start.
+#[tauri::command]
+pub fn design_dir(st: State<'_, AppState>) -> R<String> {
+    let d = st.work.sub(crate::work::DESIGN).map_err(e)?;
+    Ok(d.to_string_lossy().into_owned())
 }
 
 #[tauri::command]
@@ -388,8 +421,9 @@ pub fn project_load(app: AppHandle, st: State<'_, AppState>, path: String) -> R<
 }
 
 #[tauri::command]
-pub fn project_prune(project: Project, takes_dir: String) -> usize {
-    project::prune_orphans(&project, Path::new(&takes_dir))
+pub fn project_prune(st: State<'_, AppState>, project: Project, takes_dir: String) -> usize {
+    let busy = st.queue.writing();
+    project::prune_orphans(&project, Path::new(&takes_dir), busy.as_deref())
 }
 
 #[tauri::command]
@@ -664,7 +698,7 @@ pub async fn wav_peaks(app: AppHandle, path: String, buckets: usize) -> R<audio:
 /// Cuts `[start, end)` of a reference recording into a new file beside the library's references; the original stays.
 #[tauri::command]
 pub async fn wav_trim(app: AppHandle, st: State<'_, AppState>, path: String, start: f64, end: f64) -> R<String> {
-    let dir = st.voices.lock().unwrap().dir.join("trimmed");
+    let dir = st.work.sub(crate::work::TRIMMED).map_err(e)?;
     let stem = Path::new(&path).file_stem().map(|s| s.to_string_lossy().into_owned()).unwrap_or_else(|| "ref".into());
     let dst = dir.join(format!("{stem}_{:.2}-{:.2}_{}.wav", start, end, &uuid::Uuid::new_v4().simple().to_string()[..6]));
     let d2 = dst.clone();
