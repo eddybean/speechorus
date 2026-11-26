@@ -25,7 +25,9 @@ npm run check                # all format checks, lints and tests
 npx tauri build --no-bundle
 ```
 
-Tooling: Prettier (`printWidth` 120, `.prettierrc.json`; Markdown is not formatted), ESLint flat config (`eslint.config.js`: typescript-eslint recommended + the classic react-hooks rules, not the React Compiler ones), rustfmt (`src-tauri/rustfmt.toml`: `max_width` 120). The pre-commit hook runs ESLint `--fix`, Prettier and rustfmt on staged files. There is deliberately no GitHub Actions CI (private repo, saving CI minutes): run `npm run check` before pushing.
+Tooling: Prettier (`printWidth` 120, `.prettierrc.json`; Markdown is not formatted), ESLint flat config (`eslint.config.js`: typescript-eslint recommended + the classic react-hooks rules, not the React Compiler ones), rustfmt (`src-tauri/rustfmt.toml`: `max_width` 120). The pre-commit hook runs ESLint `--fix`, Prettier and rustfmt on staged files. There is deliberately no GitHub Actions CI (private repo, saving CI minutes): run `npm run check` before pushing. The only workflows are for releases (D-42), and neither pushes to `main`:
+- `.github/workflows/bump.yml`, run by hand (`gh workflow run bump.yml -f bump=patch`, or `-f version=0.2.0`): writes the new version into `package.json`/`package-lock.json`, `tauri.conf.json` and `Cargo.toml`/`Cargo.lock` on a `release/vX.Y.Z` branch and opens a PR.
+- `.github/workflows/release.yml`, run when a push to `main` changes the version in `package.json` (merging that PR), or by hand to release the current version: runs `npm run check`, builds the NSIS installer, pushes the `vX.Y.Z` tag and creates a draft release with the installer and `SHA256SUMS.txt`. A version with a `-` suffix becomes a pre-release.
 
 E2E against the real engine (`src-tauri/tests/real_engine.rs`; each section is skipped when its env var is not set):
 

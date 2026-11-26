@@ -1,0 +1,116 @@
+# Manual version bump: commits the new version to a release/vX.Y.Z branch and opens a PR into the branch it was run from.
+# Merging that PR (by a person) triggers release.yml, which builds the installer and creates the draft release.
+# Needs Settings → Actions → General → "Allow GitHub Actions to create and approve pull requests".
+name: Bump version
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: "Version bump"
+        type: choice
+        options: [patch, minor, major]
+        default: patch
+      version:
+        description: "Explicit version (e.g. 0.2.0 or 0.2.0-beta.1; a suffix makes a pre-release). Overrides bump when set."
+        type: string
+        required: false
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: bump
+  cancel-in-progress: false
+
+jobs:
+  bump:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require a branch
+        if: github.ref_type != 'branch'
+        run: |
+          echo "::error::Run this workflow from a branch (got ${{ github.ref_type }} ${{ github.ref_name }})."
+          exit 1
+
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Compute the version
+        id: ver
+        env:
+          BUMP: ${{ inputs.bump }}
+          EXPLICIT: ${{ inputs.version }}
+        run: |
+          current=$(node -p "require('./package.json').version")
+          if [ -n "$EXPLICIT" ]; then
+            next="${EXPLICIT#v}"
+          else
+            next=$(node -e '
+              const [maj, min, pat] = process.argv[1].split("-")[0].split(".").map(Number);
+              const b = process.argv[2];
+              console.log(b === "major" ? `${maj + 1}.0.0` : b === "minor" ? `${maj}.${min + 1}.0` : `${maj}.${min}.${pat + 1}`);
+            ' "$current" "$BUMP")
+          fi
+          if ! [[ "$next" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+            echo "::error::Not a semver version: $next"
+            exit 1
+          fi
+          if [ "$next" = "$current" ]; then
+            echo "::error::The version is already $current. To release it as is, run the Release workflow by hand."
+            exit 1
+          fi
+          if git ls-remote --exit-code --tags origin "refs/tags/v$next" >/dev/null; then
+            echo "::error::Tag v$next already exists."
+            exit 1
+          fi
+          if git ls-remote --exit-code --heads origin "refs/heads/release/v$next" >/dev/null; then
+            echo "::error::Branch release/v$next already exists (an open bump PR?)."
+            exit 1
+          fi
+          echo "current=$current" >> "$GITHUB_OUTPUT"
+          echo "next=$next" >> "$GITHUB_OUTPUT"
+          echo "Version: $current -> $next"
+
+      - name: Write the version into package.json, tauri.conf.json and Cargo.toml/lock
+        env:
+          NEXT: ${{ steps.ver.outputs.next }}
+        run: |
+          npm version "$NEXT" --no-git-tag-version
+          node -e '
+            const fs = require("fs");
+            const v = process.env.NEXT;
+            const edit = (file, re, to) => {
+              const src = fs.readFileSync(file, "utf8");
+              if (!re.test(src)) throw new Error(`version not found in ${file}`);
+              fs.writeFileSync(file, src.replace(re, to));
+            };
+            edit("src-tauri/tauri.conf.json", /("version":\s*")[^"]*(")/, `$1${v}$2`);
+            edit("src-tauri/Cargo.toml", /(\[package\][^\[]*?\nversion = ")[^"]*(")/, `$1${v}$2`);
+            edit("src-tauri/Cargo.lock", /(\nname = "speechorus"\nversion = ")[^"]*(")/, `$1${v}$2`);
+          '
+          git diff --stat
+
+      - name: Commit, push and open the PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CURRENT: ${{ steps.ver.outputs.current }}
+          NEXT: ${{ steps.ver.outputs.next }}
+          BASE: ${{ github.ref_name }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -c "release/v$NEXT"
+          git add package.json package-lock.json src-tauri/tauri.conf.json src-tauri/Cargo.toml src-tauri/Cargo.lock
+          git commit -m "Release v$NEXT"
+          git push origin "release/v$NEXT"
+          url=$(gh pr create --base "$BASE" --head "release/v$NEXT" --title "Release v$NEXT" --body "Bumps the version $CURRENT → $NEXT.
+
+          Merging this PR into \`main\` runs the Release workflow: \`npm run check\`, the NSIS installer build, the \`v$NEXT\` tag and a draft release.")
+          echo "PR: $url" >> "$GITHUB_STEP_SUMMARY"
