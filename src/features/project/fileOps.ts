@@ -4,16 +4,23 @@ import { ipc } from "../../lib/ipc";
 import { parseScript } from "../../lib/text";
 import type { Project } from "../../lib/types";
 import { useApp } from "../../store/app";
-import { emptyProject, newCast, newLine, useProject } from "../../store/project";
+import { emptyProject, historyTakeFiles, newCast, newLine, useProject } from "../../store/project";
 
 function confirmDiscard(): boolean {
   return !useProject.getState().dirty || confirm("保存していない変更があります。破棄しますか？");
 }
 
+/** The untitled project being left behind has no other use for its work folder's takes (D-39). */
+function releaseUntitled(takesDir: string, path: string | null) {
+  if (!path && takesDir) ipc.projectRelease(takesDir).catch(() => {});
+}
+
 export async function newProject() {
   if (!confirmDiscard()) return;
+  const prev = useProject.getState();
   const dir = await ipc.projectNew();
   useProject.getState().load(emptyProject(), null, dir);
+  releaseUntitled(prev.takesDir, prev.path);
 }
 
 export async function openProject(path?: string) {
@@ -21,8 +28,12 @@ export async function openProject(path?: string) {
   const p = path ?? (await open({ multiple: false, filters: [{ name: "Speechorus", extensions: ["vsproj"] }] }));
   if (!p) return;
   try {
+    const prev = useProject.getState();
     const r = await ipc.projectLoad(String(p));
     useProject.getState().load(r.project, r.path, r.takesDir);
+    releaseUntitled(prev.takesDir, prev.path);
+    // Takes made but never saved last time (closed without saving, a crash) are removed now (D-39).
+    ipc.projectPrune(r.project, r.takesDir).catch(() => {});
     const s = await ipc.getSettings();
     useApp.setState({ settings: s });
   } catch (e) {
@@ -41,9 +52,10 @@ export async function saveProject(as = false): Promise<boolean> {
   const name = path.split(/[\\/]/).pop()!.replace(/\.vsproj$/i, "");
   const project: Project = { ...st.project, name, modelProfileId: useApp.getState().activeProfile()?.id ?? st.project.modelProfileId };
   try {
-    const takesDir = await ipc.projectSave(path, project, st.takesDir || null);
-    // Takes deleted (and not undone) since the last save are removed from disk now.
-    await ipc.projectPrune(project, takesDir);
+    // Takes the Undo history can bring back stay on disk (and move with Save As); other deleted ones go now.
+    const keep = historyTakeFiles(st);
+    const takesDir = await ipc.projectSave(path, project, st.takesDir || null, keep);
+    await ipc.projectPrune(project, takesDir, keep);
     useProject.setState((s) => ({ project: { ...s.project, name, modelProfileId: project.modelProfileId } }));
     useProject.getState().markSaved(path, takesDir);
     useApp.getState().notify("info", `保存しました: ${path}`);

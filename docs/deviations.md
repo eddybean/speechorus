@@ -263,3 +263,23 @@ Requests: (1) a way to stop playback, (2) choosing a Drama-3 voice by text promp
   - Ctrl/⌘+C/V in any `<input>`/`<textarea>` now always act on the field, even with several lines selected (before, they could copy or paste whole lines).
 - **Why**: The user asked for it. The ▾ 固定 seed already existed, but it is a batch setting for every line and is hidden in a menu.
 - **User impact**: None to existing projects; the seed is not saved in the project.
+
+### D-39 Scratch audio is cleaned up: a per-instance work folder, scratch design/trim files, prune on open 【追加（ユーザー要望）】
+- **What**: Generated WAVs no longer pile up where nothing refers to them.
+  - Each running app gets `work/<uuid>/` in the local app data dir and holds `.lock` in it open without sharing. At start, the app removes every other folder under `work/` that no running instance holds, so folders left by an exit or a crash go away and a second running instance is left alone.
+  - An untitled project's work folder (`project_new`) is deleted once the project has been saved elsewhere, or when the UI leaves it for 新規 / 開く (`project_release`). It is kept while a queued or running job still writes into it; the next start sweeps it then.
+  - Voice-design candidates go to `work/<uuid>/design/` instead of `<takes>/design/` (which prune never looked into). 「候補をクリア」 deletes them.
+  - Trimmed references go to `work/<uuid>/trimmed/` instead of `voices/trimmed/`. A cut is deleted when it is re-cut, reset or removed, and when 「作成」 has copied it into `voices/refs/`. The old `voices/trimmed/` is removed at start.
+  - Opening a project prunes its takes folder too, not only saving. Prune skips the WAV the running job is writing (before, saving during generation could delete it).
+- **Why**: The user asked for it. These files were never removed: the untitled work folders were only copied on save, and design and trim files had no cleanup at all.
+- **User impact**: An untitled project's takes are gone once the project is discarded. They could not be reopened before either. Unsaved takes of a saved project are removed the next time it is opened. Old design candidates under `<project>.takes/design/` from earlier versions are not touched.
+
+### D-40 Prune and Save keep the WAVs the Undo/Redo history can bring back 【修正】
+- **What**: When saving, the UI collects every take named in the Undo and Redo stacks (`historyTakeFiles`) and passes them as `keep` to `project_save` and `project_prune`. Save copies them along (Save As, and an untitled project's first save), and prune leaves them. Names that are not a bare file name are ignored.
+- **Why**: Saving pruned the WAV of a deleted take while the deletion could still be undone, so 「削除 → 保存 → Undo」 brought back a take with no file. D-39 made it worse for untitled projects, whose work folder is deleted after the first save.
+- **User impact**: A deleted take's WAV stays on disk while the history holds it (up to 300 steps, until the project is closed or the app exits). It is removed by the next save after it leaves the history, or when the project is next opened (D-39). After Save As, the new takes folder also gets these WAVs.
+
+### D-41 Undo/Redo keeps takes that arrived after the step 【修正】
+- **What**: After an Undo or Redo is applied, any take that was on a line or scene before, is gone after, and does not appear in that history step's patches is put back at the end of the takes (`keepUnknownTakes`). If the step left the selection on a take that no longer exists, the previous selection is kept.
+- **Why**: immer records `takes = takes.filter(...)` and `lines = lines.filter(...)` as replacing the whole array. Takes are not part of the history (D-05). So undoing 「テイクを削除」 or 「行を削除」 put back the old array, and takes generated after that step disappeared from the project, and their WAVs were then pruned at save.
+- **User impact**: None except the fix. A take the step itself removed or restored still follows Undo/Redo.

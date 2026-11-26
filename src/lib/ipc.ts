@@ -42,10 +42,14 @@ export const ipc = {
   voiceUpdate: (voice: Voice) => invoke<void>("voice_update", { voice }),
   voiceDelete: (id: string) => invoke<void>("voice_delete", { id }),
   projectNew: () => invoke<string>("project_new"),
-  projectSave: (path: string, project: Project, fromTakesDir: string | null) =>
-    invoke<string>("project_save", { path, project, fromTakesDir }),
+  /** `keep`: more take files to bring along (the Undo history's, D-40). */
+  projectSave: (path: string, project: Project, fromTakesDir: string | null, keep: string[] = []) =>
+    invoke<string>("project_save", { path, project, fromTakesDir, keep }),
   projectLoad: (path: string) => invoke<{ project: Project; takesDir: string; path: string }>("project_load", { path }),
-  projectPrune: (project: Project, takesDir: string) => invoke<number>("project_prune", { project, takesDir }),
+  projectPrune: (project: Project, takesDir: string, keep: string[] = []) => invoke<number>("project_prune", { project, takesDir, keep }),
+  /** Drops an untitled project's work folder when the UI leaves it; other folders are left alone. */
+  projectRelease: (takesDir: string) => invoke<void>("project_release", { takesDir }),
+  designDir: () => invoke<string>("design_dir"),
   readTextFile: (path: string) => invoke<string>("read_text_file", { path }),
   allowFile: (path: string) => invoke<void>("allow_file", { path }),
   exportJoined: (req: { items: ExportItem[]; wavPath: string; srt: boolean; txt: boolean; srtWithCast: boolean }) =>

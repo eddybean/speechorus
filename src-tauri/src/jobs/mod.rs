@@ -89,6 +89,9 @@ struct QState {
     pending: VecDeque<JobSpec>,
     current: Option<String>,
     cancel_current: bool,
+    /// The running job's takes folder, and the WAV it is writing once it has one.
+    current_dir: Option<PathBuf>,
+    current_file: Option<PathBuf>,
 }
 
 pub struct GenerationQueue {
@@ -151,6 +154,17 @@ impl GenerationQueue {
         }
     }
 
+    /// The WAV the running job is writing, which is not a take yet and must not be pruned.
+    pub fn writing(&self) -> Option<PathBuf> {
+        self.state.lock().unwrap().current_file.clone()
+    }
+
+    /// Whether the running job or a pending one writes into `dir`.
+    pub fn uses_dir(&self, dir: &Path) -> bool {
+        let s = self.state.lock().unwrap();
+        s.current_dir.as_deref() == Some(dir) || s.pending.iter().any(|j| j.out_dir == dir)
+    }
+
     pub fn enqueue(&self, jobs: Vec<JobSpec>) {
         let ids = jobs.iter().map(|j| j.job_id.clone()).collect();
         self.state.lock().unwrap().pending.extend(jobs);
@@ -210,6 +224,8 @@ impl GenerationQueue {
                 let mut s = self.state.lock().unwrap();
                 let j = s.pending.pop_front();
                 s.current = j.as_ref().map(|j| j.job_id.clone());
+                s.current_dir = j.as_ref().map(|j| j.out_dir.clone());
+                s.current_file = None;
                 s.cancel_current = false;
                 j
             };
@@ -223,7 +239,12 @@ impl GenerationQueue {
                 line_id: job.line_id.clone(),
             }));
             let outcome = self.run_job(&job).await;
-            self.state.lock().unwrap().current = None;
+            {
+                let mut s = self.state.lock().unwrap();
+                s.current = None;
+                s.current_dir = None;
+                s.current_file = None;
+            }
             let ev = match outcome {
                 Outcome::Done(take, warnings) => QueueEvent::Done {
                     job_id: job.job_id,
@@ -272,6 +293,7 @@ impl GenerationQueue {
             return Outcome::Failed(format!("{}: {e}", job.out_dir.display()));
         }
         let path = unique_path(&job.out_dir, &job.file_stem, "wav");
+        self.state.lock().unwrap().current_file = Some(path.clone());
         let spec = hound::WavSpec {
             channels: 1,
             sample_rate: sr,
@@ -656,6 +678,26 @@ mod tests {
         assert!(ev.iter().all(|e| matches!(e, QueueEvent::Cancelled { .. })));
         assert!(q2.snapshot().pending.is_empty());
         drop(q);
+    }
+
+    #[tokio::test]
+    async fn reports_the_file_being_written_and_folders_in_use() {
+        let dir = tempfile::tempdir().unwrap();
+        let other = tempfile::tempdir().unwrap();
+        let (q, mut rx, _log) = setup(50, 20).await;
+        q.enqueue(vec![job("w", dir.path(), "長い"), job("p", other.path(), "待ち")]);
+        loop {
+            if let Some(QueueEvent::Progress { .. }) = rx.recv().await {
+                break;
+            }
+        }
+        assert_eq!(q.writing(), Some(dir.path().join("take-w.wav")));
+        assert!(q.uses_dir(dir.path()));
+        assert!(q.uses_dir(other.path()));
+        q.cancel_all().await;
+        until_terminal(&mut rx, 2).await;
+        assert_eq!(q.writing(), None);
+        assert!(!q.uses_dir(dir.path()));
     }
 
     #[test]
