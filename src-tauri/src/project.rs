@@ -139,7 +139,7 @@ pub fn write_atomic(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
     std::fs::rename(&tmp, path)
 }
 
-fn take_files(p: &Project) -> impl Iterator<Item = &str> {
+fn take_files(p: &Project) -> impl Iterator<Item = &str> + '_ {
     p.lines
         .iter()
         .flat_map(|l| l.takes.iter())
@@ -149,16 +149,21 @@ fn take_files(p: &Project) -> impl Iterator<Item = &str> {
 
 /// Writes the project and makes sure every take it names is in its takes folder,
 /// copying them from `from_takes_dir` (an untitled project's work folder, or the old location after Save As).
+/// `extra` names more files to copy along: takes the UI's Undo history can bring back (D-40).
 pub fn save_project(
     path: &Path,
     project: &Project,
     from_takes_dir: Option<&Path>,
+    extra: &[String],
 ) -> Result<PathBuf, ProjectError> {
     let io = |p: &Path, e| ProjectError::Io(p.display().to_string(), e);
     let dir = takes_dir_for(path);
     std::fs::create_dir_all(&dir).map_err(|e| io(&dir, e))?;
     if let Some(from) = from_takes_dir.filter(|f| *f != dir.as_path()) {
-        for f in take_files(project) {
+        for f in take_files(project).chain(extra.iter().map(String::as_str)) {
+            if !is_plain_name(f) {
+                continue;
+            }
             let src = from.join(f);
             let dst = dir.join(f);
             if src.exists() && !dst.exists() {
@@ -183,9 +188,16 @@ pub fn load_project(path: &Path) -> Result<(Project, PathBuf), ProjectError> {
     Ok((p, takes_dir_for(path)))
 }
 
-/// Removes WAV files in the takes folder that no take of the project names, except `busy` (a take being written).
-pub fn prune_orphans(project: &Project, takes_dir: &Path, busy: Option<&Path>) -> usize {
-    let keep: std::collections::HashSet<&str> = take_files(project).collect();
+/// A bare file name, so a name from the UI cannot reach outside the takes folder.
+fn is_plain_name(f: &str) -> bool {
+    !f.is_empty() && Path::new(f).file_name().and_then(|n| n.to_str()) == Some(f)
+}
+
+/// Removes WAV files in the takes folder that no take of the project (nor `extra`) names, except `busy` (a take
+/// being written).
+pub fn prune_orphans(project: &Project, takes_dir: &Path, busy: Option<&Path>, extra: &[String]) -> usize {
+    let keep: std::collections::HashSet<&str> =
+        take_files(project).chain(extra.iter().map(String::as_str)).collect();
     // The same file may be named by different spellings of the folder, so compare resolved paths.
     let busy = busy.and_then(|b| b.canonicalize().ok());
     let Ok(rd) = std::fs::read_dir(takes_dir) else {
@@ -257,7 +269,9 @@ mod tests {
         });
         let out = tempfile::tempdir().unwrap();
         let path = out.path().join("drama.vsproj");
-        let dir = save_project(&path, &p, Some(work.path())).unwrap();
+        std::fs::write(work.path().join("undo.wav"), b"RIFF").unwrap();
+        let dir = save_project(&path, &p, Some(work.path()), &["undo.wav".into(), "../evil.wav".into()]).unwrap();
+        assert!(dir.join("undo.wav").exists());
         assert_eq!(dir, out.path().join("drama.takes"));
         assert!(dir.join("a.wav").exists());
         assert!(!dir.join("orphan.wav").exists());
@@ -266,7 +280,8 @@ mod tests {
         assert_eq!(d2, dir);
         std::fs::write(dir.join("stale.wav"), b"x").unwrap();
         std::fs::write(dir.join("writing.wav"), b"x").unwrap();
-        assert_eq!(prune_orphans(&q, &dir, Some(&dir.join("writing.wav"))), 1);
+        assert_eq!(prune_orphans(&q, &dir, Some(&dir.join("writing.wav")), &["undo.wav".into()]), 1);
+        assert!(dir.join("undo.wav").exists());
         assert!(dir.join("a.wav").exists());
         assert!(dir.join("writing.wav").exists());
         std::fs::write(&path, r#"{"version":99}"#).unwrap();

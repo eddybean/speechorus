@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { emptyProject, newLine, normalizeProject, selectedTake, useProject } from "./project";
+import { emptyProject, historyTakeFiles, newLine, normalizeProject, selectedTake, useProject } from "./project";
 import type { Take } from "../lib/types";
 
 const take = (id: string): Take => ({ id, seed: 1, optionsSnapshot: {}, file: `${id}.wav`, duration: 1, sampleRate: 44100, stopReason: "complete", createdAt: 0, starred: false, text: "" });
@@ -88,5 +88,68 @@ describe("normalizeProject", () => {
     expect(p.lines[0].takes).toEqual([]);
     expect(p.lines[0].postSilence).toBe(0.3);
     expect(p.exportSettings.fileTemplate).toBe("{index}_{cast}_{text8}");
+  });
+});
+
+describe("historyTakeFiles", () => {
+  it("lists takes that undo or redo can bring back, not ones only the project has", () => {
+    const s = useProject.getState;
+    const [l1] = s().project.lines;
+    s().addLines(l1.id, [newLine({ text: "二行目" })]);
+    const l2 = s().project.lines[1].id;
+    s().addTake(l1.id, take("a"));
+    s().addTake(l1.id, take("b"));
+    s().addTake(l2, take("c"));
+    s().addTake(l2, take("live"));
+    expect(historyTakeFiles(s())).toEqual([]);
+    s().removeTake(l1.id, "a");
+    expect(historyTakeFiles(s())).toContain("a.wav");
+    s().removeLines([l2]);
+    expect(historyTakeFiles(s())).toEqual(expect.arrayContaining(["a.wav", "c.wav", "live.wav"]));
+    s().undo();
+    s().undo();
+    // Both deletions are now redo steps, so their takes stay listed.
+    expect(historyTakeFiles(s())).toEqual(expect.arrayContaining(["a.wav", "c.wav"]));
+    s().load(emptyProject(), null, "work");
+    expect(historyTakeFiles(s())).toEqual([]);
+  });
+});
+
+describe("undo keeps takes that arrived later (D-41)", () => {
+  it("keeps a take generated after a take deletion through undo and redo", () => {
+    const s = useProject.getState;
+    const l = s().project.lines[0].id;
+    s().addTake(l, take("a"));
+    s().addTake(l, take("b"));
+    s().removeTake(l, "a");
+    s().addTake(l, take("new"));
+    s().undo();
+    expect(s().project.lines[0].takes.map((t) => t.id)).toEqual(["a", "b", "new"]);
+    s().redo();
+    expect(s().project.lines[0].takes.map((t) => t.id)).toEqual(["b", "new"]);
+  });
+
+  it("keeps takes of other lines through undoing a line deletion", () => {
+    const s = useProject.getState;
+    const [l1] = s().project.lines;
+    s().addLines(l1.id, [newLine({ text: "二行目" })]);
+    const l2 = s().project.lines[1].id;
+    s().removeLines([l2]);
+    s().addTake(l1.id, take("late"));
+    s().undo();
+    expect(s().project.lines).toHaveLength(2);
+    expect(s().project.lines[0].takes.map((t) => t.id)).toEqual(["late"]);
+    expect(s().project.lines[0].selectedTakeId).toBe("late");
+  });
+
+  it("still removes the take a redo deletes", () => {
+    const s = useProject.getState;
+    const l = s().project.lines[0].id;
+    s().addTake(l, take("a"));
+    s().removeTake(l, "a");
+    s().undo();
+    expect(s().project.lines[0].takes.map((t) => t.id)).toEqual(["a"]);
+    s().redo();
+    expect(s().project.lines[0].takes).toEqual([]);
   });
 });

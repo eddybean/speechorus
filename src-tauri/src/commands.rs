@@ -367,11 +367,13 @@ pub fn project_save(
     path: String,
     project: Project,
     from_takes_dir: Option<String>,
+    keep: Option<Vec<String>>,
 ) -> R<String> {
     let dir = project::save_project(
         Path::new(&path),
         &project,
         from_takes_dir.as_deref().map(Path::new),
+        keep.as_deref().unwrap_or_default(),
     )
     .map_err(e)?;
     allow_dir(&app, &dir);
@@ -421,9 +423,9 @@ pub fn project_load(app: AppHandle, st: State<'_, AppState>, path: String) -> R<
 }
 
 #[tauri::command]
-pub fn project_prune(st: State<'_, AppState>, project: Project, takes_dir: String) -> usize {
+pub fn project_prune(st: State<'_, AppState>, project: Project, takes_dir: String, keep: Option<Vec<String>>) -> usize {
     let busy = st.queue.writing();
-    project::prune_orphans(&project, Path::new(&takes_dir), busy.as_deref())
+    project::prune_orphans(&project, Path::new(&takes_dir), busy.as_deref(), keep.as_deref().unwrap_or_default())
 }
 
 #[tauri::command]

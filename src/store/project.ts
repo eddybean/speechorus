@@ -1,5 +1,5 @@
 // The open project, with Undo/Redo built from immer patches.
-import { applyPatches, enablePatches, produceWithPatches, type Draft, type Patch } from "immer";
+import { applyPatches, enablePatches, produce, produceWithPatches, type Draft, type Patch } from "immer";
 import { create } from "zustand";
 import type { Cast, Line, Project, Scene, Take } from "../lib/types";
 import { CAST_COLORS, uid } from "../lib/text";
@@ -124,13 +124,13 @@ export const useProject = create<ProjectStore>()((set, get) => {
       const s = get();
       const e = s.undoStack[s.undoStack.length - 1];
       if (!e) return;
-      set({ project: applyPatches(s.project, e.inverse), undoStack: s.undoStack.slice(0, -1), redoStack: [...s.redoStack, { ...e, key: undefined }], dirty: true });
+      set({ project: keepUnknownTakes(s.project, applyPatches(s.project, e.inverse), e), undoStack: s.undoStack.slice(0, -1), redoStack: [...s.redoStack, { ...e, key: undefined }], dirty: true });
     },
     redo: () => {
       const s = get();
       const e = s.redoStack[s.redoStack.length - 1];
       if (!e) return;
-      set({ project: applyPatches(s.project, e.patches), redoStack: s.redoStack.slice(0, -1), undoStack: [...s.undoStack, e], dirty: true });
+      set({ project: keepUnknownTakes(s.project, applyPatches(s.project, e.patches), e), redoStack: s.redoStack.slice(0, -1), undoStack: [...s.undoStack, e], dirty: true });
     },
     load: (project, path, takesDir) =>
       set({ project: normalizeProject(project), path, takesDir, dirty: false, undoStack: [], redoStack: [], selection: [], activeLineId: null }),
@@ -207,6 +207,57 @@ export const useProject = create<ProjectStore>()((set, get) => {
       }),
   };
 });
+
+/** Every take object inside the values of these patches. */
+function patchTakes(patches: Patch[], visit: (t: Take) => void, onFile?: (f: string) => void) {
+  const walk = (v: unknown) => {
+    if (Array.isArray(v)) v.forEach(walk);
+    else if (v && typeof v === "object") {
+      const o = v as Record<string, unknown>;
+      if (typeof o.file === "string" && typeof o.stopReason === "string") visit(o as unknown as Take);
+      else Object.values(o).forEach(walk);
+    }
+  };
+  for (const p of patches) {
+    if (onFile && p.path[p.path.length - 1] === "file" && typeof p.value === "string") onFile(p.value);
+    else walk(p.value);
+  }
+}
+
+/**
+ * Undo/Redo patches replace whole arrays (a line's takes, the lines), so applying one would also drop takes that
+ * arrived after the step was recorded (takes are not history, D-05). Takes the step never saw are put back on
+ * their line or scene, after the ones it restores (D-41).
+ */
+function keepUnknownTakes(before: Project, after: Project, e: HistoryEntry): Project {
+  const known = new Set<string>();
+  patchTakes([...e.patches, ...e.inverse], (t) => known.add(t.id));
+  const lost = (prev: { takes: Take[] } | undefined, next: { takes: Take[] }) =>
+    (prev?.takes ?? []).filter((t) => !known.has(t.id) && !next.takes.some((x) => x.id === t.id));
+  const lines = new Map(before.lines.map((l) => [l.id, l]));
+  const scenes = new Map(before.scenes.map((x) => [x.id, x]));
+  const missing = after.lines.some((l) => lost(lines.get(l.id), l).length) || after.scenes.some((x) => lost(scenes.get(x.id), x).length);
+  if (!missing) return after;
+  return produce(after, (d) => {
+    for (const o of [...d.lines.map((l) => [l, lines.get(l.id)] as const), ...d.scenes.map((x) => [x, scenes.get(x.id)] as const)]) {
+      const [next, prev] = o;
+      const back = lost(prev, next);
+      if (!back.length) continue;
+      next.takes.push(...back);
+      if (!next.selectedTakeId || !next.takes.some((t) => t.id === next.selectedTakeId)) next.selectedTakeId = prev!.selectedTakeId;
+    }
+  });
+}
+
+/**
+ * The take files the Undo/Redo history can bring back (D-40): every take found in a patch value, either way.
+ * Prune and Save keep these too, so undoing a take deletion after saving finds its WAV.
+ */
+export function historyTakeFiles(s: Pick<ProjectState, "undoStack" | "redoStack">): string[] {
+  const out = new Set<string>();
+  for (const e of [...s.undoStack, ...s.redoStack]) patchTakes([...e.patches, ...e.inverse], (t) => out.add(t.file), (f) => out.add(f));
+  return [...out];
+}
 
 /** The take a line plays and exports: its selected one, else its newest. */
 export function selectedTake(l: Pick<Line, "takes" | "selectedTakeId">): Take | undefined {

@@ -273,3 +273,13 @@ Requests: (1) a way to stop playback, (2) choosing a Drama-3 voice by text promp
   - Opening a project prunes its takes folder too, not only saving. Prune skips the WAV the running job is writing (before, saving during generation could delete it).
 - **Why**: The user asked for it. These files were never removed: the untitled work folders were only copied on save, and design and trim files had no cleanup at all.
 - **User impact**: An untitled project's takes are gone once the project is discarded. They could not be reopened before either. Unsaved takes of a saved project are removed the next time it is opened. Old design candidates under `<project>.takes/design/` from earlier versions are not touched.
+
+### D-40 Prune and Save keep the WAVs the Undo/Redo history can bring back 【修正】
+- **What**: When saving, the UI collects every take named in the Undo and Redo stacks (`historyTakeFiles`) and passes them as `keep` to `project_save` and `project_prune`. Save copies them along (Save As, and an untitled project's first save), and prune leaves them. Names that are not a bare file name are ignored.
+- **Why**: Saving pruned the WAV of a deleted take while the deletion could still be undone, so 「削除 → 保存 → Undo」 brought back a take with no file. D-39 made it worse for untitled projects, whose work folder is deleted after the first save.
+- **User impact**: A deleted take's WAV stays on disk while the history holds it (up to 300 steps, until the project is closed or the app exits). It is removed by the next save after it leaves the history, or when the project is next opened (D-39). After Save As, the new takes folder also gets these WAVs.
+
+### D-41 Undo/Redo keeps takes that arrived after the step 【修正】
+- **What**: After an Undo or Redo is applied, any take that was on a line or scene before, is gone after, and does not appear in that history step's patches is put back at the end of the takes (`keepUnknownTakes`). If the step left the selection on a take that no longer exists, the previous selection is kept.
+- **Why**: immer records `takes = takes.filter(...)` and `lines = lines.filter(...)` as replacing the whole array. Takes are not part of the history (D-05). So undoing 「テイクを削除」 or 「行を削除」 put back the old array, and takes generated after that step disappeared from the project, and their WAVs were then pruned at save.
+- **User impact**: None except the fix. A take the step itself removed or restored still follows Undo/Redo.
