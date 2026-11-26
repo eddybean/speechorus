@@ -38,6 +38,9 @@ interface AppStore {
   batch: BatchSettings;
   notices: Notice[];
   dialog: null | "models" | "voices" | "export" | "settings" | "catalog";
+  /** Whether the cast panel beside the script is shown. */
+  castOpen: boolean;
+  toggleCast: () => void;
 
   init: () => Promise<void>;
   saveSettings: (s: AppSettings) => Promise<void>;
@@ -57,6 +60,9 @@ interface AppStore {
 
 let noticeSeq = 1;
 let unlisten: (() => void) | null = null;
+// StrictMode runs the mount effect twice: both calls must share one start, or each registers a listener
+// and every event (a finished take among them) is handled twice.
+let starting: Promise<void> | null = null;
 
 export const useApp = create<AppStore>()((set, get) => ({
   ready: false,
@@ -88,8 +94,10 @@ export const useApp = create<AppStore>()((set, get) => ({
   batch: { takesPerLine: 1, seedMode: "random", baseSeed: 1 },
   notices: [],
   dialog: null,
+  castOpen: true,
+  toggleCast: () => set((s) => ({ castOpen: !s.castOpen })),
 
-  init: async () => {
+  init: () => (starting ??= (async () => {
     if (!inTauri) {
       set({ ready: true });
       return;
@@ -180,7 +188,7 @@ export const useApp = create<AppStore>()((set, get) => ({
         }
       }
     });
-  },
+  })()),
 
   saveSettings: async (s) => {
     // Update the UI at once (inputs are controlled by it), then persist.
@@ -237,6 +245,11 @@ export const useApp = create<AppStore>()((set, get) => ({
   dismiss: (id) => set((s) => ({ notices: s.notices.filter((n) => n.id !== id) })),
   openDialog: (d) => set({ dialog: d }),
 }));
+
+/** The profile chosen in the engine panel (the first one if none is set); the engine may still run another. */
+export function chosenProfile(settings: AppSettings | null | undefined): ModelProfile | undefined {
+  return settings?.profiles.find((p) => p.id === settings.activeProfileId) ?? settings?.profiles[0];
+}
 
 /** Seconds until the queue is empty: the mean of the recent jobs × the jobs left, minus the running one's time so far. */
 export function queueEta(remaining: number, durations: number[], runningSince: number | null, now = Date.now()): number | null {

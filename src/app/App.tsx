@@ -1,7 +1,9 @@
 import { useEffect } from "react";
 import { useApp } from "../store/app";
 import { useProject } from "../store/project";
-import { Toolbar } from "./Toolbar";
+import { TopBar } from "./TopBar";
+import { Rail } from "./Rail";
+import { StatusBar } from "./StatusBar";
 import { ScriptEditor } from "../features/script/ScriptEditor";
 import { CastPanel } from "../features/cast/CastPanel";
 import { Inspector } from "../features/takes/Inspector";
@@ -33,6 +35,7 @@ export function App() {
   const ready = useApp((s) => s.ready);
   const dialog = useApp((s) => s.dialog);
   const notices = useApp((s) => s.notices);
+  const castOpen = useApp((s) => s.castOpen);
 
   useEffect(() => {
     void useApp.getState().init();
@@ -89,12 +92,16 @@ export function App() {
   if (!ready) return <div className="loading">Speechorus を起動しています…</div>;
   return (
     <div className="app">
-      <Toolbar />
-      <main className="main">
-        <CastPanel />
-        <ScriptEditor />
-        <Inspector />
-      </main>
+      <TopBar />
+      <div className="workspace">
+        <Rail />
+        <main className={`main${castOpen ? "" : " no-cast"}`}>
+          {castOpen && <CastPanel />}
+          <ScriptEditor />
+          <Inspector />
+        </main>
+      </div>
+      <StatusBar />
       <div className="notices">
         {notices.map((n) => (
           <div key={n.id} className={`notice ${n.kind}`} onClick={() => useApp.getState().dismiss(n.id)}>

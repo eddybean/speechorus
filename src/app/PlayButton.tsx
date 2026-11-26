@@ -1,4 +1,5 @@
 import { usePlayer, type PlayItem } from "../lib/player";
+import { Icon } from "./icons";
 
 /** ▶ starts its session, ⏸ pauses it, ▶ (highlighted) resumes from the same point. Another session stops it. */
 export function PlayButton({ session, items, disabled, title, label, className }: { session: string; items: () => PlayItem[]; disabled?: boolean; title?: string; label?: string; className?: string }) {
@@ -15,8 +16,8 @@ export function PlayButton({ session, items, disabled, title, label, className }
         usePlayer.getState().toggle(session, items);
       }}
     >
-      {state === "playing" ? "⏸" : "▶"}
-      {label ? ` ${label}` : ""}
+      <Icon name={state === "playing" ? "pause" : "play"} size={label ? 16 : 14} />
+      {label}
     </button>
   );
 }

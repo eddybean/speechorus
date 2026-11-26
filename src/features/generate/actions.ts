@@ -16,7 +16,7 @@ function context(): BuildContext | null {
     return null;
   }
   if (app.engine.state !== "ready") {
-    app.notify("warn", "エンジンが起動していません（上部の「起動」でモデルを読み込んでください）");
+    app.notify("warn", "エンジンが起動していません（左下の「エンジン」からモデルを起動してください）");
     return null;
   }
   return { project, voices: app.voices, adapter, takesDir };
