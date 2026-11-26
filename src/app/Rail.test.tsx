@@ -7,8 +7,8 @@ import type { AppSettings, EngineState, ModelProfile } from "../lib/types";
 const profile = (id: string, name: string, model = "/m.gguf"): ModelProfile => ({
   id, name, adapter: "irodori", model, speechExe: "speech", device: "auto", threads: null, env: {}, extraArgs: [],
 });
-const settings = (active: string): AppSettings => ({
-  version: 1, profiles: [profile("p1", "Irodori Small"), profile("p2", "Drama-3")], activeProfileId: active,
+const settings = (active: string, p1Model = "/m.gguf"): AppSettings => ({
+  version: 1, profiles: [profile("p1", "Irodori Small", p1Model), profile("p2", "Drama-3")], activeProfileId: active,
   speechExe: "speech", asrModel: "", asrDevice: "auto", showNsfwTags: false, theme: "dark", recentTags: [], recentProjects: [],
 });
 
@@ -16,8 +16,8 @@ const startEngine = vi.fn(async () => {});
 const stopEngine = vi.fn(async () => {});
 const saveSettings = vi.fn(async () => {});
 
-function setup(engine: EngineState, active = "p1") {
-  useApp.setState({ engine, settings: settings(active), dialog: null, castOpen: true, startEngine, stopEngine, saveSettings });
+function setup(engine: EngineState, active = "p1", p1Model?: string) {
+  useApp.setState({ engine, settings: settings(active, p1Model), dialog: null, castOpen: true, startEngine, stopEngine, saveSettings });
   render(<Rail />);
 }
 
@@ -70,5 +70,22 @@ describe("Rail", () => {
     fireEvent.click(screen.getByRole("button", { name: /エンジン/ }));
     fireEvent.click(screen.getByRole("menuitem", { name: /モデルを入手/ }));
     expect(useApp.getState().dialog).toBe("catalog");
+  });
+
+  it("leads to the model catalog instead of starting when the chosen profile has no model", () => {
+    setup({ state: "stopped" }, "p1", "");
+    fireEvent.click(screen.getByRole("button", { name: /エンジン/ }));
+    expect(screen.queryByRole("button", { name: /を起動/ })).toBeNull();
+    expect(screen.getAllByText(/モデルを入手/)).toHaveLength(1);
+    fireEvent.click(screen.getByRole("button", { name: "モデルを入手…" }));
+    expect(startEngine).not.toHaveBeenCalled();
+    expect(useApp.getState().dialog).toBe("catalog");
+  });
+
+  it("does not offer a switch to a profile without a model", () => {
+    setup({ state: "ready", profileId: "p2", model: {}, sampleRate: 48000 }, "p1", "");
+    fireEvent.click(screen.getByRole("button", { name: /エンジン: 準備完了/ }));
+    expect(screen.queryByRole("button", { name: /に切替/ })).toBeNull();
+    expect(screen.getByRole("button", { name: "モデルを入手…" })).toBeTruthy();
   });
 });

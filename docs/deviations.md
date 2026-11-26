@@ -249,6 +249,7 @@ Requests: (1) a way to stop playback, (2) choosing a Drama-3 voice by text promp
     - The ▾ of the 生成 button holds 未生成/全行 and the takes-per-line and seed settings.
   - **Left rail** (`Rail.tsx`): キャスト shows or hides the cast panel, ボイス opens the voice library (the button left the cast panel), and モデル opens the model manager. At the bottom are エンジン and 設定.
     - The エンジン panel holds profile choice, start/switch/stop, モデルを入手 and モデル管理.
+    - When the chosen profile has no model (as on a first run), the panel's main button is モデルを入手… instead of 起動/切替, which would only fail, and the status bar says 「<profile> のモデルが未設定です」 with a モデルを入手… button. This replaces the old toolbar's highlighted ⤓ モデルを入手; nothing is shown once a model is set.
   - **Selection bar** (`SelectionBar.tsx`): it appears above the script when 2+ lines are selected, with 生成, シーンにまとめる, コピー, 複製, 削除 and clear.
   - **Status bar** (`StatusBar.tsx`): it shows the queue (remaining jobs, running seconds, ETA, 中止) and the loaded model.
   - Emoji buttons in the main window (🗋📂💾📥⚡🎬🗑✕ etc.) are now line icons (`icons.tsx`). Shortcut hints show ⌘ on macOS and Ctrl+ elsewhere.

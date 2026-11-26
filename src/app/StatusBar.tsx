@@ -1,5 +1,5 @@
 // The bottom bar: the generation queue on the left, the loaded model on the right.
-import { queueEta, useApp } from "../store/app";
+import { chosenProfile, queueEta, useApp } from "../store/app";
 import { Icon } from "./icons";
 
 export function formatEta(sec: number): string {
@@ -13,6 +13,9 @@ export function StatusBar() {
   const engine = useApp((s) => s.engine);
   const profiles = useApp((s) => s.settings?.profiles);
   const profileName = "profileId" in engine ? (profiles?.find((p) => p.id === engine.profileId)?.name ?? engine.profileId) : null;
+  // Nothing is loaded and the chosen profile has no model: starting would fail, so point to the catalog instead.
+  const missing = useApp((s) => (s.engine.state === "stopped" || s.engine.state === "failed" ? chosenProfile(s.settings) : undefined));
+  const needsModel = missing && !missing.model ? missing : null;
   return (
     <footer className="statusbar">
       {jobCount > 0 && (
@@ -29,7 +32,15 @@ export function StatusBar() {
       )}
       <span className="engine-summary">
         <span className={`dot ${engine.state}`} />
-        {engine.state === "ready"
+        {needsModel ? (
+          <>
+            {needsModel.name} のモデルが未設定です
+            <button className="small primary" onClick={() => useApp.getState().openDialog("catalog")}>
+              <Icon name="download" size={12} />
+              モデルを入手…
+            </button>
+          </>
+        ) : engine.state === "ready"
           ? `${profileName} · ${engine.sampleRate / 1000} kHz`
           : engine.state === "loading"
             ? `${profileName} を読み込み中…`

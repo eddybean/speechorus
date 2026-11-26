@@ -1,5 +1,5 @@
 // The left rail: panels and dialogs opened now and then, with the engine and settings at the bottom.
-import { useApp } from "../store/app";
+import { chosenProfile, useApp } from "../store/app";
 import type { EngineState, ModelProfile } from "../lib/types";
 import { Menu, MenuHeading, MenuItem } from "./Menu";
 import { Icon } from "./icons";
@@ -58,18 +58,22 @@ export function Rail() {
   );
 }
 
-/** What the engine can do for the chosen profile: start it, switch to it, or nothing (it is already loaded or loading). */
-export function engineAction(engine: EngineState, profile: ModelProfile | undefined): "start" | "switch" | null {
+/**
+ * The main action for the chosen profile: start it, switch to it, get a model first (it has none, so starting
+ * would only fail), or nothing (it is already loaded or loading).
+ */
+export function engineAction(engine: EngineState, profile: ModelProfile | undefined): "start" | "switch" | "getModel" | null {
   if (!profile || engine.state === "loading") return null;
-  if (engine.state === "ready") return engine.profileId === profile.id ? null : "switch";
-  return "start";
+  if (engine.state === "ready" && engine.profileId === profile.id) return null;
+  if (!profile.model) return "getModel";
+  return engine.state === "ready" ? "switch" : "start";
 }
 
 function EnginePanel({ close }: { close: () => void }) {
   const settings = useApp((s) => s.settings);
   const engine = useApp((s) => s.engine);
   const app = useApp.getState;
-  const chosen = settings?.profiles.find((p) => p.id === settings.activeProfileId) ?? settings?.profiles[0];
+  const chosen = chosenProfile(settings);
   const action = engineAction(engine, chosen);
   const running = engine.state === "ready" || engine.state === "loading";
   return (
@@ -93,7 +97,13 @@ function EnginePanel({ close }: { close: () => void }) {
         </button>
       ))}
       <div className="engine-actions">
-        {chosen && action && (
+        {action === "getModel" && (
+          <button className="primary" onClick={() => { close(); app().openDialog("catalog"); }}>
+            <Icon name="download" />
+            モデルを入手…
+          </button>
+        )}
+        {chosen && (action === "start" || action === "switch") && (
           <button className="primary" onClick={() => void app().startEngine(chosen.id)}>
             {chosen.name} {action === "start" ? "を起動" : "に切替"}
           </button>
@@ -106,7 +116,7 @@ function EnginePanel({ close }: { close: () => void }) {
         )}
       </div>
       <hr />
-      <MenuItem icon="download" onSelect={() => { close(); app().openDialog("catalog"); }}>モデルを入手…</MenuItem>
+      {action !== "getModel" && <MenuItem icon="download" onSelect={() => { close(); app().openDialog("catalog"); }}>モデルを入手…</MenuItem>}
       <MenuItem icon="chip" onSelect={() => { close(); app().openDialog("models"); }}>モデル管理…</MenuItem>
     </div>
   );

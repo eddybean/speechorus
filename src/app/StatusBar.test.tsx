@@ -40,4 +40,23 @@ describe("StatusBar", () => {
     fireEvent.click(screen.getByRole("button", { name: /中止/ }));
     expect(cancelAll).toHaveBeenCalled();
   });
+
+  it("points to the model catalog when the chosen profile has no model", () => {
+    useApp.setState({
+      engine: { state: "stopped" },
+      dialog: null,
+      settings: { ...settings, profiles: [{ ...settings.profiles[0], model: "" }] },
+    });
+    render(<StatusBar />);
+    expect(screen.getByText(/Irodori Small のモデルが未設定です/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "モデルを入手…" }));
+    expect(useApp.getState().dialog).toBe("catalog");
+  });
+
+  it("keeps the usual hint when the stopped profile has a model", () => {
+    useApp.setState({ engine: { state: "stopped" } });
+    render(<StatusBar />);
+    expect(screen.getByText(/エンジン停止中/)).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /モデルを入手/ })).toBeNull();
+  });
 });
