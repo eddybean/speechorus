@@ -1,9 +1,11 @@
 // The right panel: the active line's settings and takes, and the scenes.
+import { useState } from "react";
+import { parseSeed } from "../../lib/text";
 import { usePlayer } from "../../lib/player";
 import type { Line, Take } from "../../lib/types";
 import { useApp } from "../../store/app";
 import { selectedTake, useProject } from "../../store/project";
-import { generateIds, generateScene, lineItems, rerollTake, sceneItems, session } from "../generate/actions";
+import { copySeed, generateIds, generateScene, lineItems, rerollTake, sceneItems, session } from "../generate/actions";
 import { PlayButton } from "../../app/PlayButton";
 import { Icon } from "../../app/icons";
 import { OptionForm } from "../models/OptionForm";
@@ -37,6 +39,7 @@ function LinePanel({ line }: { line: Line }) {
             生成
           </button>
         </h3>
+        <SeedBox lineId={line.id} />
         <TakeList line={line} />
       </section>
       <section>
@@ -76,6 +79,38 @@ function LinePanel({ line }: { line: Line }) {
   );
 }
 
+/** Generates one take of the line with a seed typed or pasted in (e.g. copied from a take's 🎲). */
+function SeedBox({ lineId }: { lineId: string }) {
+  // Kept while moving between lines, so one seed can be tried on several lines.
+  const [text, setText] = useState("");
+  const seed = parseSeed(text);
+  const bad = text.trim() !== "" && seed === null;
+  const go = () => {
+    if (seed !== null) void rerollTake(lineId, seed);
+  };
+  return (
+    <div className="seed-box">
+      <input
+        type="text"
+        inputMode="numeric"
+        className={bad ? "invalid" : ""}
+        aria-label="シード値"
+        placeholder="🎲 シードを貼り付け"
+        title={bad ? "シードは0以上の整数です" : "テイクの 🎲 をクリックでコピーしたシードを貼り付けて生成"}
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") go();
+        }}
+      />
+      <button className="small" disabled={seed === null} onClick={go} title="このシードで1テイク生成">
+        <Icon name="generate" size={14} />
+        このシードで生成
+      </button>
+    </div>
+  );
+}
+
 function TakeList({ line }: { line: Line }) {
   const playingKey = usePlayer((s) => s.playingKey);
   const sel = selectedTake(line);
@@ -90,9 +125,14 @@ function TakeList({ line }: { line: Line }) {
           <PlayButton session={session.take(t.id)} items={() => lineItems(line.id, t.id)} />
           <span className="take-name">#{line.takes.length - i}</span>
           <span className="muted take-dur">{t.duration.toFixed(1)}s</span>
-          <span className="muted take-seed" title={`シード ${t.seed ?? "?"}`}>
+          <button
+            className="ghost muted take-seed"
+            title={t.seed === null ? "シード不明" : `シード ${t.seed}（クリックでコピー）`}
+            aria-label="シードをコピー"
+            onClick={() => void copySeed(t.seed)}
+          >
             🎲{t.seed ?? "?"}
-          </span>
+          </button>
           {t.stopReason !== "complete" && (
             <span className="badge warn" title={t.stopReason}>
               打切

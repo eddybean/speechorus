@@ -60,6 +60,20 @@ export async function rerollTake(lineId: string, seed: number | null) {
   await useApp.getState().enqueue(jobsForLines(ctx, [line], { takesPerLine: 1, seedMode: seed === null ? "random" : "fixed", baseSeed: seed ?? 0 }));
 }
 
+/** Copies a take's seed to the clipboard, to paste into the seed box later. */
+export async function copySeed(seed: number | null) {
+  if (seed === null) {
+    useApp.getState().notify("info", "このテイクのシードは記録されていません");
+    return;
+  }
+  try {
+    await navigator.clipboard.writeText(String(seed));
+    useApp.getState().notify("info", `シード ${seed} をコピーしました`);
+  } catch (e) {
+    useApp.getState().notify("error", `コピーに失敗しました: ${e}`);
+  }
+}
+
 function playItems(lines: Line[]): PlayItem[] {
   const { takesDir } = useProject.getState();
   return lines.flatMap((l) => {

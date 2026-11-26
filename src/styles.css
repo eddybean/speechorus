@@ -730,9 +730,14 @@ label.block {
 .takes .badge {
   flex-shrink: 0;
 }
-/* A long seed gives way so the row's buttons stay inside the panel. */
-.take-seed {
+/* A long seed gives way so the row's buttons stay inside the panel. It is a button: a click copies it. */
+.takes .take-seed {
+  display: block;
   flex: 0 1 auto;
+  padding: 0 2px;
+  color: var(--muted);
+  font: inherit;
+  cursor: copy;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1048,4 +1053,21 @@ button.icon {
 }
 .row-buttons.left {
   justify-content: flex-start;
+}
+
+/* Pasting a copied seed to generate one take with it. */
+.seed-box {
+  display: flex;
+  gap: 4px;
+  margin: 0 0 6px;
+}
+.seed-box input {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.seed-box input.invalid {
+  border-color: var(--err);
+}
+.seed-box button {
+  flex-shrink: 0;
 }
