@@ -240,3 +240,18 @@ Requests: (1) a way to stop playback, (2) choosing a Drama-3 voice by text promp
 - D-11, D-12, D-13: **Implement in v1 — implemented** (2026-11-26).
 - D-14, D-15, D-16: **Deferred to v2** (not selected by the user, 2026-11-26).
 - Turn 3: the user **allowed** the test re-download of Q4_K (deleted after the check) and running the installer and uninstaller (2026-11-26). D-22 to D-28 were done within the request and are recorded here for the planning session's check.
+
+### D-37 UI redesign: Mineral Sage colors, a left rail, and a slimmer top bar 【仕様（ユーザー決定）】
+- **What**: The user picked pattern C out of three proposals (layout and colors).
+  - **Colors**: The navy and blue tokens are replaced by sage-tinted neutrals with one jade accent: `#4FC3A1` on `#121715` in dark and `#0F6E5A` on `#EEF0EB` in light. Tags use ochre. Only `src/styles.css` tokens changed, so dialogs follow automatically.
+  - **Top bar** (`TopBar.tsx`, which replaces `Toolbar.tsx`): it holds only the ファイル menu, the project name with an unsaved mark, a 生成 split button, 連続再生/停止 and 書き出し.
+    - The ファイル menu holds new/open/save/save as/import, plus undo/redo under 編集.
+    - The ▾ of the 生成 button holds 未生成/全行 and the takes-per-line and seed settings.
+  - **Left rail** (`Rail.tsx`): キャスト shows or hides the cast panel, ボイス opens the voice library (the button left the cast panel), and モデル opens the model manager. At the bottom are エンジン and 設定.
+    - The エンジン panel holds profile choice, start/switch/stop, モデルを入手 and モデル管理.
+  - **Selection bar** (`SelectionBar.tsx`): it appears above the script when 2+ lines are selected, with 生成, シーンにまとめる, コピー, 複製, 削除 and clear.
+  - **Status bar** (`StatusBar.tsx`): it shows the queue (remaining jobs, running seconds, ETA, 中止) and the loaded model.
+  - Emoji buttons in the main window (🗋📂💾📥⚡🎬🗑✕ etc.) are now line icons (`icons.tsx`). Shortcut hints show ⌘ on macOS and Ctrl+ elsewhere.
+- **Supersedes**: the toolbar placements in D-11 (the ETA, now in the status bar), D-12 (the ⧉/📋 buttons) and D-29 ("■ 停止", now beside 連続再生 in the top bar). The behavior is unchanged; only the place moved.
+- **Not changed**: dialogs other than their close button keep their own buttons and glyphs. The keyboard shortcuts are unchanged.
+- **User impact**: Pasting lines no longer has a button; use Ctrl/⌘+V. Copying is also in the selection bar.

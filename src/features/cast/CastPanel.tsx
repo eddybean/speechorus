@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useApp } from "../../store/app";
 import { newCast, useProject } from "../../store/project";
 import { OptionForm } from "../models/OptionForm";
+import { Icon } from "../../app/icons";
 import type { Cast } from "../../lib/types";
 
 export function CastPanel() {
@@ -13,22 +14,21 @@ export function CastPanel() {
       <h3>
         キャスト
         <button
-          className="small"
+          className="small icon"
+          aria-label="キャストを追加"
+          title="キャストを追加"
           onClick={() =>
             useProject.getState().edit("キャストを追加", (d) => {
               d.cast.push(newCast(`キャスト${d.cast.length + 1}`, d.cast.length));
             })
           }
         >
-          ＋
+          <Icon name="plus" size={14} />
         </button>
       </h3>
       {cast.map((c) => (
         <CastCard key={c.id} cast={c} open={open === c.id} toggle={() => setOpen(open === c.id ? null : c.id)} />
       ))}
-      <button className="wide" onClick={() => useApp.getState().openDialog("voices")}>
-        🎙 ボイスライブラリ
-      </button>
     </aside>
   );
 }

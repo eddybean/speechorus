@@ -1,4 +1,5 @@
 import { useEffect, type ReactNode } from "react";
+import { Icon } from "./icons";
 
 export function Dialog({ title, onClose, children, wide }: { title: string; onClose: () => void; children: ReactNode; wide?: boolean }) {
   useEffect(() => {
@@ -11,8 +12,8 @@ export function Dialog({ title, onClose, children, wide }: { title: string; onCl
       <div className={`dialog${wide ? " wide" : ""}`} role="dialog" aria-label={title}>
         <header>
           <h2>{title}</h2>
-          <button onClick={onClose} aria-label="閉じる">
-            ✕
+          <button className="icon" onClick={onClose} aria-label="閉じる">
+            <Icon name="close" />
           </button>
         </header>
         <div className="dialog-body">{children}</div>

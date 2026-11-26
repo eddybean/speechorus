@@ -11,6 +11,8 @@ import { useApp } from "../../store/app";
 import { usePlayer } from "../../lib/player";
 import { generateIds, lineItems, session } from "../generate/actions";
 import { PlayButton } from "../../app/PlayButton";
+import { Icon } from "../../app/icons";
+import { SelectionBar } from "./SelectionBar";
 
 const PLACEHOLDER = "セリフを入力（[驚いて] などの演技タグ可）";
 
@@ -31,6 +33,7 @@ export function ScriptEditor() {
 
   return (
     <div className="script">
+      <SelectionBar />
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
         <SortableContext items={lines.map((l) => l.id)} strategy={verticalListSortingStrategy}>
           {lines.map((l, i) => (
@@ -163,7 +166,7 @@ const Row = memo(function Row({ line, index, cast }: { line: Line; index: number
             <LineText text={line.text} placeholderText={PLACEHOLDER} />
           </div>
         )}
-        {line.memo && <div className="memo">📝 {line.memo}</div>}
+        {line.memo && <div className="memo">メモ: {line.memo}</div>}
       </div>
       <span className="state">
         {status === "running" && <span className="badge run">生成中 {secs}s</span>}
@@ -173,14 +176,14 @@ const Row = memo(function Row({ line, index, cast }: { line: Line; index: number
         {line.takes.some((t) => t.stopReason !== "complete") && <span className="badge warn" title="最大長で打ち切り">!</span>}
       </span>
       <span className="row-actions">
-        <PlayButton session={session.line(line.id)} items={() => lineItems(line.id)} disabled={!line.takes.length} />
+        <PlayButton className="icon" session={session.line(line.id)} items={() => lineItems(line.id)} disabled={!line.takes.length} />
         {job ? (
-          <button title="キャンセル" onClick={() => useApp.getState().cancelLine(line.id)}>
-            ■
+          <button className="icon" title="キャンセル" aria-label="キャンセル" onClick={() => void useApp.getState().cancelLine(line.id)}>
+            <Icon name="stop" size={14} />
           </button>
         ) : (
-          <button title="この行を生成" onClick={() => generateIds([line.id])}>
-            ⚡
+          <button className="icon" title="この行を生成" aria-label="この行を生成" onClick={() => void generateIds([line.id])}>
+            <Icon name="generate" size={14} />
           </button>
         )}
       </span>

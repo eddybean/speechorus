@@ -38,6 +38,9 @@ interface AppStore {
   batch: BatchSettings;
   notices: Notice[];
   dialog: null | "models" | "voices" | "export" | "settings" | "catalog";
+  /** Whether the cast panel beside the script is shown. */
+  castOpen: boolean;
+  toggleCast: () => void;
 
   init: () => Promise<void>;
   saveSettings: (s: AppSettings) => Promise<void>;
@@ -88,6 +91,8 @@ export const useApp = create<AppStore>()((set, get) => ({
   batch: { takesPerLine: 1, seedMode: "random", baseSeed: 1 },
   notices: [],
   dialog: null,
+  castOpen: true,
+  toggleCast: () => set((s) => ({ castOpen: !s.castOpen })),
 
   init: async () => {
     if (!inTauri) {

@@ -5,6 +5,7 @@ import { useApp } from "../../store/app";
 import { selectedTake, useProject } from "../../store/project";
 import { generateIds, generateScene, lineItems, rerollTake, sceneItems, session } from "../generate/actions";
 import { PlayButton } from "../../app/PlayButton";
+import { Icon } from "../../app/icons";
 import { OptionForm } from "../models/OptionForm";
 import { TagPalette } from "../tags/TagPalette";
 
@@ -31,8 +32,9 @@ function LinePanel({ line }: { line: Line }) {
       <section>
         <h3>
           テイク <span className="muted">({line.takes.length})</span>
-          <button className="small" onClick={() => generateIds([line.id])}>
-            ⚡ 生成
+          <button className="small" onClick={() => void generateIds([line.id])}>
+            <Icon name="generate" size={14} />
+            生成
           </button>
         </h3>
         <TakeList line={line} />
@@ -106,8 +108,8 @@ function TakeList({ line }: { line: Line }) {
           <button title="同じシードで再生成" onClick={() => rerollTake(line.id, t.seed)}>
             ↻
           </button>
-          <button title="削除" onClick={() => remove(t)}>
-            🗑
+          <button className="icon" title="削除" aria-label="テイクを削除" onClick={() => remove(t)}>
+            <Icon name="trash" size={14} />
           </button>
         </li>
       ))}
@@ -162,7 +164,9 @@ function Scenes() {
                     1リクエスト（&lt;|speaker:N|&gt;）
                   </option>
                 </select>
-                <button onClick={() => generateScene(sc.id)}>⚡</button>
+                <button className="icon" title="シーンを生成" aria-label="シーンを生成" onClick={() => void generateScene(sc.id)}>
+                  <Icon name="generate" size={14} />
+                </button>
                 <PlayButton session={session.scene(sc.id)} items={() => sceneItems(sc.id)} />
                 <button
                   title="シーンを削除（行は残ります）"
@@ -171,8 +175,10 @@ function Scenes() {
                       d.scenes = d.scenes.filter((y) => y.id !== sc.id);
                     })
                   }
+                  className="icon"
+                  aria-label="シーンを削除"
                 >
-                  🗑
+                  <Icon name="trash" size={14} />
                 </button>
               </div>
               {sc.mode === "single" && sc.takes.length > 0 && (
