@@ -1,4 +1,4 @@
-# CI: the same checks as `npm run check`, split into two parallel jobs, on every PR into main and every push to main (D-50).
+# CI: the same checks as `npm run check`, split into parallel jobs, plus the supply-chain checks (D-53), on every PR into main and every push to main (D-50).
 # The frontend checks run on Linux (faster to start); the Rust checks run on Windows, the only platform the app targets.
 name: CI
 
@@ -28,6 +28,8 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
 
       - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
@@ -35,7 +37,7 @@ jobs:
           cache: npm
 
       # .npmrc (min-release-age, strict-allow-scripts, allow-git) needs npm 11.19+ (D-43).
-      - run: npm install -g npm@11.19.1
+      - run: npm install -g npm@11.19.1 # zizmor: ignore[adhoc-packages] exact version, needed by .npmrc (D-43)
 
       - run: npm ci
 
@@ -60,12 +62,12 @@ jobs:
         shell: bash
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
-
-      # Pinned like release.yml so that a new stable's clippy lints cannot fail CI; raise both with the local toolchain.
-      - uses: dtolnay/rust-toolchain@df2a88e9fe4098bad09cb42c3dec7187f15861fc # master, 2026-11-15
         with:
-          toolchain: 1.93.1
-          components: clippy, rustfmt
+          persist-credentials: false
+
+      # The toolchain (version and components) comes from rust-toolchain.toml, the same as locally (D-53).
+      - name: Install the Rust toolchain
+        run: rustup toolchain install
 
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
@@ -75,3 +77,38 @@ jobs:
       - run: cargo fmt --manifest-path src-tauri/Cargo.toml --check
       - run: cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --locked -- -D warnings
       - run: cargo test --manifest-path src-tauri/Cargo.toml --locked
+
+  supply-chain:
+    name: Supply chain (cargo-deny, zizmor)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+
+      # cargo-deny needs `cargo metadata`, so the toolchain from rust-toolchain.toml is installed first.
+      - name: Install the Rust toolchain
+        run: rustup toolchain install
+
+      # The same cargo-deny as locally, from its release, checked against a pinned SHA-256 (D-53).
+      - name: Install cargo-deny
+        env:
+          DENY_VERSION: "0.21.0"
+          DENY_SHA256: a2170b854ff697e79e39c4c538981c9c1bdd803addbae6719a4cb66b4585a903
+        run: |
+          name="cargo-deny-${DENY_VERSION}-x86_64-unknown-linux-musl"
+          curl -fsSL -o "$RUNNER_TEMP/$name.tar.gz" "https://github.com/EmbarkStudios/cargo-deny/releases/download/${DENY_VERSION}/$name.tar.gz"
+          echo "$DENY_SHA256  $RUNNER_TEMP/$name.tar.gz" | sha256sum -c -
+          tar -xzf "$RUNNER_TEMP/$name.tar.gz" -C "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP/$name" >> "$GITHUB_PATH"
+
+      # RustSec advisories, licenses, bans and crate sources of src-tauri/Cargo.lock (src-tauri/deny.toml).
+      - run: cargo deny --manifest-path src-tauri/Cargo.toml --locked check
+
+      # Static analysis of the workflows and dependabot.yml; findings show as annotations on the PR.
+      - uses: zizmorcore/zizmor-action@45d7276c9ca790aabd705e31ca99c6185c3e76dd # v0.8.1
+        with:
+          version: 1.32.0
+          advanced-security: false
+          annotations: true

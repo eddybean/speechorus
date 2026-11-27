@@ -9,8 +9,8 @@ on:
     paths: [package.json]
   workflow_dispatch:
 
-permissions:
-  contents: write
+# No token permissions by default; each job asks for what it needs (D-53).
+permissions: {}
 
 concurrency:
   group: release
@@ -23,6 +23,8 @@ env:
 jobs:
   gate:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     outputs:
       version: ${{ steps.ver.outputs.version }}
       release: ${{ steps.ver.outputs.release }}
@@ -30,6 +32,7 @@ jobs:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Decide whether to release
         id: ver
@@ -72,32 +75,32 @@ jobs:
     needs: gate
     if: needs.gate.outputs.release == 'true'
     runs-on: windows-latest
+    permissions:
+      contents: write # push the tag, create the release
     defaults:
       run:
         shell: bash
     env:
       VERSION: ${{ needs.gate.outputs.version }}
     steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      # The Tag step pushes with the checkout's credentials.
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0 # zizmor: ignore[artipacked]
 
       - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
           node-version: 24
           cache: npm
 
-      # Pinned so that a new stable's clippy lints (run with -D warnings) cannot break a release.
-      # Keep it at the version used locally; raise it together with the local toolchain.
-      - uses: dtolnay/rust-toolchain@df2a88e9fe4098bad09cb42c3dec7187f15861fc # master, 2026-11-15
-        with:
-          toolchain: 1.93.1
-          components: clippy, rustfmt
+      # The toolchain (version and components) comes from rust-toolchain.toml, the same as locally (D-53).
+      - name: Install the Rust toolchain
+        run: rustup toolchain install
 
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
           workspaces: src-tauri
 
       # .npmrc (min-release-age, strict-allow-scripts, allow-git) needs npm 11.19+ (D-43).
-      - run: npm install -g npm@11.19.1
+      - run: npm install -g npm@11.19.1 # zizmor: ignore[adhoc-packages] exact version, needed by .npmrc (D-43)
 
       - run: npm ci
 
@@ -138,10 +141,12 @@ jobs:
       - name: Create the draft release
         env:
           GH_TOKEN: ${{ github.token }}
+          EXE: ${{ steps.out.outputs.exe }}
+          SUMS: ${{ steps.out.outputs.sums }}
         run: |
           flags=(--draft --generate-notes --verify-tag --title "Speechorus v$VERSION")
           if [[ "$VERSION" == *-* ]]; then flags+=(--prerelease); fi
-          gh release create "v$VERSION" "${flags[@]}" "${{ steps.out.outputs.exe }}" "${{ steps.out.outputs.sums }}"
+          gh release create "v$VERSION" "${flags[@]}" "$EXE" "$SUMS"
           echo "Draft release v$VERSION created from $GITHUB_SHA." >> "$GITHUB_STEP_SUMMARY"
 
       - name: Delete the merged bump branch

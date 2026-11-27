@@ -4,6 +4,7 @@ version = "0.1.5"
 description = "Japanese TTS studio GUI for speech.cpp"
 edition = "2021"
 license = "PolyForm-Noncommercial-1.0.0"
+publish = false
 
 [lib]
 name = "speechorus_lib"

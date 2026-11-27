@@ -1,0 +1,37 @@
+# cargo-deny: RustSec advisories, licenses, banned crates and crate sources for src-tauri/Cargo.lock (D-53).
+# Run with `npm run deps:deny` (needs `cargo install cargo-deny --locked`); CI runs it in the Supply chain job.
+
+[graph]
+# The app is built for Windows only, so advisories and licenses of Linux/macOS-only crates (glib, gtk, ...) do not apply.
+targets = ["x86_64-pc-windows-msvc"]
+all-features = false
+
+[advisories]
+yanked = "deny"
+# Each ignore needs a reason and is dropped once the crate that pulls it in moves on.
+ignore = [
+  # Both come in through Tauri and are fixed in versions still inside the 7-day release-age window (D-43, D-45).
+  # Take them with `cargo update -p url -p cookie` once they are old enough, then drop these lines.
+  { id = "RUSTSEC-2026-0592", reason = "url 2.5.9 fixes it; old enough from 2026-11-27 23:03 UTC" },
+  { id = "RUSTSEC-2026-0594", reason = "cookie 0.18.3 fixes it; old enough from 2026-11-30 07:45 UTC; Windows does not fork" },
+]
+
+[licenses]
+confidence-threshold = 0.9
+# Permissive licenses only, plus MPL-2.0 (file-level copyleft: cssparser, dtoa-short, option-ext via Tauri, used unmodified).
+allow = ["Apache-2.0", "BSD-3-Clause", "CDLA-Permissive-2.0", "ISC", "MIT", "MPL-2.0", "Unicode-3.0", "Zlib"]
+
+[licenses.private]
+# speechorus itself (PolyForm Noncommercial) is not published (`publish = false`).
+ignore = true
+
+[bans]
+# Tauri pulls in several versions of some crates (windows-sys, ...); report them, do not fail.
+multiple-versions = "warn"
+wildcards = "deny"
+allow-wildcard-paths = true
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]
