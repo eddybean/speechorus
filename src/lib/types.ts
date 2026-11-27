@@ -86,6 +86,9 @@ export interface AppSettings {
   theme: "dark" | "light";
   recentTags: string[];
   recentProjects: string[];
+  /** 0 to 1, as the slider shows it; the player applies a loudness curve. */
+  playbackVolume: number;
+  playbackMuted: boolean;
 }
 
 export interface OptionSpec {

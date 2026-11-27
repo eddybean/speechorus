@@ -37,6 +37,7 @@ export function TopBar() {
             停止
           </button>
         )}
+        <VolumeControl />
       </div>
       <div className="zone end">
         <button onClick={() => useApp.getState().openDialog("export")}>
@@ -45,6 +46,47 @@ export function TopBar() {
         </button>
       </div>
     </header>
+  );
+}
+
+/** The volume of every playback in the app (not of exported files). Wheel over it for 5% steps. */
+export function VolumeControl() {
+  const volume = useApp((s) => s.settings?.playbackVolume ?? 1);
+  const muted = useApp((s) => s.settings?.playbackMuted ?? false);
+  const disabled = useApp((s) => !s.settings);
+  const setPlayback = useApp.getState().setPlayback;
+  const pct = Math.round(volume * 100);
+  const silent = muted || pct === 0;
+  const step = (delta: number) => setPlayback({ volume: Math.round(pct + delta) / 100, muted: false });
+  return (
+    <div
+      className={`volume${muted ? " muted" : ""}`}
+      title={muted ? `再生音量 ${pct}%（ミュート中）` : `再生音量 ${pct}%`}
+      onWheel={(e) => !disabled && e.deltaY !== 0 && step(e.deltaY < 0 ? 5 : -5)}
+    >
+      <button
+        className="icon ghost"
+        disabled={disabled}
+        aria-label={silent ? "ミュート解除" : "ミュート"}
+        aria-pressed={muted}
+        onClick={() =>
+          setPlayback(muted || pct === 0 ? { muted: false, ...(pct === 0 && { volume: 0.5 }) } : { muted: true })
+        }
+      >
+        <Icon name={silent ? "volumeMute" : pct < 50 ? "volumeLow" : "volume"} />
+      </button>
+      <input
+        type="range"
+        min={0}
+        max={100}
+        step={1}
+        value={pct}
+        disabled={disabled}
+        aria-label="再生音量"
+        aria-valuetext={muted ? `${pct}%（ミュート中）` : `${pct}%`}
+        onChange={(e) => setPlayback({ volume: Number(e.target.value) / 100, muted: false })}
+      />
+    </div>
   );
 }
 

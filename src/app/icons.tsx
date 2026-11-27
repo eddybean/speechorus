@@ -91,6 +91,24 @@ const paths: Record<string, ReactNode> = {
     </>
   ),
   close: <path d="M6 6l12 12M18 6 6 18" />,
+  volume: (
+    <>
+      <path d="M4 9h3l5-4v14l-5-4H4z" />
+      <path d="M15.5 9a4 4 0 0 1 0 6M18.5 6a8 8 0 0 1 0 12" />
+    </>
+  ),
+  volumeLow: (
+    <>
+      <path d="M4 9h3l5-4v14l-5-4H4z" />
+      <path d="M15.5 9a4 4 0 0 1 0 6" />
+    </>
+  ),
+  volumeMute: (
+    <>
+      <path d="M4 9h3l5-4v14l-5-4H4z" />
+      <path d="m16 9.5 5 5M21 9.5l-5 5" />
+    </>
+  ),
 };
 
 export type IconName = keyof typeof paths;

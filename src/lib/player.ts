@@ -32,13 +32,28 @@ interface PlayerState {
 }
 
 let audio: HTMLAudioElement | null = null;
+let gain = 1;
 
 function el(): HTMLAudioElement {
   if (!audio) {
     audio = new Audio();
     audio.preload = "auto";
+    audio.volume = gain;
   }
   return audio;
+}
+
+/** The element gain for a slider position: squared, so that equal slider steps sound like equal steps. */
+export function volumeGain(volume: number, muted: boolean): number {
+  if (muted) return 0;
+  const v = Number.isFinite(volume) ? Math.min(1, Math.max(0, volume)) : 1;
+  return v * v;
+}
+
+/** Sets the volume of all playback (the one element), at once and for what plays next. */
+export function setOutputVolume(volume: number, muted: boolean) {
+  gain = volumeGain(volume, muted);
+  if (audio) audio.volume = gain;
 }
 
 /** Where the current session is: playing item `index`, or waiting `remaining` ms before calling `then`. */

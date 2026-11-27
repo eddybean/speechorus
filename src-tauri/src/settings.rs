@@ -68,6 +68,9 @@ pub struct AppSettings {
     pub theme: String,
     pub recent_tags: Vec<String>,
     pub recent_projects: Vec<String>,
+    /// Playback volume, 0.0 to 1.0, as the slider shows it (the GUI applies a loudness curve).
+    pub playback_volume: f64,
+    pub playback_muted: bool,
 }
 
 impl Default for AppSettings {
@@ -83,6 +86,8 @@ impl Default for AppSettings {
             theme: "dark".into(),
             recent_tags: Vec::new(),
             recent_projects: Vec::new(),
+            playback_volume: 1.0,
+            playback_muted: false,
         }
     }
 }
@@ -153,5 +158,7 @@ mod tests {
         let partial: AppSettings = serde_json::from_str(r#"{"showNsfwTags":true}"#).unwrap();
         assert!(partial.show_nsfw_tags);
         assert_eq!(partial.asr_model, "qwen3-asr-0.6b");
+        assert_eq!(partial.playback_volume, 1.0);
+        assert!(!partial.playback_muted);
     }
 }

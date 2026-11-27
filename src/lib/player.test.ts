@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { usePlayer } from "./player";
+import { setOutputVolume, usePlayer, volumeGain } from "./player";
 
 // jsdom has no media playback: a minimal Audio stand-in that records what it was asked to do.
 class FakeAudio {
@@ -11,6 +11,7 @@ class FakeAudio {
   currentTime = 0;
   preload = "";
   paused = true;
+  volume = 1;
   plays = 0;
   onended: (() => void) | null = null;
   onerror: (() => void) | null = null;
@@ -115,5 +116,28 @@ describe("player", () => {
     expect(p().paused).toBe(false);
     p().resume();
     expect(p().sessionKey).toBeNull();
+  });
+});
+
+describe("playback volume", () => {
+  it("squares the slider position, clamps it, and is silent when muted", () => {
+    expect(volumeGain(1, false)).toBe(1);
+    expect(volumeGain(0.5, false)).toBe(0.25);
+    expect(volumeGain(0, false)).toBe(0);
+    expect(volumeGain(1.5, false)).toBe(1);
+    expect(volumeGain(-1, false)).toBe(0);
+    expect(volumeGain(0.8, true)).toBe(0);
+    // An old settings file without the field plays at full volume, not silently.
+    expect(volumeGain(Number.NaN, false)).toBe(1);
+  });
+
+  it("changes the element at once, also in the middle of playback", () => {
+    p().play([item("a")]);
+    setOutputVolume(0.5, false);
+    expect(a().volume).toBe(0.25);
+    setOutputVolume(0.5, true);
+    expect(a().volume).toBe(0);
+    setOutputVolume(1, false);
+    expect(a().volume).toBe(1);
   });
 });
