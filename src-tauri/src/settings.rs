@@ -68,7 +68,7 @@ pub struct AppSettings {
     pub theme: String,
     pub recent_tags: Vec<String>,
     pub recent_projects: Vec<String>,
-    /// Playback volume, 0.0 to 1.0, as the slider shows it (the GUI applies a loudness curve).
+    /// Playback volume, 0.0 to 2.0 (200%), as the slider shows it (the GUI applies a loudness curve).
     pub playback_volume: f64,
     pub playback_muted: bool,
 }

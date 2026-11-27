@@ -195,7 +195,7 @@ textarea {
   padding: 0 6px;
 }
 .topbar .volume input[type="range"] {
-  width: 96px;
+  width: 128px;
   padding: 0;
   border: none;
   background: transparent;

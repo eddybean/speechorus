@@ -112,15 +112,25 @@ describe("TopBar", () => {
       expect(st().playbackVolume).toBe(0.5);
     });
 
-    it("steps by 5% with the wheel, within 0 to 100%", () => {
-      useApp.setState({ settings: { ...settings, playbackVolume: 0.98 } });
+    it("steps by 5% with the wheel, within 0 to 200%", () => {
+      useApp.setState({ settings: { ...settings, playbackVolume: 1.98 } });
       render(<TopBar />);
       const slider = screen.getByRole("slider", { name: "再生音量" });
       fireEvent.wheel(slider, { deltaY: -100 });
+      expect(st().playbackVolume).toBe(2);
+      fireEvent.wheel(slider, { deltaY: 100 });
+      fireEvent.wheel(slider, { deltaY: 100 });
+      expect(st().playbackVolume).toBe(1.9);
+    });
+
+    it("goes up to 200% and back to 100% on double-click", () => {
+      render(<TopBar />);
+      const slider = screen.getByRole("slider", { name: "再生音量" }) as HTMLInputElement;
+      expect(slider.max).toBe("200");
+      fireEvent.change(slider, { target: { value: "170" } });
+      expect(st().playbackVolume).toBe(1.7);
+      fireEvent.doubleClick(slider);
       expect(st().playbackVolume).toBe(1);
-      fireEvent.wheel(slider, { deltaY: 100 });
-      fireEvent.wheel(slider, { deltaY: 100 });
-      expect(st().playbackVolume).toBe(0.9);
     });
 
     it("is disabled until the settings are loaded", () => {

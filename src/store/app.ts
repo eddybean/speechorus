@@ -13,7 +13,7 @@ import type {
 } from "../lib/types";
 import type { BatchSettings } from "../features/generate/jobs";
 import { useProject } from "./project";
-import { setOutputVolume } from "../lib/player";
+import { MAX_VOLUME, setOutputVolume } from "../lib/player";
 
 export interface JobInfo {
   lineId: string | null;
@@ -227,7 +227,7 @@ export const useApp = create<AppStore>()((set, get) => ({
     if (!s) return;
     const next = {
       ...s,
-      ...(volume !== undefined && { playbackVolume: Math.min(1, Math.max(0, volume)) }),
+      ...(volume !== undefined && { playbackVolume: Math.min(MAX_VOLUME, Math.max(0, volume)) }),
       ...(muted !== undefined && { playbackMuted: muted }),
     };
     set({ settings: next });

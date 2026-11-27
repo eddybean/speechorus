@@ -1,7 +1,7 @@
 // The top bar: only what is used all the time — file menu, project name, generate, play, export.
 import { useApp } from "../store/app";
 import { useProject } from "../store/project";
-import { usePlayer } from "../lib/player";
+import { MAX_VOLUME, usePlayer } from "../lib/player";
 import { generateAll, generateMissing, generateSelected, fromItems, session } from "../features/generate/actions";
 import { importScript, newProject, openProject, saveProject } from "../features/project/fileOps";
 import type { SeedMode } from "../lib/text";
@@ -49,7 +49,7 @@ export function TopBar() {
   );
 }
 
-/** The volume of every playback in the app (not of exported files). Wheel over it for 5% steps. */
+/** The volume of every playback in the app (not of exported files), up to 200%. Wheel for 5% steps; double-click for 100%. */
 export function VolumeControl() {
   const volume = useApp((s) => s.settings?.playbackVolume ?? 1);
   const muted = useApp((s) => s.settings?.playbackMuted ?? false);
@@ -78,14 +78,19 @@ export function VolumeControl() {
       <input
         type="range"
         min={0}
-        max={100}
+        max={MAX_VOLUME * 100}
         step={1}
         value={pct}
+        list="volume-marks"
         disabled={disabled}
         aria-label="再生音量"
         aria-valuetext={muted ? `${pct}%（ミュート中）` : `${pct}%`}
         onChange={(e) => setPlayback({ volume: Number(e.target.value) / 100, muted: false })}
+        onDoubleClick={() => setPlayback({ volume: 1, muted: false })}
       />
+      <datalist id="volume-marks">
+        <option value={100} />
+      </datalist>
     </div>
   );
 }
