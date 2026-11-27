@@ -32,6 +32,8 @@
     "format:rust:check": "cargo fmt --manifest-path src-tauri/Cargo.toml --check",
     "deps:update": "npm update --save && cargo update --manifest-path src-tauri/Cargo.toml && node scripts/cargo-release-age.mjs --fix",
     "deps:check": "npm audit signatures && node scripts/cargo-release-age.mjs",
+    "deps:deny": "cargo deny --manifest-path src-tauri/Cargo.toml --locked check",
+    "lint:actions": "uvx zizmor@1.32.0 .",
     "check": "npm run format:check && npm run format:rust:check && npm run lint && npm run lint:rust && npm test && npm run test:rust",
     "prepare": "husky"
   },

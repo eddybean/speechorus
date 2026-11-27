@@ -1,0 +1,6 @@
+# The Rust toolchain for local builds, CI and releases (D-53). rustup installs it on the first cargo call.
+# Pinned so that a new stable's clippy lints (run with -D warnings) cannot break CI or a release; raise it on purpose.
+[toolchain]
+channel = "1.93.1"
+components = ["clippy", "rustfmt"]
+profile = "minimal"
