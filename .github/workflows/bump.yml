@@ -34,13 +34,16 @@ jobs:
           echo "::error::Run this workflow from a branch (got ${{ github.ref_type }} ${{ github.ref_name }})."
           exit 1
 
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
           fetch-depth: 0
 
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
-          node-version: 22
+          node-version: 24
+
+      # Same npm as release.yml, so that `npm version` writes package-lock.json the same way (D-43).
+      - run: npm install -g npm@11.19.1
 
       - name: Compute the version
         id: ver
