@@ -75,6 +75,8 @@ jobs:
     needs: gate
     if: needs.gate.outputs.release == 'true'
     runs-on: windows-latest
+    # A normal release takes about 10 min. Without a limit a stuck runner holds the job for 6 h (D-55).
+    timeout-minutes: 45
     permissions:
       contents: write # push the tag, create the release
     defaults:
@@ -82,6 +84,10 @@ jobs:
         shell: bash
     env:
       VERSION: ${{ needs.gate.outputs.version }}
+      # Same as the Rust CI job, so that `npm run check` can use its cache and builds no debug info (D-51, D-55).
+      # The installer is built with the release profile, which these do not touch.
+      CARGO_PROFILE_DEV_DEBUG: "0"
+      CARGO_PROFILE_TEST_DEBUG: "0"
     steps:
       # The Tag step pushes with the checkout's credentials.
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0 # zizmor: ignore[artipacked]
@@ -98,6 +104,9 @@ jobs:
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
           workspaces: src-tauri
+          # Restore the Rust CI job's cache (same key); do not save, since the release build would bloat it (D-55).
+          shared-key: windows-nodebug
+          save-if: false
 
       # .npmrc (min-release-age, strict-allow-scripts, allow-git) needs npm 11.19+ (D-43).
       - run: npm install -g npm@11.19.1 # zizmor: ignore[adhoc-packages] exact version, needed by .npmrc (D-43)

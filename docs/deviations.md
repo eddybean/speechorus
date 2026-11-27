@@ -400,3 +400,12 @@ Requests: (1) a way to stop playback, (2) choosing a Drama-3 voice by text promp
   - **Shortcuts**: Ctrl/⌘+S and O and Space (play) work on every screen. The line shortcuts (undo/redo, copy/cut/paste lines, duplicate, Delete, Ctrl/⌘+Enter, Esc to clear the selection) work only while the script is on screen, so they cannot change lines the user cannot see.
 - **Why**: The user found the modals out of place for a sidebar. Navigation rails (Material 3 Navigation Rail, Apple HIG sidebars, VS Code, Slack, Teams) switch between top-level destinations. A modal also suits short tasks, not a work area like the voice library, and Esc or a click on the backdrop threw away the references being prepared. Settings stays a dialog: it is small, and apps differ there (Slack and Notion use a modal).
 - **User impact**: Opening ボイス or モデル replaces the script instead of covering it; press 台本 to go back. The top bar, the status bar (queue) and the volume control stay usable there. Work in progress on those screens is no longer lost by Esc.
+
+### D-55 The release job has a time limit and reuses the Rust CI cache 【修正】
+- **What**: The first release after D-53 (v0.1.6, run 46076601378) stayed in its `Checks` step (`npm run check`) for 40 min until it was force-cancelled; a plain cancel did not reach the runner, and no log was ever uploaded, so the Windows runner itself had stopped responding. `rust-toolchain.toml` (D-53) had changed the rust-cache key, so that run started from no cache and built every crate with debug info, which CI does not do (D-51). `release.yml` now:
+  - sets `timeout-minutes: 45` on the `release` job (a release takes about 10 min; without a limit GitHub waits 6 h);
+  - sets `CARGO_PROFILE_DEV_DEBUG=0` and `CARGO_PROFILE_TEST_DEBUG=0`, as the Rust CI job does (the installer build uses the release profile, which they do not touch);
+  - restores the Rust CI job's cache: both use rust-cache `shared-key: windows-nodebug`, and the release job does not save (`save-if: false`), so its release-profile build does not bloat the cache.
+- **Why**: The user asked for the cause of the stuck release and a fix before releasing v0.1.6 again.
+- **Not done**: Why the runner stopped responding is not known (no log, no GitHub incident at that time); a heavier cold build may have played a part. The first CI run on `main` after this change saves the cache under the new key; a release started before that finishes builds without a cache (but without debug info).
+- **User impact**: None to the app.
