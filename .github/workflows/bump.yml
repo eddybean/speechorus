@@ -110,7 +110,13 @@ jobs:
           git add package.json package-lock.json src-tauri/tauri.conf.json src-tauri/Cargo.toml src-tauri/Cargo.lock
           git commit -m "Release v$NEXT"
           git push origin "release/v$NEXT"
-          url=$(gh pr create --base "$BASE" --head "release/v$NEXT" --title "Release v$NEXT" --body "Bumps the version $CURRENT → $NEXT.
+          body="Bumps the version $CURRENT → $NEXT.
 
-          Merging this PR into \`main\` runs the Release workflow: \`npm run check\`, the NSIS installer build, the \`v$NEXT\` tag and a draft release.")
+          Merging this PR into \`main\` runs the Release workflow: \`npm run check\`, the NSIS installer build, the \`v$NEXT\` tag and a draft release."
+          if ! url=$(gh pr create --base "$BASE" --head "release/v$NEXT" --title "Release v$NEXT" --body "$body"); then
+            # Remove the branch again so that a rerun is not stopped by the "branch already exists" check.
+            git push origin --delete "release/v$NEXT" || true
+            echo "::error::Could not open the PR, so release/v$NEXT was deleted again. If the error says GitHub Actions is not permitted to create pull requests, turn on Settings → Actions → General → \"Allow GitHub Actions to create and approve pull requests\" and run this workflow again."
+            exit 1
+          fi
           echo "PR: $url" >> "$GITHUB_STEP_SUMMARY"
