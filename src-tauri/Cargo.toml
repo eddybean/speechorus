@@ -1,6 +1,6 @@
 [package]
 name = "speechorus"
-version = "0.1.3"
+version = "0.1.4"
 description = "Japanese TTS studio GUI for speech.cpp"
 edition = "2021"
 license = "PolyForm-Noncommercial-1.0.0"
