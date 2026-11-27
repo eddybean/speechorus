@@ -10,6 +10,8 @@
 A lightweight Japanese TTS studio (Tauri 2 + React) that uses [speech.cpp](https://github.com/nyosegawa/speech.cpp) as its engine.
 The main model is **Drama-3-Japanese** (`StudioYebisu-ship-it/Drama-3-Japanese-speech-cpp-gguf`). **Irodori-TTS** is also supported, and you can switch between them.
 
+![Speechorus main window: cast, script lines with emoji acting tags, the tag palette and the takes of the selected line](docs/images/main-window.png)
+
 - Script editor: cast per line, drag to reorder, multi-select, auto-split on paste, Undo/Redo, txt/csv import (`キャラ,テキスト`)
 - Highlighting of acting tags `[驚いて]` and `<|speaker:N|>`, and a tag palette (from TAG_LIST.md; the NSFW tags are hidden by default)
 - Takes: N per line, seeds (random / fixed / sequential), favorite (☆), select, re-generate with the same seed, warning when a take hits the length limit
