@@ -61,7 +61,10 @@ pub fn extract(zip: &Path, dest: &Path) -> Result<PathBuf, String> {
     let mut exe = None;
     for i in 0..ar.len() {
         let mut entry = ar.by_index(i).map_err(|e| e.to_string())?;
-        let Some(rel) = entry.enclosed_name() else { return Err(format!("unsafe path in zip: {}", entry.name())) };
+        let Some(rel) = entry.enclosed_name() else {
+            let name = entry.name().map(|n| n.into_owned()).unwrap_or_else(|e| e.to_string());
+            return Err(format!("unsafe path in zip: {name}"));
+        };
         let out = dest.join(rel);
         if entry.is_dir() {
             std::fs::create_dir_all(&out).map_err(|e| e.to_string())?;
