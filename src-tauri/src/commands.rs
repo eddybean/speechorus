@@ -291,13 +291,11 @@ pub fn project_save(
     from_takes_dir: Option<String>,
     keep: Option<Vec<String>>,
 ) -> R<String> {
-    let dir = project::save_project(
-        Path::new(&path),
-        &project,
-        from_takes_dir.as_deref().map(Path::new),
-        keep.as_deref().unwrap_or_default(),
-    )
-    .map_err(e)?;
+    let from = from_takes_dir.as_deref().map(Path::new);
+    // A folder a job still writes into is copied, not moved (D-49).
+    let can_move = from.is_none_or(|f| !st.queue.uses_dir(f));
+    let dir = project::save_project(Path::new(&path), &project, from, keep.as_deref().unwrap_or_default(), can_move)
+        .map_err(e)?;
     allow_dir(&app, &dir);
     // The takes now live beside the project; an untitled project's work folder is no longer needed.
     if let Some(from) = from_takes_dir {

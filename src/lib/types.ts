@@ -55,7 +55,11 @@ export interface ExportSettings {
 
 export interface Project {
   version: number;
+  /** Matches the takes folder's marker file; the core sets it on save (D-49). */
+  id: string;
   name: string;
+  /** The takes folder's name beside the `.vsproj` when it was last saved; the core sets it (D-49). */
+  takesDir: string;
   modelProfileId: string | null;
   cast: Cast[];
   lines: Line[];
