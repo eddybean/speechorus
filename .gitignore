@@ -7,3 +7,13 @@ src-tauri/gen/
 *.log
 .vite/
 *.tsbuildinfo
+
+# Secrets and local-only settings (never commit)
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.pfx
+*.p12
+.claude/settings.local.json
