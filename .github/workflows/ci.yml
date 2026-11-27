@@ -72,6 +72,8 @@ jobs:
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
           workspaces: src-tauri
+          # Shared with release.yml, which restores this cache for its `npm run check` (D-55).
+          shared-key: windows-nodebug
 
       # `--locked` on clippy and test fails if Cargo.lock does not match Cargo.toml instead of re-resolving it.
       - run: cargo fmt --manifest-path src-tauri/Cargo.toml --check
