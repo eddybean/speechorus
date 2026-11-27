@@ -30,7 +30,7 @@ The main model is **Drama-3-Japanese** (`StudioYebisu-ship-it/Drama-3-Japanese-s
    Get-FileHash .\Speechorus_X.Y.Z_x64-setup.exe -Algorithm SHA256
    ```
 3. Run the installer. It is not code-signed, so Windows SmartScreen may warn you: choose "More info", then "Run anyway".
-4. Start Speechorus and open the model management dialog. Download `speech.exe` and a model from there (or point a profile at files you already have).
+4. Start Speechorus and press モデル in the left rail. Download `speech.exe` and a model from there (or point a profile at files you already have).
 
 To update, run the installer of the newer version over the current one. Your settings, voice library and projects are kept.
 
@@ -41,7 +41,7 @@ To update, run the installer of the newer version over the current one. Your set
 - Drama-3-Japanese Q4_K/Q5_K: **Vulkan only** (`GGML_VK_DISABLE_F16/COOPMAT/COOPMAT2=1`, set on profiles by default). CUDA is not supported. Plan for about 23.5 GiB of VRAM.
 - Keep `.gguf.json` next to the `.gguf` file
 
-The app does not ship any GGUF files. Enter their paths in the model management dialog.
+The app does not ship any GGUF files. Enter their paths on the モデル screen (left rail).
 
 ## Development
 

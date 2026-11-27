@@ -1,6 +1,8 @@
-// The left rail: panels and dialogs opened now and then, with the engine and settings at the bottom.
+// The left rail: the screens of the main pane (台本, ボイス, モデル; D-54) and the cast panel toggle, with the engine
+// and settings at the bottom.
 import { chosenProfile, useApp } from "../store/app";
 import type { EngineState, ModelProfile } from "../lib/types";
+import type { View } from "../store/app";
 import { Menu, MenuHeading, MenuItem } from "./Menu";
 import { Icon } from "./icons";
 
@@ -11,31 +13,44 @@ const stateLabel: Record<EngineState["state"], string> = {
   stopped: "停止中",
 };
 
+const screens: { view: View; icon: string; label: string }[] = [
+  { view: "script", icon: "script", label: "台本" },
+  { view: "voices", icon: "voice", label: "ボイス" },
+  { view: "models", icon: "chip", label: "モデル" },
+];
+
 export function Rail() {
   const castOpen = useApp((s) => s.castOpen);
+  const view = useApp((s) => s.view);
   const engine = useApp((s) => s.engine);
   const app = useApp.getState;
+  const castShown = castOpen && view === "script";
   return (
-    <nav className="rail" aria-label="パネルと画面">
+    <nav className="rail" aria-label="画面とパネル">
       <span className="logo" aria-hidden="true">
         S
       </span>
       <div className="rail-group">
+        {screens.map((s) => (
+          <button
+            key={s.view}
+            className="rail-item screen"
+            aria-current={view === s.view ? "page" : undefined}
+            onClick={() => app().setView(s.view)}
+          >
+            <Icon name={s.icon} size={18} />
+            {s.label}
+          </button>
+        ))}
+        <hr className="rail-sep" />
         <button
-          className={`rail-item${castOpen ? " on" : ""}`}
-          aria-pressed={castOpen}
+          className={`rail-item${castShown ? " on" : ""}`}
+          aria-pressed={castShown}
+          title={view === "script" ? "キャストパネルの表示/非表示" : "台本に戻ってキャストパネルを表示"}
           onClick={() => app().toggleCast()}
         >
           <Icon name="users" size={18} />
           キャスト
-        </button>
-        <button className="rail-item" onClick={() => app().openDialog("voices")}>
-          <Icon name="voice" size={18} />
-          ボイス
-        </button>
-        <button className="rail-item" onClick={() => app().openDialog("models")}>
-          <Icon name="chip" size={18} />
-          モデル
         </button>
       </div>
       <div className="rail-group">
@@ -144,7 +159,7 @@ function EnginePanel({ close }: { close: () => void }) {
         icon="chip"
         onSelect={() => {
           close();
-          app().openDialog("models");
+          app().setView("models");
         }}
       >
         モデル管理…

@@ -4,7 +4,7 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { ipc } from "../../lib/ipc";
 import type { Json, ModelProfile } from "../../lib/types";
 import { useApp } from "../../store/app";
-import { Dialog } from "../../app/Dialog";
+import { Page } from "../../app/Page";
 import { uid } from "../../lib/text";
 
 type Devices = Awaited<ReturnType<typeof ipc.listDevices>>["devices"];
@@ -16,6 +16,8 @@ export function ModelManager() {
   const settings = useApp((s) => s.settings)!;
   const adapters = useApp((s) => s.adapters);
   const engine = useApp((s) => s.engine);
+  // The page stays mounted while hidden, so free VRAM is read again each time it is shown.
+  const shown = useApp((s) => s.view === "models");
   const [sel, setSel] = useState(settings.activeProfileId ?? settings.profiles[0]?.id ?? "");
   const [devices, setDevices] = useState<Devices>([]);
   const [catalog, setCatalog] = useState<Catalog>([]);
@@ -24,14 +26,21 @@ export function ModelManager() {
   );
   const [version, setVersion] = useState("");
   const app = useApp.getState;
-  const prof = settings.profiles.find((p) => p.id === sel);
+  // The chosen profile may be gone (deleted from elsewhere while the page was hidden): fall back to the active one.
+  const prof =
+    settings.profiles.find((p) => p.id === sel) ??
+    settings.profiles.find((p) => p.id === settings.activeProfileId) ??
+    settings.profiles[0];
   const adapter = adapters.find((a) => a.id === prof?.adapter);
 
   useEffect(() => {
+    if (!shown) return;
     ipc
       .listDevices()
       .then((d) => setDevices(d.devices))
       .catch(() => setDevices([]));
+  }, [settings.speechExe, shown]);
+  useEffect(() => {
     ipc
       .modelCatalog()
       .then((c) => setCatalog(c.models.filter((m) => m.task === "synthesis")))
@@ -71,7 +80,7 @@ export function ModelManager() {
   const need = check && typeof check !== "string" ? Number(check.info.file_bytes ?? 0) : 0;
 
   return (
-    <Dialog title="モデル管理" onClose={() => app().openDialog(null)} wide>
+    <Page title="モデル管理">
       <div className="models">
         <div className="profile-list">
           {settings.profiles.map((p) => (
@@ -279,7 +288,7 @@ export function ModelManager() {
           </div>
         )}
       </div>
-    </Dialog>
+    </Page>
   );
 }
 

@@ -449,10 +449,36 @@ button.primary {
   color: var(--fg);
   background: var(--sel);
 }
-.rail-item.on,
-.rail-item[aria-expanded="true"] {
+.rail-item[aria-expanded="true"],
+.rail-item.screen[aria-current="page"] {
   background: var(--active);
   color: var(--fg);
+}
+/* The screen on show is marked by a bar at the rail's edge; a panel toggle that is on only lights its icon. */
+.rail-item.screen {
+  position: relative;
+}
+.rail-item.screen[aria-current="page"]::before {
+  content: "";
+  position: absolute;
+  left: -5px;
+  top: 8px;
+  bottom: 8px;
+  width: 3px;
+  border-radius: 2px;
+  background: var(--accent);
+}
+.rail-item.on {
+  color: var(--fg);
+}
+.rail-item.on svg {
+  color: var(--accent);
+}
+.rail-sep {
+  width: 32px;
+  margin: 4px auto;
+  border: 0;
+  border-top: 1px solid var(--line);
 }
 .rail-item .dot {
   width: 9px;
@@ -527,6 +553,29 @@ button.primary {
 }
 .main.no-cast {
   grid-template-columns: 1fr 340px;
+}
+.main[hidden],
+.page-host[hidden] {
+  display: none;
+}
+/* A screen of the main pane (D-54): its own scroll, content kept to a readable width. */
+.page-host {
+  min-height: 0;
+  overflow-y: auto;
+  background: var(--panel);
+}
+.page {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 14px 24px 24px;
+}
+.page > header h2 {
+  font-size: 18px;
+  margin: 0 0 8px;
+}
+.page-body > label {
+  display: block;
+  margin: 6px 0;
 }
 .cast,
 .inspector {

@@ -207,7 +207,7 @@ Requests: (1) a way to stop playback, (2) choosing a Drama-3 voice by text promp
 - **User impact**: Each candidate costs about 1 s of ASR.
 
 ### D-35 Debug hook for E2E 【追加】
-- **What**: A window event `vs-add-refs` adds reference audio to the voice library dialog by path. This exists because the native file dialog cannot be driven from a script. It is the same kind of debug handle as `window.__speechorus`.
+- **What**: A window event `vs-add-refs` adds reference audio to the voice library by path (since D-54, once the ボイス screen has been opened). This exists because the native file dialog cannot be driven from a script. It is the same kind of debug handle as `window.__speechorus`.
 - **User impact**: None.
 
 ### D-36 The app is renamed from Voice Studio to Speechorus 【仕様（ユーザー決定）】
@@ -247,7 +247,7 @@ Requests: (1) a way to stop playback, (2) choosing a Drama-3 voice by text promp
   - **Top bar** (`TopBar.tsx`, which replaces `Toolbar.tsx`): it holds only the ファイル menu, the project name with an unsaved mark, a 生成 split button, 連続再生/停止 and 書き出し.
     - The ファイル menu holds new/open/save/save as/import, plus undo/redo under 編集.
     - The ▾ of the 生成 button holds 未生成/全行 and the takes-per-line and seed settings.
-  - **Left rail** (`Rail.tsx`): キャスト shows or hides the cast panel, ボイス opens the voice library (the button left the cast panel), and モデル opens the model manager. At the bottom are エンジン and 設定.
+  - **Left rail** (`Rail.tsx`; ボイス and モデル became screens in D-54): キャスト shows or hides the cast panel, ボイス opens the voice library (the button left the cast panel), and モデル opens the model manager. At the bottom are エンジン and 設定.
     - The エンジン panel holds profile choice, start/switch/stop, モデルを入手 and モデル管理.
     - When the chosen profile has no model (as on a first run), the panel's main button is モデルを入手… instead of 起動/切替, which would only fail, and the status bar says 「<profile> のモデルが未設定です」 with a モデルを入手… button. This replaces the old toolbar's highlighted ⤓ モデルを入手; nothing is shown once a model is set.
   - **Selection bar** (`SelectionBar.tsx`): it appears above the script when 2+ lines are selected, with 生成, シーンにまとめる, コピー, 複製, 削除 and clear.
@@ -329,7 +329,7 @@ Requests: (1) a way to stop playback, (2) choosing a Drama-3 voice by text promp
 ### D-46 One playback volume slider in the top bar, up to 200% 【追加（ユーザー要望）】
 - **What**: A volume control sits in the top bar, right of 連続再生/停止: a speaker button (mute / unmute) and a 0–200% slider with a mark at 100%. The mouse wheel over it steps 5%, and a double-click goes back to 100%. All playback goes through the one `<audio>` element in `src/lib/player.ts`, so it covers lines, takes, scenes, the voice library, voice design and the trimmer. The element's own `volume` stops at 1, so the element plays through Web Audio (element → GainNode → speakers, with `crossOrigin = "anonymous"`; the asset protocol answers with `Access-Control-Allow-Origin`). Up to 100% the slider position is squared for the gain, so equal steps sound about equal; above it the gain rises in a straight line to 2× (+6 dB) at 200%. Above 100% a limiter (DynamicsCompressor, threshold −1 dBFS, ratio 20) is put in the path so boosted peaks do not clip; at 100% and below it is taken out, because its make-up gain would change the level slightly. The level and mute are saved in `settings.json` (`playbackVolume`, 0.0–2.0, default 1.0, and `playbackMuted`), written 400 ms after the slider stops moving. Unmuting at 0% brings the level back to 50%.
 - **Why**: The user wanted one place to set the volume, reachable at once from the main screen. Of the placements offered (beside the transport buttons, a speaker popover, the status bar), they chose the one beside the transport buttons. They then asked for more than 100%, up to 200%.
-- **Not done**: The control is not reachable while a dialog covers the window (the voice library, for example); the level set before opening it still applies there. There is no keyboard shortcut. Where Web Audio is missing (not the case in WebView2), the volume tops out at 100%.
+- **Not done**: The control is not reachable while a dialog covers the window (export or settings; the voice library is a screen since D-54); the level set before opening it still applies there. There is no keyboard shortcut. Where Web Audio is missing (not the case in WebView2), the volume tops out at 100%.
 - **User impact**: Only what you hear in the app changes. Exported files keep the take's own level, so a take that needs 200% to sound right in the app is still quiet when exported. Above 100% the limiter flattens the loudest peaks.
 
 ### D-47 最近使ったファイル as a submenu of the ファイル menu 【追加（ユーザー要望）】
@@ -391,3 +391,12 @@ Requests: (1) a way to stop playback, (2) choosing a Drama-3 voice by text promp
   - A Dependabot PR can still pull a transitive crate or package younger than 7 days into a lock file; `deps:check` fails such a PR, and `deps:update` or a later run fixes it. Security updates do not wait for the cooldown.
   - The `release.yml` and `bump.yml` changes have not been run on GitHub; try them at the next release.
 - **User impact**: None to the app. Developers need uv for `lint:actions` and `cargo install cargo-deny --locked --version ~0.21` for `deps:deny`.
+
+### D-54 ボイス and モデル are screens of the main pane, not dialogs 【仕様（ユーザー決定）】
+- **What**: Supersedes the rail of D-37 in part.
+  - **Rail** (`Rail.tsx`): the top group is now 台本, ボイス and モデル, which switch the main pane (`view` in `src/store/app.ts`). The screen on show is marked with `aria-current="page"` and a jade bar at the rail's edge. Below a separator, キャスト stays a toggle for the cast panel (`aria-pressed`; when on, only its icon is lit). Pressed on another screen, it goes back to the script with the panel shown. エンジン's モデル管理… now opens the モデル screen.
+  - **Screens**: the voice library and the model manager are `Page`s (`src/app/Page.tsx`): a title and the content, scrolled on their own, with no close button. Each is mounted on its first visit and then kept hidden, so references being trimmed and transcribed, a voice being designed, or the profile chosen in the model manager survive going back to the script. The model manager reads the devices (free VRAM) again each time it is shown.
+  - **Still dialogs**: 設定, 書き出し and モデルを入手 (the catalog, which now opens over the モデル screen and returns to it when closed).
+  - **Shortcuts**: Ctrl/⌘+S and O and Space (play) work on every screen. The line shortcuts (undo/redo, copy/cut/paste lines, duplicate, Delete, Ctrl/⌘+Enter, Esc to clear the selection) work only while the script is on screen, so they cannot change lines the user cannot see.
+- **Why**: The user found the modals out of place for a sidebar. Navigation rails (Material 3 Navigation Rail, Apple HIG sidebars, VS Code, Slack, Teams) switch between top-level destinations. A modal also suits short tasks, not a work area like the voice library, and Esc or a click on the backdrop threw away the references being prepared. Settings stays a dialog: it is small, and apps differ there (Slack and Notion use a modal).
+- **User impact**: Opening ボイス or モデル replaces the script instead of covering it; press 台本 to go back. The top bar, the status bar (queue) and the volume control stay usable there. Work in progress on those screens is no longer lost by Esc.

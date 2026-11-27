@@ -28,6 +28,9 @@ export interface Notice {
   text: string;
 }
 
+/** The screens of the main pane. */
+export type View = "script" | "voices" | "models";
+
 interface AppStore {
   ready: boolean;
   settings: AppSettings | null;
@@ -47,9 +50,14 @@ interface AppStore {
   voices: Voice[];
   batch: BatchSettings;
   notices: Notice[];
-  dialog: null | "models" | "voices" | "export" | "settings" | "catalog";
+  /** A modal dialog over the window. */
+  dialog: null | "export" | "settings" | "catalog";
+  /** The screen in the main pane, chosen from the left rail (D-54). */
+  view: View;
+  setView: (v: View) => void;
   /** Whether the cast panel beside the script is shown. */
   castOpen: boolean;
+  /** Shows or hides the cast panel; from another screen it goes back to the script with the panel shown. */
   toggleCast: () => void;
 
   init: () => Promise<void>;
@@ -113,8 +121,10 @@ export const useApp = create<AppStore>()((set, get) => ({
   batch: { takesPerLine: 1, seedMode: "random", baseSeed: 1 },
   notices: [],
   dialog: null,
+  view: "script",
+  setView: (view) => set({ view }),
   castOpen: true,
-  toggleCast: () => set((s) => ({ castOpen: !s.castOpen })),
+  toggleCast: () => set((s) => (s.view === "script" ? { castOpen: !s.castOpen } : { view: "script", castOpen: true })),
 
   init: () =>
     (starting ??= (async () => {

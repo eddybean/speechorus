@@ -5,7 +5,7 @@ import { ipc } from "../../lib/ipc";
 import { PlayButton } from "../../app/PlayButton";
 import type { Voice } from "../../lib/types";
 import { useApp } from "../../store/app";
-import { Dialog } from "../../app/Dialog";
+import { Page } from "../../app/Page";
 import { WaveformTrimmer } from "./WaveformTrimmer";
 import { VoiceDesigner } from "./VoiceDesigner";
 
@@ -120,7 +120,7 @@ export function VoiceLibrary() {
 
   const canCreate = refs.length > 0 && !creating && refs.every((r) => !r.busy && (!needsText || r.transcript.trim()));
   return (
-    <Dialog title="ボイスライブラリ" onClose={() => app().openDialog(null)} wide>
+    <Page title="ボイスライブラリ">
       <section>
         <h3>新しいボイス（{adapter?.displayName ?? "-"} 用）</h3>
         <p className="muted">
@@ -229,7 +229,7 @@ export function VoiceLibrary() {
           </tbody>
         </table>
       </section>
-    </Dialog>
+    </Page>
   );
 }
 
