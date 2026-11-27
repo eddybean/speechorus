@@ -4,6 +4,7 @@ import { useProject } from "../store/project";
 import { TopBar } from "./TopBar";
 import { Rail } from "./Rail";
 import { StatusBar } from "./StatusBar";
+import { ContextMenu } from "./ContextMenu";
 import { ScriptEditor } from "../features/script/ScriptEditor";
 import { CastPanel } from "../features/cast/CastPanel";
 import { Inspector } from "../features/takes/Inspector";
@@ -116,6 +117,7 @@ export function App() {
       {dialog === "export" && <ExportDialog />}
       {dialog === "settings" && <SettingsDialog />}
       {dialog === "catalog" && <CatalogDialog />}
+      <ContextMenu />
     </div>
   );
 }

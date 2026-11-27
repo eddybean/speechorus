@@ -66,6 +66,19 @@ body,
     "Meiryo",
     system-ui,
     sans-serif;
+  /* An app, not a page: dragging across the UI selects nothing (D-48). Text fields and the spots below opt back in. */
+  user-select: none;
+  -webkit-user-select: none;
+}
+input,
+textarea,
+[contenteditable],
+.cm-editor,
+.selectable,
+pre.log,
+.path {
+  user-select: text;
+  -webkit-user-select: text;
 }
 button,
 input,
@@ -256,6 +269,11 @@ button.primary {
   box-shadow: var(--shadow);
   font-weight: 400;
   color: var(--fg);
+}
+.popover.context-menu {
+  position: fixed;
+  z-index: 60;
+  min-width: 220px;
 }
 .popover.below {
   top: calc(100% + 6px);
