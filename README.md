@@ -44,7 +44,7 @@ There is no CI. Run `npm run check` before you push. The pre-commit hook formats
 E2E tests against the real engine (only when the environment variables are set):
 
 ```sh
-VS_SPEECH_EXE=.engine/speech.exe VS_DRAMA_MODEL=E:/models/Drama-35B-A3B-Japanese-v3-Q4_K.gguf VS_IRODORI_MODEL=irodori-tts-mf \
+VS_SPEECH_EXE=.engine/speech.exe VS_DRAMA_MODEL=path/to/Drama-35B-A3B-Japanese-v3-Q4_K.gguf VS_IRODORI_MODEL=irodori-tts-mf \
   cargo test --manifest-path src-tauri/Cargo.toml --test real_engine -- --nocapture
 ```
 
