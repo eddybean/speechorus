@@ -2,6 +2,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { TopBar } from "./TopBar";
 import { useProject } from "../store/project";
+import { useApp } from "../store/app";
+import type { AppSettings } from "../lib/types";
 
 vi.mock("../features/generate/actions", async (orig) => ({
   ...(await orig<typeof import("../features/generate/actions")>()),
@@ -69,5 +71,72 @@ describe("TopBar", () => {
     useProject.setState({ dirty: true });
     render(<TopBar />);
     expect(screen.getByText("未保存")).toBeTruthy();
+  });
+
+  describe("volume", () => {
+    const settings = {
+      theme: "dark",
+      profiles: [],
+      recentTags: [],
+      recentProjects: [],
+      playbackVolume: 0.8,
+      playbackMuted: false,
+    } as unknown as AppSettings;
+    const st = () => useApp.getState().settings!;
+
+    beforeEach(() => useApp.setState({ settings }));
+
+    it("sets the volume from the slider and unmutes", () => {
+      useApp.setState({ settings: { ...settings, playbackMuted: true } });
+      render(<TopBar />);
+      const slider = screen.getByRole("slider", { name: "再生音量" }) as HTMLInputElement;
+      expect(slider.value).toBe("80");
+      fireEvent.change(slider, { target: { value: "35" } });
+      expect(st().playbackVolume).toBe(0.35);
+      expect(st().playbackMuted).toBe(false);
+    });
+
+    it("mutes and unmutes from the speaker button, keeping the level", () => {
+      render(<TopBar />);
+      fireEvent.click(screen.getByRole("button", { name: "ミュート" }));
+      expect(st().playbackMuted).toBe(true);
+      expect(st().playbackVolume).toBe(0.8);
+      fireEvent.click(screen.getByRole("button", { name: "ミュート解除" }));
+      expect(st().playbackMuted).toBe(false);
+    });
+
+    it("brings a volume of 0 back to half when unmuting", () => {
+      useApp.setState({ settings: { ...settings, playbackVolume: 0 } });
+      render(<TopBar />);
+      fireEvent.click(screen.getByRole("button", { name: "ミュート解除" }));
+      expect(st().playbackVolume).toBe(0.5);
+    });
+
+    it("steps by 5% with the wheel, within 0 to 200%", () => {
+      useApp.setState({ settings: { ...settings, playbackVolume: 1.98 } });
+      render(<TopBar />);
+      const slider = screen.getByRole("slider", { name: "再生音量" });
+      fireEvent.wheel(slider, { deltaY: -100 });
+      expect(st().playbackVolume).toBe(2);
+      fireEvent.wheel(slider, { deltaY: 100 });
+      fireEvent.wheel(slider, { deltaY: 100 });
+      expect(st().playbackVolume).toBe(1.9);
+    });
+
+    it("goes up to 200% and back to 100% on double-click", () => {
+      render(<TopBar />);
+      const slider = screen.getByRole("slider", { name: "再生音量" }) as HTMLInputElement;
+      expect(slider.max).toBe("200");
+      fireEvent.change(slider, { target: { value: "170" } });
+      expect(st().playbackVolume).toBe(1.7);
+      fireEvent.doubleClick(slider);
+      expect(st().playbackVolume).toBe(1);
+    });
+
+    it("is disabled until the settings are loaded", () => {
+      useApp.setState({ settings: null });
+      render(<TopBar />);
+      expect((screen.getByRole("slider", { name: "再生音量" }) as HTMLInputElement).disabled).toBe(true);
+    });
   });
 });

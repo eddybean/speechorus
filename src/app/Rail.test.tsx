@@ -26,6 +26,8 @@ const settings = (active: string, p1Model = "/m.gguf"): AppSettings => ({
   theme: "dark",
   recentTags: [],
   recentProjects: [],
+  playbackVolume: 1,
+  playbackMuted: false,
 });
 
 const startEngine = vi.fn(async () => {});

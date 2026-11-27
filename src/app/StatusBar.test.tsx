@@ -28,6 +28,8 @@ const settings: AppSettings = {
   theme: "dark",
   recentTags: [],
   recentProjects: [],
+  playbackVolume: 1,
+  playbackMuted: false,
 };
 
 describe("formatEta", () => {

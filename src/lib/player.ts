@@ -31,14 +31,95 @@ interface PlayerState {
   toggle: (sessionKey: string, items: () => PlayItem[]) => void;
 }
 
+/** The highest slider position: 200%. */
+export const MAX_VOLUME = 2;
+
 let audio: HTMLAudioElement | null = null;
+let gain = 1;
+
+/**
+ * Above 100% the element's own `volume` (at most 1) is not enough, so the element plays through Web Audio:
+ * element → gain → (limiter, only while boosting) → speakers. Without Web Audio the volume tops out at 100%.
+ */
+interface Graph {
+  ctx: AudioContext;
+  gain: GainNode;
+  limiter: DynamicsCompressorNode;
+  limiting: boolean;
+}
+let graph: Graph | null = null;
 
 function el(): HTMLAudioElement {
   if (!audio) {
     audio = new Audio();
     audio.preload = "auto";
+    graph = connectGraph(audio);
+    applyGain();
   }
   return audio;
+}
+
+function connectGraph(a: HTMLAudioElement): Graph | null {
+  const Ctx = globalThis.AudioContext;
+  if (!Ctx) return null;
+  try {
+    // The asset protocol answers with Access-Control-Allow-Origin, so the samples are readable (not muted).
+    a.crossOrigin = "anonymous";
+    const ctx = new Ctx();
+    const g = ctx.createGain();
+    // A hard limiter just under full scale: it touches only the peaks that boosting would clip.
+    const limiter = ctx.createDynamicsCompressor();
+    limiter.threshold.value = -1;
+    limiter.knee.value = 0;
+    limiter.ratio.value = 20;
+    limiter.attack.value = 0.002;
+    limiter.release.value = 0.1;
+    ctx.createMediaElementSource(a).connect(g);
+    g.connect(ctx.destination);
+    limiter.connect(ctx.destination);
+    return { ctx, gain: g, limiter, limiting: false };
+  } catch {
+    a.removeAttribute("crossorigin");
+    return null;
+  }
+}
+
+function applyGain() {
+  if (!audio) return;
+  if (!graph) {
+    audio.volume = Math.min(1, gain);
+    return;
+  }
+  audio.volume = 1;
+  graph.gain.gain.value = gain;
+  // The limiter (with its small make-up gain) stays out of the path at 100% and below.
+  const limit = gain > 1;
+  if (limit !== graph.limiting) {
+    graph.gain.disconnect();
+    graph.gain.connect(limit ? graph.limiter : graph.ctx.destination);
+    graph.limiting = limit;
+  }
+}
+
+/** A context made outside a click starts suspended: wake it when playback starts. */
+function wake() {
+  if (graph?.ctx.state === "suspended") void graph.ctx.resume();
+}
+
+/**
+ * The gain for a slider position (0 to MAX_VOLUME). Up to 100% it is squared, so that equal slider steps sound
+ * like equal steps; above it rises in a straight line to 2× (+6 dB) at 200%.
+ */
+export function volumeGain(volume: number, muted: boolean): number {
+  if (muted) return 0;
+  const v = Number.isFinite(volume) ? Math.min(MAX_VOLUME, Math.max(0, volume)) : 1;
+  return v <= 1 ? v * v : v;
+}
+
+/** Sets the volume of all playback (the one element), at once and for what plays next. */
+export function setOutputVolume(volume: number, muted: boolean) {
+  gain = volumeGain(volume, muted);
+  applyGain();
 }
 
 /** Where the current session is: playing item `index`, or waiting `remaining` ms before calling `then`. */
@@ -113,6 +194,7 @@ export const usePlayer = create<PlayerState>()((set, get) => {
     };
     a.src = fileUrl(it.path);
     watchRange(it.end, () => my === run && afterItem(i));
+    wake();
     void a.play().catch(() => my === run && afterItem(i));
   };
 
@@ -152,6 +234,7 @@ export const usePlayer = create<PlayerState>()((set, get) => {
       const i = phase.index;
       const my = run;
       watchRange(items[i].end, () => my === run && afterItem(i));
+      wake();
       void el()
         .play()
         .catch(() => my === run && afterItem(i));

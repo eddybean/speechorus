@@ -13,6 +13,7 @@ import type {
 } from "../lib/types";
 import type { BatchSettings } from "../features/generate/jobs";
 import { useProject } from "./project";
+import { MAX_VOLUME, setOutputVolume } from "../lib/player";
 
 export interface JobInfo {
   lineId: string | null;
@@ -53,6 +54,8 @@ interface AppStore {
 
   init: () => Promise<void>;
   saveSettings: (s: AppSettings) => Promise<void>;
+  /** Changes the playback volume or mute at once; writing settings.json waits until the slider rests. */
+  setPlayback: (p: { volume?: number; muted?: boolean }) => void;
   activeProfile: () => ModelProfile | undefined;
   activeAdapter: () => AdapterDescriptor | undefined;
   refreshVoices: () => Promise<void>;
@@ -72,6 +75,8 @@ let unlisten: (() => void) | null = null;
 // StrictMode runs the mount effect twice: both calls must share one start, or each registers a listener
 // and every event (a finished take among them) is handled twice.
 let starting: Promise<void> | null = null;
+let playbackSave: ReturnType<typeof setTimeout> | null = null;
+export const PLAYBACK_SAVE_MS = 400;
 
 export const useApp = create<AppStore>()((set, get) => ({
   ready: false,
@@ -217,6 +222,22 @@ export const useApp = create<AppStore>()((set, get) => ({
     document.documentElement.dataset.theme = s.theme;
     await ipc.saveSettings(s);
   },
+  setPlayback: ({ volume, muted }) => {
+    const s = get().settings;
+    if (!s) return;
+    const next = {
+      ...s,
+      ...(volume !== undefined && { playbackVolume: Math.min(MAX_VOLUME, Math.max(0, volume)) }),
+      ...(muted !== undefined && { playbackMuted: muted }),
+    };
+    set({ settings: next });
+    if (playbackSave) clearTimeout(playbackSave);
+    playbackSave = setTimeout(() => {
+      playbackSave = null;
+      const latest = get().settings;
+      if (latest && inTauri) void ipc.saveSettings(latest);
+    }, PLAYBACK_SAVE_MS);
+  },
   activeProfile: () => {
     const s = get().settings;
     const eng = get().engine;
@@ -273,6 +294,11 @@ export const useApp = create<AppStore>()((set, get) => ({
 export function chosenProfile(settings: AppSettings | null | undefined): ModelProfile | undefined {
   return settings?.profiles.find((p) => p.id === settings.activeProfileId) ?? settings?.profiles[0];
 }
+
+// All playback follows the volume in the settings, whichever way they change (load, slider, a reload from Rust).
+useApp.subscribe((s, prev) => {
+  if (s.settings && s.settings !== prev.settings) setOutputVolume(s.settings.playbackVolume, s.settings.playbackMuted);
+});
 
 /** Seconds until the queue is empty: the mean of the recent jobs × the jobs left, minus the running one's time so far. */
 export function queueEta(
