@@ -1,0 +1,16 @@
+{
+  "$schema": "./node_modules/oxfmt/configuration_schema.json",
+  "printWidth": 120,
+  "trailingComma": "all",
+  "sortPackageJson": false,
+  "ignorePatterns": [
+    "dist/",
+    "node_modules/",
+    "src-tauri/target/",
+    "src-tauri/gen/",
+    ".engine/",
+    "package-lock.json",
+    "src-tauri/Cargo.lock",
+    "*.md"
+  ]
+}

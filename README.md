@@ -45,9 +45,9 @@ npm install                # also installs the pre-commit hook (husky + lint-sta
 npm run tauri dev          # development
 npm test                   # vitest
 npm run test:rust          # cargo test (mock worker)
-npm run lint               # tsc + ESLint
+npm run lint               # tsc + Oxlint
 npm run lint:rust          # clippy (-D warnings)
-npm run format             # Prettier (format:check to check only)
+npm run format             # Oxfmt (format:check to check only)
 npm run format:rust        # rustfmt (format:rust:check to check only)
 npm run check              # every format check, lint and test above, in one go
 npm run deps:update        # update npm and Cargo dependencies (newest compatible, at least 7 days old)
@@ -55,7 +55,7 @@ npm run deps:check         # npm registry signatures and the release age of the 
 npx tauri build --no-bundle
 ```
 
-There is no CI. Run `npm run check` before you push. The pre-commit hook formats and lints only the staged files (ESLint `--fix`, Prettier, rustfmt); skip it with `git commit --no-verify` when you need to.
+There is no CI. Run `npm run check` before you push. The pre-commit hook formats and lints only the staged files (Oxlint `--fix`, Oxfmt, rustfmt); skip it with `git commit --no-verify` when you need to.
 
 Dependencies are held to versions published at least 7 days ago, and install scripts run only for packages approved in `package.json` `allowScripts` (`.npmrc`; needs npm 11.19+). Crates in `Cargo.lock` are checked the same way by `scripts/cargo-release-age.mjs`. See D-43 in `docs/deviations.md`.
 

@@ -15,8 +15,8 @@ npm test                     # vitest (jsdom, globals)
 npx vitest run src/lib/text.test.ts        # one test file
 npx vitest run -t "test name"              # by test name
 npm run typecheck            # tsc -b --noEmit
-npm run lint                 # typecheck + ESLint
-npm run format               # Prettier --write (format:check to check)
+npm run lint                 # typecheck + Oxlint
+npm run format               # Oxfmt (format:check to check)
 npm run test:rust            # cargo test, using the mock worker
 cargo test --manifest-path src-tauri/Cargo.toml <test_name>   # one Rust test
 npm run lint:rust            # clippy, all targets, -D warnings
@@ -27,7 +27,7 @@ npm run deps:check           # npm audit signatures + crate release-age check
 npx tauri build --no-bundle
 ```
 
-Tooling: Prettier (`printWidth` 120, `.prettierrc.json`; Markdown is not formatted), ESLint flat config (`eslint.config.js`: typescript-eslint recommended + the classic react-hooks rules, not the React Compiler ones), rustfmt (`src-tauri/rustfmt.toml`: `max_width` 120). The pre-commit hook runs ESLint `--fix`, Prettier and rustfmt on staged files, and the crate release-age check when `Cargo.lock` is staged.
+Tooling: Oxfmt (`.oxfmtrc.json`: `printWidth` 120, trailing commas, Prettier-compatible output, ignore list in `ignorePatterns`; Markdown is not formatted; D-45), Oxlint (`.oxlintrc.json`: the correctness category, the typescript-eslint recommended rules, and the classic react-hooks rules, not the React Compiler ones; ESLint was dropped so that TypeScript 7 can be used, D-45), rustfmt (`src-tauri/rustfmt.toml`: `max_width` 120). The pre-commit hook runs Oxlint `--fix`, Oxfmt and rustfmt on staged files, and the crate release-age check when `Cargo.lock` is staged.
 
 Supply chain (D-43): `.npmrc` sets `min-release-age=7`, `strict-allow-scripts` (approve a new install script with `npm approve-scripts <pkg>` after reading it) and `allow-git=none`; it needs npm 11.19+, which `devEngines` enforces. Cargo has no such setting, so `scripts/cargo-release-age.mjs` checks `Cargo.lock` against the index `pubtime` (`--fix` moves crates back). Workflow actions are pinned to commit SHAs (tag in a comment).
 
