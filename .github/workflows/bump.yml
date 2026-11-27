@@ -19,6 +19,7 @@ on:
 permissions:
   contents: write
   pull-requests: write
+  actions: write # to start ci.yml on the release branch (D-52)
 
 concurrency:
   group: bump
@@ -123,3 +124,11 @@ jobs:
             exit 1
           fi
           echo "PR: $url" >> "$GITHUB_STEP_SUMMARY"
+
+      # A PR opened with GITHUB_TOKEN does not trigger pull_request workflows, but workflow_dispatch does.
+      # The CI run on the branch head reports the checks that the main ruleset requires (D-52).
+      - name: Run CI on the release branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NEXT: ${{ steps.ver.outputs.next }}
+        run: gh workflow run ci.yml --ref "release/v$NEXT"
