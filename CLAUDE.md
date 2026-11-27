@@ -32,7 +32,7 @@ Tooling: Prettier (`printWidth` 120, `.prettierrc.json`; Markdown is not formatt
 E2E against the real engine (`src-tauri/tests/real_engine.rs`; each section is skipped when its env var is not set):
 
 ```sh
-VS_SPEECH_EXE=.engine/speech.exe VS_DRAMA_MODEL=E:/models/Drama-35B-A3B-Japanese-v3-Q4_K.gguf VS_IRODORI_MODEL=irodori-tts-mf \
+VS_SPEECH_EXE=.engine/speech.exe VS_DRAMA_MODEL=path/to/Drama-35B-A3B-Japanese-v3-Q4_K.gguf VS_IRODORI_MODEL=irodori-tts-mf \
   cargo test --manifest-path src-tauri/Cargo.toml --test real_engine -- --nocapture --test-threads=1
 ```
 

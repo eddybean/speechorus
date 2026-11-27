@@ -1,7 +1,7 @@
 # Speechorus: a GUI for speech.cpp (Drama-3-Japanese first, Irodori-TTS second)
 
 ## Context
-The goal is an easy-to-use Japanese TTS app built mainly around Drama-3-Japanese (`StudioYebisu-ship-it/Drama-3-Japanese-speech-cpp-gguf`). Model switching (Irodori-TTS and others) is part of the design from the start. `E:\Work\src\voice-studio` is empty and not a git repository, so this is a new build. This session only does research and planning. **Implementation and testing are handed to a separate new session.**
+The goal is an easy-to-use Japanese TTS app built mainly around Drama-3-Japanese (`StudioYebisu-ship-it/Drama-3-Japanese-speech-cpp-gguf`). Model switching (Irodori-TTS and others) is part of the design from the start. The repository started empty, so this is a new build. This plan covers research and design only; **implementation and testing were done afterwards in separate sessions.**
 
 ### Research findings (the basis for the decisions)
 - **TTS engine: use the existing speech.cpp as is** (https://github.com/nyosegawa/speech.cpp, MIT, v0.11.2+)
@@ -65,7 +65,7 @@ The goal is an easy-to-use Japanese TTS app built mainly around Drama-3-Japanese
    - Adding a model that is not on speech.cpp later means adding an `EngineBackend` trait (with `SpeechCppBackend` as its first implementation). In v1 only the trait boundary exists.
 2. **Talking to the engine: `speech worker` (JSON Lines), with `serve` as the fallback**
    - Reason: `serve` registers voices only at startup. Adding a voice would mean reloading a 20 GB model. The worker has messages such as `add_voice`.
-   - **First task for the implementation session:** read `docs/worker.md` (the fetch failed in this session) and confirm the request/response fields, `add_voice`, progress and cancel. If they are missing, use `serve` and restart it with `--add-voice` whenever a voice is added.
+   - **First task for implementation:** read `docs/worker.md` (it could not be fetched during planning) and confirm the request/response fields, `add_voice`, progress and cancel. If they are missing, use `serve` and restart it with `--add-voice` whenever a voice is added.
    - Only one engine process at a time. Switching models means stopping the current one, then starting the next. The UI shows the loading state.
    - Show the VRAM requirement and free VRAM up front (`speech devices --json`).
 3. **Keep memory low**
@@ -125,7 +125,7 @@ voice-studio/   (repository folder; the app was renamed to Speechorus, see D-36)
 ```
 Main dependencies: Tauri 2, React 18, TypeScript, Vite, zustand, CodeMirror 6, dnd-kit; Rust: tokio, serde, hound, thiserror.
 
-## Implementation order (the brief for the new session)
+## Implementation order
 1. `git init`, Tauri 2 + React scaffold, CI-equivalent lint/test setup.
 2. **Engine verification spike**:
    - Read the worker.md protocol.
