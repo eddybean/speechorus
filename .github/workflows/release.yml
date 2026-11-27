@@ -27,7 +27,7 @@ jobs:
       version: ${{ steps.ver.outputs.version }}
       release: ${{ steps.ver.outputs.release }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
@@ -78,15 +78,18 @@ jobs:
     env:
       VERSION: ${{ needs.gate.outputs.version }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
 
-      - uses: dtolnay/rust-toolchain@stable
+      # Pinned so that a new stable's clippy lints (run with -D warnings) cannot break a release.
+      # Keep it at the version used locally; raise it together with the local toolchain.
+      - uses: dtolnay/rust-toolchain@master
         with:
+          toolchain: 1.93.1
           components: clippy, rustfmt
 
       - uses: Swatinem/rust-cache@v2
