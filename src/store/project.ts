@@ -60,7 +60,9 @@ export function emptyProject(): Project {
   const narrator = newCast("ナレーター", 0);
   return {
     version: 1,
+    id: "",
     name: "untitled",
+    takesDir: "",
     modelProfileId: null,
     cast: [narrator],
     lines: [newLine({ castId: narrator.id })],
