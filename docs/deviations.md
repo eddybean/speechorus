@@ -360,3 +360,11 @@ Requests: (1) a way to stop playback, (2) choosing a Drama-3 voice by text promp
 - **Why**: The user asked for the usual PR checks once the repository was public, where standard GitHub-hosted runners cost no minutes. This replaces the "no CI, save minutes" policy that D-42 kept for the private repository.
 - **Not done**: The checks are not required by a branch protection rule or ruleset on `main` (a repository setting; add `Frontend …` and `Rust …` as required checks to block merging on a failure). The installer is not built in CI; `release.yml` still builds it.
 - **User impact**: None to the app.
+
+### D-51 A faster Rust CI job: the library is built as an `rlib` only 【修正（ユーザー要望）】
+- **What**:
+  - `src-tauri/Cargo.toml`: `crate-type = ["rlib"]` instead of Tauri's template `["staticlib", "cdylib", "rlib"]`. The other two types exist for iOS and Android; the Windows app links the `rlib` into `speechorus.exe` (`main.rs` calls `speechorus_lib::run()`), so nothing used them. Each debug build wrote an 868 MB `speechorus_lib.lib` and a DLL, and the release build ran LTO for all three. Locally, rebuilding the tests after a change to `lib.rs` went from 20 s to 14 s.
+  - `ci.yml` (Rust job): `CARGO_PROFILE_DEV_DEBUG=0` and `CARGO_PROFILE_TEST_DEBUG=0` (no debug info in CI: smaller artifacts and cache, faster links), and no separate `cargo fetch --locked` step (clippy and test already pass `--locked`; the step mostly unpacked crate sources, which the build now does instead).
+- **Why**: The user found the Rust job (about 5 min) slow. Most of those 5 min came from the first runs having no cache (about 1 min 50 s with a warm cache on `main`); these changes cut the rest.
+- **Measured** (Rust job, `windows-latest`): cold 5 min 0 s → 4 min 40 s; warm (cache hit) 110 s → 97 s. `cargo test` with a warm cache went from 30 s to 13 s and the cache from 601 MB to 431 MB. Clippy went from 9 s to 32 s because unpacking the crate sources (27 s in the old `cargo fetch` step) now happens there. What is left of the warm run is mostly fixed cost: about 25 s restoring the cache, about 20 s unpacking crates, 12 s installing the toolchain.
+- **User impact**: None to the app. Local debug builds no longer write the large `.lib` and DLL. Building for iOS or Android would need the two crate types back.
