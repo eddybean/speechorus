@@ -301,6 +301,12 @@ Requests: (1) a way to stop playback, (2) choosing a Drama-3 voice by text promp
   - **Scripts**: `npm run deps:update` (npm update, cargo update, then the Cargo age fix) and `npm run deps:check` (`npm audit signatures` and the Cargo age check).
   - **Workflows**: every action is pinned to a commit SHA (the tag in a comment), Node 24 with npm pinned to 11.19.1, and `release.yml` runs `cargo fetch --locked` and `npm run deps:check` before `npm run check`.
 - **Why**: The user asked for the newest non-breaking versions and for protection against supply-chain attacks such as a hijacked package version (most are found and unpublished within days), install-script malware, or a moved action tag.
-- **Not done**: Major updates are left out as breaking: React 19, Vite 7/8, Vitest 4/5, TypeScript 6/7, `@vitejs/plugin-react` 5/6, and on the Rust side `ureq` 3, `zip` 3+, `sha2` 0.11. `npm audit` reports advisories in Vitest 3's `@vitest/mocker` and `tinypool` (dev only, the test runner; the fix needs Vitest 4.1.11+). The workflow changes have not been run on GitHub yet.
+- **Not done**: Major updates are left out as breaking: React 19, Vite 7/8, Vitest 4/5, TypeScript 6/7, `@vitejs/plugin-react` 5/6, and on the Rust side `ureq` 3, `zip` 3+, `sha2` 0.11. `npm audit` reports advisories in Vitest 3's `@vitest/mocker` and `tinypool` (dev only, the test runner; fixed in D-44). The workflow changes have not been run on GitHub yet.
 - **Workaround**: To take an urgent fix that is younger than 7 days, add the package to `min-release-age-exclude` in `.npmrc` for that install (Cargo: `CARGO_MIN_RELEASE_AGE_DAYS=0`), then remove it again. A new dependency with an install script needs `npm approve-scripts <pkg>` after reviewing the script.
 - **User impact**: None to the app. Developers need npm 11.19+, and `deps:check` and the Cargo.lock pre-commit check need network access.
+
+### D-44 Vitest 4 for the test-runner advisories 【修正】
+- **What**: `vitest` ^3.2.7 → ^4.1.12 (devDependency). 4.1.12 (2026-10-15) is the newest 4.x past the 7-day window; 4.1.11 is not enough, because `npm audit` flags `@vitest/mocker` <=4.1.11. Vite stays at ^6.4.6 and `@vitejs/plugin-react` at ^4.7.0: Vitest 4 accepts Vite 6, 7 or 8. `vite.config.ts` and the test files needed no change (no `poolOptions`, `workspace`, coverage or browser mode, and no `vi.fn` used as a constructor).
+- **Why**: Vitest 3 pulled in `@vitest/mocker` (GHSA-82fw-gwwq-j7x9, GHSA-qxg6-89mg-rqv8) and `tinypool` (GHSA-5gmw-xhrv-c9v3, GHSA-85c8-ppgw-ccpr), which D-43 left open as a major update. Vitest 4 drops `tinypool`. `npm audit` now reports no vulnerabilities.
+- **Not done**: Vitest 5 and the other major updates listed in D-43.
+- **User impact**: None to the app (dev only).
