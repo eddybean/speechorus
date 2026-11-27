@@ -50,10 +50,14 @@ npm run lint:rust          # clippy (-D warnings)
 npm run format             # Prettier (format:check to check only)
 npm run format:rust        # rustfmt (format:rust:check to check only)
 npm run check              # every format check, lint and test above, in one go
+npm run deps:update        # update npm and Cargo dependencies (newest compatible, at least 7 days old)
+npm run deps:check         # npm registry signatures and the release age of the crates in Cargo.lock
 npx tauri build --no-bundle
 ```
 
 There is no CI. Run `npm run check` before you push. The pre-commit hook formats and lints only the staged files (ESLint `--fix`, Prettier, rustfmt); skip it with `git commit --no-verify` when you need to.
+
+Dependencies are held to versions published at least 7 days ago, and install scripts run only for packages approved in `package.json` `allowScripts` (`.npmrc`; needs npm 11.19+). Crates in `Cargo.lock` are checked the same way by `scripts/cargo-release-age.mjs`. See D-43 in `docs/deviations.md`.
 
 `speech.exe` is looked up in this order: the `SPEECHORUS_SPEECH` environment variable, next to the executable (`speech/speech.exe`, `speech.exe`), then `.engine/speech.exe` (for development).
 
