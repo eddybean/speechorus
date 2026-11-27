@@ -1,5 +1,9 @@
 # Speechorus
 
+[![License: PolyForm Noncommercial 1.0.0](https://img.shields.io/badge/license-PolyForm%20Noncommercial%201.0.0-blue)](LICENSE.md)
+![Platform: Windows 10/11](https://img.shields.io/badge/platform-Windows%2010%2F11-0078D6)
+![Built with Tauri 2](https://img.shields.io/badge/Tauri-2-24C8DB?logo=tauri&logoColor=white)
+
 A lightweight Japanese TTS studio (Tauri 2 + React) that uses [speech.cpp](https://github.com/nyosegawa/speech.cpp) as its engine.
 The main model is **Drama-3-Japanese** (`StudioYebisu-ship-it/Drama-3-Japanese-speech-cpp-gguf`). **Irodori-TTS** is also supported, and you can switch between them.
 
@@ -12,6 +16,18 @@ The main model is **Drama-3-Japanese** (`StudioYebisu-ship-it/Drama-3-Japanese-s
 - Export: one WAV per line (filename template with serial numbers) / combined WAV (with silence before and after) / SRT / txt
 - **Model catalog**: download Drama-3-Japanese (Q4_K/Q5_K + sidecar), Irodori-TTS-mf and Qwen3-ASR from inside the app (resumable, SHA-256 checked, license consent, VRAM-based recommendation, profile created automatically). Catalog: `assets/models/catalog.json`
 - Model profiles: speech.exe (can be downloaded from the official release), GGUF (or a catalog name), device, environment variables; checks for the sidecar and the VRAM needed
+
+## Installation
+
+1. Open the [Releases page](https://github.com/eddybean/speechorus/releases) and download `Speechorus_X.Y.Z_x64-setup.exe` from the latest release.
+2. Optionally check the download against `SHA256SUMS.txt` from the same release:
+   ```powershell
+   Get-FileHash .\Speechorus_X.Y.Z_x64-setup.exe -Algorithm SHA256
+   ```
+3. Run the installer. It is not code-signed, so Windows SmartScreen may warn you: choose "More info", then "Run anyway".
+4. Start Speechorus and open the model management dialog. Download `speech.exe` and a model from there (or point a profile at files you already have).
+
+To update, run the installer of the newer version over the current one. Your settings, voice library and projects are kept.
 
 ## Requirements
 
