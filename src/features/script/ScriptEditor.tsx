@@ -82,6 +82,12 @@ const Row = memo(function Row({ line, index, cast }: { line: Line; index: number
   const onClick = (e: React.MouseEvent) => {
     const s = useProject.getState();
     const ids = s.project.lines.map((l) => l.id);
+    if (e.button === 2) {
+      // Right-click keeps a selection it lands in, so the context menu acts on all of it.
+      if (!selected) s.select([line.id], line.id);
+      return;
+    }
+    if (e.button !== 0) return;
     if (e.shiftKey && s.activeLineId) {
       const a = ids.indexOf(s.activeLineId);
       const b = ids.indexOf(line.id);
@@ -130,6 +136,7 @@ const Row = memo(function Row({ line, index, cast }: { line: Line; index: number
     <div
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.6 : 1 }}
+      data-line-id={line.id}
       className={`row${active ? " active" : ""}${selected ? " selected" : ""}${playing ? " playing" : ""}`}
       onMouseDown={onClick}
     >
