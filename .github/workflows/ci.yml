@@ -51,6 +51,10 @@ jobs:
     name: Rust (rustfmt, clippy, cargo test)
     runs-on: windows-latest
     timeout-minutes: 45
+    # No debug info in CI: smaller artifacts, a smaller rust-cache (faster restore) and faster links (D-51).
+    env:
+      CARGO_PROFILE_DEV_DEBUG: "0"
+      CARGO_PROFILE_TEST_DEBUG: "0"
     defaults:
       run:
         shell: bash
@@ -67,9 +71,7 @@ jobs:
         with:
           workspaces: src-tauri
 
-      # Fails if Cargo.lock does not match Cargo.toml instead of re-resolving it.
-      - run: cargo fetch --locked --manifest-path src-tauri/Cargo.toml
-
+      # `--locked` on clippy and test fails if Cargo.lock does not match Cargo.toml instead of re-resolving it.
       - run: cargo fmt --manifest-path src-tauri/Cargo.toml --check
       - run: cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --locked -- -D warnings
       - run: cargo test --manifest-path src-tauri/Cargo.toml --locked
