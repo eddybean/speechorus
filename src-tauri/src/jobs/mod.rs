@@ -303,8 +303,8 @@ impl GenerationQueue {
                         Ok(b) => b,
                         Err(e) => return fail(writer, format!("pcm: {e}")),
                     };
-                    for c in bytes.chunks_exact(2) {
-                        if let Err(e) = writer.write_sample(i16::from_le_bytes([c[0], c[1]])) {
+                    for c in bytes.as_chunks::<2>().0 {
+                        if let Err(e) = writer.write_sample(i16::from_le_bytes(*c)) {
                             return fail(writer, e.to_string());
                         }
                     }
