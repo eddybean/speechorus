@@ -28,17 +28,48 @@ export async function openProject(path?: string) {
   const p = path ?? (await open({ multiple: false, filters: [{ name: "Speechorus", extensions: ["vsproj"] }] }));
   if (!p) return;
   try {
-    const prev = useProject.getState();
-    const r = await ipc.projectLoad(String(p));
-    useProject.getState().load(r.project, r.path, r.takesDir);
-    releaseUntitled(prev.takesDir, prev.path);
-    // Takes made but never saved last time (closed without saving, a crash) are removed now (D-39).
-    ipc.projectPrune(r.project, r.takesDir).catch(() => {});
-    const s = await ipc.getSettings();
-    useApp.setState({ settings: s });
+    await loadProject(String(p));
   } catch (e) {
     useApp.getState().notify("error", `開けません: ${e}`);
   }
+}
+
+async function loadProject(path: string) {
+  const prev = useProject.getState();
+  const r = await ipc.projectLoad(path);
+  useProject.getState().load(r.project, r.path, r.takesDir);
+  releaseUntitled(prev.takesDir, prev.path);
+  // Takes made but never saved last time (closed without saving, a crash) are removed now (D-39).
+  ipc.projectPrune(r.project, r.takesDir).catch(() => {});
+  await syncRecentProjects().catch(() => {});
+}
+
+/**
+ * Takes the recent-files list the core updated on open/save. Only that field: the rest of the UI's settings may hold
+ * changes not written yet (the debounced volume), and the UI writes the whole settings back later.
+ */
+async function syncRecentProjects() {
+  const { recentProjects } = await ipc.getSettings();
+  useApp.setState((s) => ({ settings: s.settings && { ...s.settings, recentProjects } }));
+}
+
+/** Opens a project from the 最近使ったファイル menu; one that cannot be opened (moved, deleted) leaves the list. */
+export async function openRecentProject(path: string) {
+  if (!confirmDiscard()) return;
+  try {
+    await loadProject(path);
+  } catch (e) {
+    await forgetRecentProjects([path]);
+    useApp.getState().notify("error", `開けません（最近使ったファイルから外しました）: ${e}`);
+  }
+}
+
+/** Removes the given paths from the recent-files list, or every path when none are given. */
+export async function forgetRecentProjects(paths?: string[]) {
+  const s = useApp.getState().settings;
+  if (!s) return;
+  const recentProjects = paths ? s.recentProjects.filter((p) => !paths.includes(p)) : [];
+  await useApp.getState().saveSettings({ ...s, recentProjects });
 }
 
 export async function saveProject(as = false): Promise<boolean> {
@@ -68,6 +99,7 @@ export async function saveProject(as = false): Promise<boolean> {
     await ipc.projectPrune(project, takesDir, keep);
     useProject.setState((s) => ({ project: { ...s.project, name, modelProfileId: project.modelProfileId } }));
     useProject.getState().markSaved(path, takesDir);
+    await syncRecentProjects().catch(() => {});
     useApp.getState().notify("info", `保存しました: ${path}`);
     return true;
   } catch (e) {

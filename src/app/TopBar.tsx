@@ -3,10 +3,17 @@ import { useApp } from "../store/app";
 import { useProject } from "../store/project";
 import { MAX_VOLUME, usePlayer } from "../lib/player";
 import { generateAll, generateMissing, generateSelected, fromItems, session } from "../features/generate/actions";
-import { importScript, newProject, openProject, saveProject } from "../features/project/fileOps";
+import {
+  forgetRecentProjects,
+  importScript,
+  newProject,
+  openProject,
+  openRecentProject,
+  saveProject,
+} from "../features/project/fileOps";
 import type { SeedMode } from "../lib/text";
 import { PlayButton } from "./PlayButton";
-import { Menu, MenuHeading, MenuItem } from "./Menu";
+import { Menu, MenuHeading, MenuItem, SubMenu } from "./Menu";
 import { Icon, modKey } from "./icons";
 
 export function TopBar() {
@@ -98,6 +105,8 @@ export function VolumeControl() {
 function FileMenu() {
   const canUndo = useProject((s) => s.undoStack.length > 0);
   const canRedo = useProject((s) => s.redoStack.length > 0);
+  const recent = useApp((s) => s.settings?.recentProjects ?? EMPTY);
+  const current = useProject((s) => s.path);
   return (
     <Menu
       className="ghost"
@@ -123,6 +132,29 @@ function FileMenu() {
             <MenuItem icon="open" kbd={`${modKey}O`} onSelect={run(() => openProject())}>
               開く…
             </MenuItem>
+            <SubMenu icon="recent" label="最近使ったファイル" disabled={recent.length === 0}>
+              {recent.map((p, i) => {
+                const { name, dir } = splitPath(p);
+                return (
+                  <button
+                    key={p}
+                    className={`menu-item recent-file${p === current ? " chosen" : ""}`}
+                    role="menuitem"
+                    title={p}
+                    data-accel={i < 9 ? i + 1 : undefined}
+                    onClick={run(() => openRecentProject(p))}
+                  >
+                    <span className="recent-index">{i < 9 ? i + 1 : ""}</span>
+                    <span className="menu-label">
+                      <span className="recent-name">{name}</span>
+                      <span className="recent-dir">{dir}</span>
+                    </span>
+                  </button>
+                );
+              })}
+              <hr />
+              <MenuItem onSelect={run(() => forgetRecentProjects())}>一覧をクリア</MenuItem>
+            </SubMenu>
             <MenuItem icon="save" kbd={`${modKey}S`} onSelect={run(() => saveProject())}>
               保存
             </MenuItem>
@@ -153,6 +185,14 @@ function FileMenu() {
       }}
     </Menu>
   );
+}
+
+const EMPTY: string[] = [];
+
+/** `C:\a\b\x.vsproj` → name `x`, dir `C:\a\b`. */
+export function splitPath(p: string): { name: string; dir: string } {
+  const i = Math.max(p.lastIndexOf("\\"), p.lastIndexOf("/"));
+  return { name: p.slice(i + 1).replace(/\.vsproj$/i, ""), dir: i < 0 ? "" : p.slice(0, i) };
 }
 
 function GenerateButton() {

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
-import { TopBar } from "./TopBar";
+import { TopBar, splitPath } from "./TopBar";
 import { useProject } from "../store/project";
 import { useApp } from "../store/app";
 import type { AppSettings } from "../lib/types";
@@ -16,10 +16,12 @@ vi.mock("../features/project/fileOps", () => ({
   openProject: vi.fn(),
   saveProject: vi.fn(),
   importScript: vi.fn(),
+  openRecentProject: vi.fn(),
+  forgetRecentProjects: vi.fn(),
 }));
 
 import { generateAll, generateMissing, generateSelected } from "../features/generate/actions";
-import { saveProject } from "../features/project/fileOps";
+import { forgetRecentProjects, openRecentProject, saveProject } from "../features/project/fileOps";
 
 describe("TopBar", () => {
   beforeEach(() => {
@@ -138,5 +140,83 @@ describe("TopBar", () => {
       render(<TopBar />);
       expect((screen.getByRole("slider", { name: "再生音量" }) as HTMLInputElement).disabled).toBe(true);
     });
+  });
+
+  describe("最近使ったファイル", () => {
+    const recentProjects = ["C:\\work\\drama\\第1話.vsproj", "D:/voices/sample.vsproj"];
+    const settings = { theme: "dark", profiles: [], recentTags: [], recentProjects } as unknown as AppSettings;
+    const openSub = () => {
+      fireEvent.click(screen.getByRole("button", { name: "ファイル" }));
+      fireEvent.click(screen.getByRole("menuitem", { name: /最近使ったファイル/ }));
+    };
+
+    beforeEach(() => {
+      useApp.setState({ settings });
+      useProject.setState({ path: null });
+    });
+
+    it("is disabled while the list is empty", () => {
+      useApp.setState({ settings: { ...settings, recentProjects: [] } });
+      render(<TopBar />);
+      fireEvent.click(screen.getByRole("button", { name: "ファイル" }));
+      const item = screen.getByRole("menuitem", { name: /最近使ったファイル/ }) as HTMLButtonElement;
+      expect(item.disabled).toBe(true);
+      fireEvent.mouseEnter(item.parentElement!);
+      expect(screen.queryByRole("menuitem", { name: /第1話/ })).toBeNull();
+    });
+
+    it("opens on hover and lists the files newest first, with the folder", () => {
+      render(<TopBar />);
+      fireEvent.click(screen.getByRole("button", { name: "ファイル" }));
+      expect(screen.queryByRole("menuitem", { name: /第1話/ })).toBeNull();
+      fireEvent.mouseEnter(screen.getByRole("menuitem", { name: /最近使ったファイル/ }).parentElement!);
+      const items = screen.getAllByRole("menuitem").filter((e) => e.classList.contains("recent-file"));
+      expect(items.map((e) => e.textContent)).toEqual(["1第1話C:\\work\\drama", "2sampleD:/voices"]);
+      expect(items[0].title).toBe(recentProjects[0]);
+    });
+
+    it("opens the chosen file and closes the menu", () => {
+      render(<TopBar />);
+      openSub();
+      fireEvent.click(screen.getByRole("menuitem", { name: /sample/ }));
+      expect(openRecentProject).toHaveBeenCalledWith("D:/voices/sample.vsproj");
+      expect(screen.queryByRole("menuitem", { name: /新規/ })).toBeNull();
+    });
+
+    it("marks the open project", () => {
+      useProject.setState({ path: recentProjects[1] });
+      render(<TopBar />);
+      openSub();
+      expect(screen.getByRole("menuitem", { name: /sample/ }).classList.contains("chosen")).toBe(true);
+      expect(screen.getByRole("menuitem", { name: /第1話/ }).classList.contains("chosen")).toBe(false);
+    });
+
+    it("clears the list", () => {
+      render(<TopBar />);
+      openSub();
+      fireEvent.click(screen.getByRole("menuitem", { name: "一覧をクリア" }));
+      expect(forgetRecentProjects).toHaveBeenCalledWith();
+    });
+
+    it("works from the keyboard: → opens, a digit chooses, ← goes back", () => {
+      render(<TopBar />);
+      fireEvent.click(screen.getByRole("button", { name: "ファイル" }));
+      const trigger = screen.getByRole("menuitem", { name: /最近使ったファイル/ });
+      fireEvent.keyDown(trigger, { key: "ArrowRight" });
+      const first = screen.getByRole("menuitem", { name: /第1話/ });
+      fireEvent.keyDown(first, { key: "ArrowLeft" });
+      expect(screen.queryByRole("menuitem", { name: /第1話/ })).toBeNull();
+      fireEvent.keyDown(trigger, { key: "ArrowRight" });
+      fireEvent.keyDown(screen.getByRole("menuitem", { name: /第1話/ }), { key: "2" });
+      expect(openRecentProject).toHaveBeenCalledWith("D:/voices/sample.vsproj");
+    });
+  });
+});
+
+describe("splitPath", () => {
+  it("splits Windows and POSIX paths and drops the extension", () => {
+    expect(splitPath("C:\\a\\b\\x.vsproj")).toEqual({ name: "x", dir: "C:\\a\\b" });
+    expect(splitPath("/a/y.VSPROJ")).toEqual({ name: "y", dir: "/a" });
+    expect(splitPath("z.vsproj")).toEqual({ name: "z", dir: "" });
   });
 });
