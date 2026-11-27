@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { Rail } from "./Rail";
 import { useApp } from "../store/app";
 import type { AppSettings, EngineState, ModelProfile } from "../lib/types";
@@ -39,6 +39,7 @@ function setup(engine: EngineState, active = "p1", p1Model?: string) {
     engine,
     settings: settings(active, p1Model),
     dialog: null,
+    view: "script",
     castOpen: true,
     startEngine,
     stopEngine,
@@ -58,14 +59,30 @@ describe("Rail", () => {
     expect(useApp.getState().castOpen).toBe(false);
   });
 
-  it("opens the voice library, model manager and settings", () => {
+  it("switches the main pane between the script, voices and models, and opens settings as a dialog", () => {
     setup({ state: "stopped" });
+    const current = () => screen.getAllByRole("button").filter((b) => b.getAttribute("aria-current") === "page");
+    expect(current().map((b) => b.textContent)).toEqual(["台本"]);
     fireEvent.click(screen.getByRole("button", { name: "ボイス" }));
-    expect(useApp.getState().dialog).toBe("voices");
+    expect(useApp.getState().view).toBe("voices");
+    expect(current().map((b) => b.textContent)).toEqual(["ボイス"]);
     fireEvent.click(screen.getByRole("button", { name: "モデル" }));
-    expect(useApp.getState().dialog).toBe("models");
+    expect(useApp.getState().view).toBe("models");
     fireEvent.click(screen.getByRole("button", { name: "設定" }));
     expect(useApp.getState().dialog).toBe("settings");
+    expect(useApp.getState().view).toBe("models");
+    fireEvent.click(screen.getByRole("button", { name: "台本" }));
+    expect(useApp.getState().view).toBe("script");
+  });
+
+  it("goes back to the script with the cast panel shown when キャスト is pressed on another screen", () => {
+    setup({ state: "stopped" });
+    act(() => useApp.setState({ view: "voices", castOpen: false }));
+    const cast = screen.getByRole("button", { name: "キャスト" });
+    expect(cast.getAttribute("aria-pressed")).toBe("false");
+    fireEvent.click(cast);
+    expect(useApp.getState()).toMatchObject({ view: "script", castOpen: true });
+    expect(cast.getAttribute("aria-pressed")).toBe("true");
   });
 
   it("shows the engine state and starts the chosen profile from its panel", () => {
@@ -96,6 +113,9 @@ describe("Rail", () => {
     fireEvent.click(screen.getByRole("button", { name: /エンジン/ }));
     fireEvent.click(screen.getByRole("menuitem", { name: /モデルを入手/ }));
     expect(useApp.getState().dialog).toBe("catalog");
+    fireEvent.click(screen.getByRole("button", { name: /エンジン/ }));
+    fireEvent.click(screen.getByRole("menuitem", { name: /モデル管理/ }));
+    expect(useApp.getState().view).toBe("models");
   });
 
   it("leads to the model catalog instead of starting when the chosen profile has no model", () => {

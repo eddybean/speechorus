@@ -1,5 +1,5 @@
-import { useEffect } from "react";
-import { useApp } from "../store/app";
+import { useEffect, useState } from "react";
+import { useApp, type View } from "../store/app";
 import { useProject } from "../store/project";
 import { TopBar } from "./TopBar";
 import { Rail } from "./Rail";
@@ -39,6 +39,11 @@ export function App() {
   const dialog = useApp((s) => s.dialog);
   const notices = useApp((s) => s.notices);
   const castOpen = useApp((s) => s.castOpen);
+  const view = useApp((s) => s.view);
+  // A screen is mounted on its first visit and then kept, hidden, so that work in progress there (references
+  // being trimmed, a profile being edited) survives going back to the script (D-54).
+  const [visited, setVisited] = useState<ReadonlySet<View>>(() => new Set([view]));
+  if (!visited.has(view)) setVisited(new Set(visited).add(view));
 
   useEffect(() => {
     void useApp.getState().init();
@@ -48,18 +53,25 @@ export function App() {
     const onKey = (e: KeyboardEvent) => {
       const mod = e.ctrlKey || e.metaKey;
       const p = useProject.getState();
-      if (mod && e.key.toLowerCase() === "z" && !e.shiftKey) {
-        e.preventDefault();
-        p.undo();
-      } else if (mod && (e.key.toLowerCase() === "y" || (e.shiftKey && e.key.toLowerCase() === "z"))) {
-        e.preventDefault();
-        p.redo();
-      } else if (mod && e.key.toLowerCase() === "s") {
+      // Shortcuts on lines (undo, copy, delete…) work only while the script is on screen.
+      const onScript = useApp.getState().view === "script";
+      if (mod && e.key.toLowerCase() === "s") {
         e.preventDefault();
         void saveProject(e.shiftKey);
       } else if (mod && e.key.toLowerCase() === "o") {
         e.preventDefault();
         void openProject();
+      } else if (e.key === " " && !isTyping(e)) {
+        e.preventDefault();
+        togglePlay();
+      } else if (!onScript) {
+        return;
+      } else if (mod && e.key.toLowerCase() === "z" && !e.shiftKey) {
+        e.preventDefault();
+        p.undo();
+      } else if (mod && (e.key.toLowerCase() === "y" || (e.shiftKey && e.key.toLowerCase() === "z"))) {
+        e.preventDefault();
+        p.redo();
       } else if (mod && e.key === "Enter") {
         e.preventDefault();
         void generateSelected();
@@ -71,9 +83,6 @@ export function App() {
       } else if (mod && e.key.toLowerCase() === "d" && p.selection.length) {
         e.preventDefault();
         p.duplicateLines(p.selection);
-      } else if (e.key === " " && !isTyping(e)) {
-        e.preventDefault();
-        togglePlay();
       } else if (e.key === "Delete" && !isTyping(e) && p.selection.length) {
         e.preventDefault();
         p.removeLines(p.selection);
@@ -98,11 +107,21 @@ export function App() {
       <TopBar />
       <div className="workspace">
         <Rail />
-        <main className={`main${castOpen ? "" : " no-cast"}`}>
+        <main className={`main${castOpen ? "" : " no-cast"}`} hidden={view !== "script"}>
           {castOpen && <CastPanel />}
           <ScriptEditor />
           <Inspector />
         </main>
+        {visited.has("voices") && (
+          <div className="page-host" hidden={view !== "voices"}>
+            <VoiceLibrary />
+          </div>
+        )}
+        {visited.has("models") && (
+          <div className="page-host" hidden={view !== "models"}>
+            <ModelManager />
+          </div>
+        )}
       </div>
       <StatusBar />
       <div className="notices">
@@ -112,8 +131,6 @@ export function App() {
           </div>
         ))}
       </div>
-      {dialog === "voices" && <VoiceLibrary />}
-      {dialog === "models" && <ModelManager />}
       {dialog === "export" && <ExportDialog />}
       {dialog === "settings" && <SettingsDialog />}
       {dialog === "catalog" && <CatalogDialog />}
