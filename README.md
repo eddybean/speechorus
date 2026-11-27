@@ -1,5 +1,7 @@
 # Speechorus
 
+[![Latest release](https://img.shields.io/github/v/release/eddybean/speechorus)](https://github.com/eddybean/speechorus/releases/latest)
+[![Downloads](https://img.shields.io/github/downloads/eddybean/speechorus/total)](https://github.com/eddybean/speechorus/releases)
 [![License: PolyForm Noncommercial 1.0.0](https://img.shields.io/badge/license-PolyForm%20Noncommercial%201.0.0-blue)](LICENSE.md)
 ![Platform: Windows 10/11](https://img.shields.io/badge/platform-Windows%2010%2F11-0078D6)
 ![Built with Tauri 2](https://img.shields.io/badge/Tauri-2-24C8DB?logo=tauri&logoColor=white)
