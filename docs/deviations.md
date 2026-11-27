@@ -351,3 +351,12 @@ Requests: (1) a way to stop playback, (2) choosing a Drama-3 voice by text promp
 - **Why**: The user asked for the project and its audio not to come apart on a rename. Windows has no bundle folder like macOS packages; NTFS alternate data streams are lost on copies to FAT/exFAT, zip and cloud sync, and a single-file container (zip or SQLite) would change the playback path and the save cost, so the two-part layout stays and is made rename-safe.
 - **Not done**: Moving the `.vsproj` to another folder without its takes folder still loses the audio (the search covers the same folder only). Renaming happens at save, not on open, so until then the files keep their old folder name.
 - **User impact**: Renaming `foo.vsproj` to `bar.vsproj` and opening it shows its takes; saving it renames `foo.takes` to `bar.takes`. A `.speechorus-project` file appears in each takes folder.
+
+### D-50 CI on pull requests and pushes to `main` 【追加（ユーザー要望）】
+- **What**: `.github/workflows/ci.yml` runs on every PR into `main`, every push to `main` and by hand. Two jobs run in parallel and together cover `npm run check`:
+  - `Frontend` on `ubuntu-latest`: `npm ci` (npm 11.19.1, D-43), `npm run deps:check`, `format:check`, `lint` (typecheck + Oxlint) and `test` (Vitest).
+  - `Rust` on `windows-latest`, the platform the app targets: Rust pinned to 1.93.1 as in `release.yml`, `cargo fetch --locked`, `cargo fmt --check`, clippy (`--all-targets -D warnings`) and `cargo test` with the mock worker. The real-engine E2E (`tests/real_engine.rs`) skips itself, as no engine or model is present.
+  - Read-only token (`contents: read`), actions pinned to commit SHAs, and a new push to the same PR cancels the run for the old head. A CI status badge is added to the README.
+- **Why**: The user asked for the usual PR checks once the repository was public, where standard GitHub-hosted runners cost no minutes. This replaces the "no CI, save minutes" policy that D-42 kept for the private repository.
+- **Not done**: The checks are not required by a branch protection rule or ruleset on `main` (a repository setting; add `Frontend …` and `Rust …` as required checks to block merging on a failure). The installer is not built in CI; `release.yml` still builds it.
+- **User impact**: None to the app.
