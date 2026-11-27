@@ -1,5 +1,6 @@
 # Speechorus
 
+[![CI](https://github.com/eddybean/speechorus/actions/workflows/ci.yml/badge.svg)](https://github.com/eddybean/speechorus/actions/workflows/ci.yml)
 [![Latest release](https://img.shields.io/github/v/release/eddybean/speechorus)](https://github.com/eddybean/speechorus/releases/latest)
 [![Downloads](https://img.shields.io/github/downloads/eddybean/speechorus/total)](https://github.com/eddybean/speechorus/releases)
 [![License: PolyForm Noncommercial 1.0.0](https://img.shields.io/badge/license-PolyForm%20Noncommercial%201.0.0-blue)](LICENSE.md)
@@ -57,7 +58,7 @@ npm run deps:check         # npm registry signatures and the release age of the 
 npx tauri build --no-bundle
 ```
 
-There is no CI. Run `npm run check` before you push. The pre-commit hook formats and lints only the staged files (Oxlint `--fix`, Oxfmt, rustfmt); skip it with `git commit --no-verify` when you need to.
+CI (`.github/workflows/ci.yml`) runs the same checks on every pull request into `main` and every push to `main`. Run `npm run check` before you push anyway. The pre-commit hook formats and lints only the staged files (Oxlint `--fix`, Oxfmt, rustfmt); skip it with `git commit --no-verify` when you need to.
 
 Dependencies are held to versions published at least 7 days ago, and install scripts run only for packages approved in `package.json` `allowScripts` (`.npmrc`; needs npm 11.19+). Crates in `Cargo.lock` are checked the same way by `scripts/cargo-release-age.mjs`. See D-43 in `docs/deviations.md`.
 
