@@ -368,3 +368,10 @@ Requests: (1) a way to stop playback, (2) choosing a Drama-3 voice by text promp
 - **Why**: The user found the Rust job (about 5 min) slow. Most of those 5 min came from the first runs having no cache (about 1 min 50 s with a warm cache on `main`); these changes cut the rest.
 - **Measured** (Rust job, `windows-latest`): cold 5 min 0 s → 4 min 40 s; warm (cache hit) 110 s → 97 s. `cargo test` with a warm cache went from 30 s to 13 s and the cache from 601 MB to 431 MB. Clippy went from 9 s to 32 s because unpacking the crate sources (27 s in the old `cargo fetch` step) now happens there. What is left of the warm run is mostly fixed cost: about 25 s restoring the cache, about 20 s unpacking crates, 12 s installing the toolchain.
 - **User impact**: None to the app. Local debug builds no longer write the large `.lib` and DLL. Building for iOS or Android would need the two crate types back.
+
+### D-52 The CI jobs are required to merge into `main` 【追加（ユーザー要望）】
+- **What**: A repository ruleset "Require CI" (active, on the default branch) requires the two `ci.yml` checks, `Frontend (format, typecheck, Oxlint, Vitest)` and `Rust (rustfmt, clippy, cargo test)`, from GitHub Actions. The branch need not be up to date with `main` first. Repository admins may bypass it (for a broken CI). The disabled ruleset "main" (deletion, force push, Copilot review) is left as it was.
+  - `bump.yml` now ends by starting `ci.yml` on `release/vX.Y.Z` with `workflow_dispatch` (`actions: write`). Its PR is opened with `GITHUB_TOKEN`, which triggers no `pull_request` workflow, so without this the release PR would never get the required checks.
+- **Why**: The user asked for the CI jobs to block merging when they fail.
+- **Not done**: The `bump.yml` change has not been run on GitHub (it would open a real release PR); try it at the next release. If the checks do not appear on the release PR, run `gh workflow run ci.yml --ref release/vX.Y.Z` by hand.
+- **User impact**: None to the app. A PR into `main` cannot be merged until both jobs pass (about 2 min), and pushes straight to `main` are refused unless made by an admin bypassing the rule.
