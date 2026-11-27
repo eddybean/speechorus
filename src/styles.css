@@ -275,6 +275,41 @@ button.primary {
 .popover.right.start {
   top: 0;
 }
+.submenu {
+  position: relative;
+}
+/* Close to the item, so the pointer does not leave the submenu crossing the gap. */
+.submenu > .popover.right {
+  left: calc(100% + 2px);
+  top: -7px;
+  min-width: 260px;
+  max-width: min(520px, 60vw);
+}
+.recent-file .menu-label {
+  display: grid;
+  min-width: 0;
+}
+.recent-name,
+.recent-dir {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.recent-dir {
+  font-size: 11px;
+  color: var(--muted);
+}
+.recent-index {
+  width: 16px;
+  flex: none;
+  text-align: center;
+  font:
+    11px ui-monospace,
+    "SF Mono",
+    Consolas,
+    monospace;
+  color: var(--muted);
+}
 .popover hr {
   border: 0;
   border-top: 1px solid var(--line);
