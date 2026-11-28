@@ -542,10 +542,21 @@ pub struct CatalogView {
     pub running: Vec<String>,
 }
 
+/// The download catalog, with speech.cpp's own quantizations and fetched state for `speechPull` models (D-59).
+async fn load_catalog(st: &AppState) -> crate::downloads::Catalog {
+    let mut catalog = crate::downloads::Catalog::load(&st.catalog_override);
+    let exe = st.exe();
+    let env = BTreeMap::new();
+    if let Ok(speech) = (Speech { exe: &exe, env: &env }).catalog().await {
+        catalog.merge_speech(&speech);
+    }
+    catalog
+}
+
 #[tauri::command]
 pub async fn catalog_list(app: AppHandle, st: State<'_, AppState>) -> R<CatalogView> {
-    use crate::downloads::{recommend, Catalog};
-    let catalog = Catalog::load(&st.catalog_override);
+    use crate::downloads::recommend;
+    let catalog = load_catalog(&st).await;
     let exe = st.exe();
     let env = BTreeMap::new();
     let devs = Speech { exe: &exe, env: &env }.devices().await.ok();
@@ -583,7 +594,7 @@ pub fn download_cancel(st: State<'_, AppState>, id: String) {
 /// Starts a catalog download in the background; progress and the result come as `download` events.
 /// On success a synthesis model gets a profile (created or replaced, and selected); a recognition model becomes the ASR model.
 #[tauri::command]
-pub fn catalog_download(
+pub async fn catalog_download(
     app: AppHandle,
     st: State<'_, AppState>,
     model_id: String,
@@ -591,9 +602,9 @@ pub fn catalog_download(
     dest_dir: String,
     license_accepted: bool,
 ) -> R<String> {
-    use crate::downloads::{Catalog, DownloadError, Progress, Source};
+    use crate::downloads::{DownloadError, Progress, Source};
     use std::sync::atomic::AtomicBool;
-    let catalog = Catalog::load(&st.catalog_override);
+    let catalog = load_catalog(&st).await;
     let (m, v) = catalog.find(&model_id, &variant_id).ok_or("カタログにないモデルです")?;
     if !v.supported {
         return Err(format!("{} は使えません: {}", v.label, v.unsupported_reason));
@@ -646,7 +657,10 @@ pub fn catalog_download(
                         need: crate::downloads::gib(need + (1 << 30)),
                         free: crate::downloads::gib(free),
                     }),
-                    _ => crate::downloads::speech_pull(&id2, &exe, name, cancel.clone(), on.clone()).await,
+                    _ => {
+                        let name = format!("{name}:{}", v.id);
+                        crate::downloads::speech_pull(&id2, &exe, &name, cancel.clone(), on.clone()).await
+                    }
                 }
             }
         };

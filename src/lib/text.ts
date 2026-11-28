@@ -213,3 +213,11 @@ export function workerVoiceName(voiceId: string): string {
 }
 
 export const CAST_COLORS = ["#e8735a", "#5aa9e8", "#8fd16a", "#c98be8", "#e8c35a", "#5ae8c8", "#e85a9b", "#9aa3b5"];
+
+/** A download's remaining time: `45秒`, `3分5秒`, `1時間2分`, or `—` when unknown. */
+export function fmtEta(s: number | null | undefined): string {
+  if (s === null || s === undefined || !isFinite(s)) return "—";
+  if (s < 60) return `${Math.ceil(s)}秒`;
+  if (s < 3600) return `${Math.floor(s / 60)}分${Math.ceil(s % 60)}秒`;
+  return `${Math.floor(s / 3600)}時間${Math.ceil((s % 3600) / 60)}分`;
+}

@@ -63,6 +63,23 @@ describe("startEngine and the memory check (D-58)", () => {
     expect(useApp.getState().notices[0]?.text).toContain("起動を中止しました");
   });
 
+  it("ignores a second start while the first is being prepared, and clears the flag after a failure (D-59)", async () => {
+    let finish!: () => void;
+    start.mockReturnValueOnce(new Promise((r) => (finish = () => r({ status: "started" }))));
+    const first = useApp.getState().startEngine("p1");
+    expect(useApp.getState().engineStarting).toBe("p1");
+    await useApp.getState().startEngine("p1");
+    expect(start).toHaveBeenCalledTimes(1);
+    finish();
+    await first;
+    expect(useApp.getState().engineStarting).toBeNull();
+
+    start.mockRejectedValueOnce("モデル「irodori-tts-large」はまだダウンロードされていません");
+    await useApp.getState().startEngine("p1");
+    expect(useApp.getState().engineStarting).toBeNull();
+    expect(useApp.getState().notices.slice(-1)[0]?.text).toContain("まだダウンロードされていません");
+  });
+
   it("names the memory and the figures", () => {
     const t = memoryConfirmText(check());
     expect(t).toContain("Vulkan0（NVIDIA GeForce RTX 4090）の VRAM");

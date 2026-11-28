@@ -44,6 +44,11 @@ interface AppStore {
   runningSince: number | null;
   jobDurations: number[];
   installing: boolean;
+  /**
+   * The profile whose start is being prepared (model path lookup, memory check, the confirmation) before the
+   * engine reports `loading`; a second start meanwhile is ignored (D-59).
+   */
+  engineStarting: string | null;
   downloads: Record<string, DownloadProgress>;
   /** Voice design (prompt → candidates → fixed voice): the jobs in flight and the candidates made. */
   design: { jobs: Record<string, string>; candidates: DesignCandidate[] };
@@ -98,6 +103,7 @@ export const useApp = create<AppStore>()((set, get) => ({
   runningSince: null,
   jobDurations: [],
   installing: false,
+  engineStarting: null,
   downloads: {},
   design: { jobs: {}, candidates: [] },
   installSpeech: async () => {
@@ -261,15 +267,19 @@ export const useApp = create<AppStore>()((set, get) => ({
   },
   refreshVoices: async () => set({ voices: await ipc.voicesList() }),
   startEngine: async (profileId) => {
-    const s = get().settings;
-    if (s && s.activeProfileId !== profileId) await get().saveSettings({ ...s, activeProfileId: profileId });
+    if (get().engineStarting) return;
+    set({ engineStarting: profileId });
     try {
+      const s = get().settings;
+      if (s && s.activeProfileId !== profileId) await get().saveSettings({ ...s, activeProfileId: profileId });
       const r = await ipc.engineStart(profileId);
       if (r.status === "blocked") get().notify("error", memoryBlockedText(r.check));
       else if (r.status === "confirm" && confirm(memoryConfirmText(r.check))) await ipc.engineStart(profileId, true);
     } catch (e) {
       // A failure after the process started is reported by the engine's "failed" event.
       if (get().engine.state !== "failed") get().notify("error", String(e));
+    } finally {
+      set({ engineStarting: null });
     }
   },
   stopEngine: async () => {

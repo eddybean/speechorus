@@ -1,6 +1,22 @@
 // The bottom bar: the generation queue on the left, the loaded model on the right.
 import { chosenProfile, queueEta, useApp } from "../store/app";
+import type { DownloadProgress } from "../lib/types";
+import { fmtEta } from "../lib/text";
 import { Icon } from "./icons";
+
+const ACTIVE = ["checking", "downloading", "verifying"];
+
+/** `irodori-tts-large:q8_0 42%・残り3分` for the first running download, and how many more run (D-59). */
+export function downloadSummary(downloads: Record<string, DownloadProgress>): string | null {
+  const running = Object.values(downloads).filter((d) => ACTIVE.includes(d.phase));
+  const d = running[0];
+  if (!d) return null;
+  const pct = d.total ? `${Math.floor(Math.min(100, (d.done / d.total) * 100))}%` : "";
+  const what =
+    d.phase === "downloading" ? [pct, `残り ${fmtEta(d.etaSecs)}`] : [d.phase === "verifying" ? "検証中" : "確認中"];
+  const more = running.length > 1 ? `（ほか ${running.length - 1} 件）` : "";
+  return `${d.id} ${what.filter(Boolean).join("・")}${more}`;
+}
 
 export function formatEta(sec: number): string {
   return sec < 60 ? `約${Math.ceil(sec)}秒` : `約${Math.floor(sec / 60)}分${Math.ceil(sec % 60)}秒`;
@@ -19,8 +35,21 @@ export function StatusBar() {
     s.engine.state === "stopped" || s.engine.state === "failed" ? chosenProfile(s.settings) : undefined,
   );
   const needsModel = missing && !missing.model ? missing : null;
+  const starting = useApp((s) => s.engineStarting);
+  const startingName = profiles?.find((p) => p.id === starting)?.name ?? starting;
+  const download = useApp((s) => downloadSummary(s.downloads));
   return (
     <footer className="statusbar">
+      {download && (
+        <button
+          className="small download-summary"
+          title="ダウンロードの詳細を開く"
+          onClick={() => useApp.getState().openDialog("catalog")}
+        >
+          <Icon name="download" size={12} />
+          {download}
+        </button>
+      )}
       {jobCount > 0 && (
         <>
           <span className="queue">
@@ -35,7 +64,9 @@ export function StatusBar() {
       )}
       <span className="engine-summary">
         <span className={`dot ${engine.state}`} />
-        {needsModel ? (
+        {starting && engine.state !== "loading" ? (
+          `${startingName} の起動を準備中…`
+        ) : needsModel ? (
           <>
             {needsModel.name} のモデルが未設定です
             <button className="small primary" onClick={() => useApp.getState().openDialog("catalog")}>

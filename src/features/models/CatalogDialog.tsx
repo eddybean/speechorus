@@ -5,24 +5,21 @@ import { ipc, joinPath } from "../../lib/ipc";
 import { useApp } from "../../store/app";
 import { Dialog } from "../../app/Dialog";
 import type { CatalogModel, CatalogView, DownloadProgress } from "../../lib/types";
+import { fmtEta } from "../../lib/text";
 
 const gib = (b: number) => (b / 2 ** 30).toFixed(1) + " GiB";
-export function fmtEta(s: number | null | undefined): string {
-  if (s === null || s === undefined || !isFinite(s)) return "—";
-  if (s < 60) return `${Math.ceil(s)}秒`;
-  if (s < 3600) return `${Math.floor(s / 60)}分${Math.ceil(s % 60)}秒`;
-  return `${Math.floor(s / 3600)}時間${Math.ceil((s % 3600) / 60)}分`;
-}
 
 export function CatalogDialog() {
   const [view, setView] = useState<CatalogView | null>(null);
   const [err, setErr] = useState("");
+  // Read again when a download finishes, so its variant shows as fetched.
+  const finished = useApp((s) => Object.values(s.downloads).filter((d) => d.phase === "done").length);
   useEffect(() => {
     ipc
       .catalogList()
       .then(setView)
       .catch((e) => setErr(String(e)));
-  }, []);
+  }, [finished]);
   return (
     <Dialog title="モデルを入手" onClose={() => useApp.getState().openDialog(null)} wide>
       {err && <p className="warn-text">{err}</p>}
@@ -111,7 +108,7 @@ function ModelCard({ m, rec, defaultDir }: { m: CatalogModel; rec?: string; defa
               <span className="muted small-text">
                 {x.supported === false
                   ? `非対応: ${x.unsupportedReason}`
-                  : `${gib(x.files.reduce((a, f) => a + f.size, 0))}・VRAM 目安 ${gib(x.vramBytes)}`}
+                  : `${gib(x.files.reduce((a, f) => a + f.size, 0))}・VRAM 目安 ${gib(x.vramBytes)}${x.fetched ? "・✓ 取得済" : ""}`}
               </span>
             </span>
           </label>
@@ -176,7 +173,11 @@ function ModelCard({ m, rec, defaultDir }: { m: CatalogModel; rec?: string; defa
             disabled={v.supported === false || (m.license.requiresConsent && !agreed)}
             onClick={start}
           >
-            ⤓ {prog?.phase === "cancelled" || prog?.phase === "failed" ? "再開" : "ダウンロード"}（{gib(size)}）
+            {v.fetched
+              ? m.task === "recognition"
+                ? "✓ 取得済 — 書き起こしモデルに設定"
+                : "✓ 取得済 — このモデルのプロファイルを作成"
+              : `⤓ ${prog?.phase === "cancelled" || prog?.phase === "failed" ? "再開" : "ダウンロード"}（${gib(size)}）`}
           </button>
         )}
       </div>

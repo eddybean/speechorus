@@ -96,6 +96,56 @@
       ]
     },
     {
+      "id": "irodori-tts",
+      "name": "Irodori-TTS v4.1 Small",
+      "task": "synthesis",
+      "adapter": "irodori",
+      "description": "Irodori-TTS の通常版（40 ステップ）。Small-MF より遅いが CFG で参照音声への寄せ方を調整できる。",
+      "source": { "kind": "speechPull", "name": "irodori-tts" },
+      "license": {
+        "name": "MIT",
+        "url": "https://huggingface.co/sakasegawa/Irodori-TTS-v4.1-Small-GGUF",
+        "summary": "MIT License",
+        "requiresConsent": false
+      },
+      "env": {},
+      "device": "Vulkan0",
+      "defaultVariant": "f16",
+      "variants": [
+        {
+          "id": "f16",
+          "label": "F16",
+          "vramBytes": 2632000000,
+          "files": [{ "name": "Irodori-TTS-859M-v4.1-F16.gguf", "size": 1905903936, "sha256": "", "role": "model" }]
+        }
+      ]
+    },
+    {
+      "id": "irodori-tts-large",
+      "name": "Irodori-TTS v4 Large",
+      "task": "synthesis",
+      "adapter": "irodori",
+      "description": "Irodori-TTS の大型版（3.4B）。品質重視、Small より多くの VRAM と時間を使う。",
+      "source": { "kind": "speechPull", "name": "irodori-tts-large" },
+      "license": {
+        "name": "Gemma Terms of Use",
+        "url": "https://ai.google.dev/gemma/terms",
+        "summary": "Gemma 利用規約に基づくモデルです。禁止用途ポリシー (Gemma Prohibited Use Policy) を含む規約に従って利用してください。",
+        "requiresConsent": true
+      },
+      "env": {},
+      "device": "Vulkan0",
+      "defaultVariant": "q8_0",
+      "variants": [
+        {
+          "id": "q8_0",
+          "label": "Q8_0",
+          "vramBytes": 4800000000,
+          "files": [{ "name": "Irodori-TTS-3.4B-v4-Q8_0.gguf", "size": 3875154272, "sha256": "", "role": "model" }]
+        }
+      ]
+    },
+    {
       "id": "qwen3-asr-0.6b",
       "name": "Qwen3-ASR 0.6B（参照音声の自動書き起こし）",
       "task": "recognition",

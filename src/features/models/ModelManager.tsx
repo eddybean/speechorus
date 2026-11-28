@@ -12,6 +12,35 @@ type Catalog = Awaited<ReturnType<typeof ipc.modelCatalog>>["models"];
 
 const gib = (b: number) => (b / 2 ** 30).toFixed(1) + " GiB";
 
+/** A GGUF path rather than a speech.cpp catalog name (the same test as `tools::is_path`). */
+export const isModelPath = (m: string) => /\.gguf$/i.test(m) || m.includes("/") || m.includes("\\");
+
+/**
+ * Whether a catalog name (`NAME` or `NAME:TYPE`) is in speech.cpp's model folder; `null` for a path, an empty
+ * field or a name the catalog does not list. Starting a model that is not fetched fails: downloads are explicit (D-59).
+ */
+export function fetchedState(catalog: Catalog, model: string): "fetched" | "missing" | null {
+  if (!model || isModelPath(model)) return null;
+  const [name, type] = model.split(":");
+  const m = catalog.find((x) => x.name === name);
+  const f = m?.files.find((x) => x.type === (type ?? m.type));
+  return f ? (f.fetched ? "fetched" : "missing") : null;
+}
+
+/** The fetched Irodori models, as the value to put in a profile and a label. */
+export function fetchedIrodori(catalog: Catalog) {
+  return catalog
+    .filter((m) => m.name.startsWith("irodori"))
+    .flatMap((m) =>
+      m.files
+        .filter((f) => f.fetched)
+        .map((f) => {
+          const value = f.type === m.type ? m.name : `${m.name}:${f.type}`;
+          return { value, label: `${value} (${(f.size / 1e9).toFixed(2)} GB)`, path: f.path };
+        }),
+    );
+}
+
 export function ModelManager() {
   const settings = useApp((s) => s.settings)!;
   const adapters = useApp((s) => s.adapters);
@@ -40,12 +69,15 @@ export function ModelManager() {
       .then((d) => setDevices(d.devices))
       .catch(() => setDevices([]));
   }, [settings.speechExe, shown]);
+  // Read again when a download finishes, so the model shows as fetched.
+  const finished = useApp((s) => Object.values(s.downloads).filter((d) => d.phase === "done").length);
+  const starting = useApp((s) => s.engineStarting);
   useEffect(() => {
     ipc
       .modelCatalog()
       .then((c) => setCatalog(c.models.filter((m) => m.task === "synthesis")))
       .catch(() => setCatalog([]));
-  }, [settings.speechExe]);
+  }, [settings.speechExe, finished, shown]);
   useEffect(() => {
     setCheck(null);
     if (prof?.speechExe)
@@ -76,6 +108,7 @@ export function ModelManager() {
   };
 
   const running = engine.state !== "stopped" && "profileId" in engine && engine.profileId === sel;
+  const missing = prof ? fetchedState(catalog, prof.model) === "missing" : false;
   const free = devices.find((d) => d.name === prof?.device)?.memory_free;
   const need = check && typeof check !== "string" ? Number(check.info.file_bytes ?? 0) : 0;
   // The same estimate as the check before an engine start (memguard::estimate, D-58).
@@ -157,24 +190,29 @@ export function ModelManager() {
                 </button>
               </span>
             </label>
-            {prof.adapter === "irodori" && catalog.length > 0 && (
+            {prof.adapter === "irodori" && (
               <div className="catalog">
-                {catalog
-                  .filter((m) => m.name.startsWith("irodori"))
-                  .map((m) => {
-                    const f = m.files[0];
-                    return (
-                      <button
-                        key={m.name}
-                        className={prof.model === m.name ? "on small" : "small"}
-                        onClick={() => save({ ...prof, model: m.name })}
-                        title={f?.path}
-                      >
-                        {m.name} ({(f.size / 1e9).toFixed(2)} GB
-                        {f.fetched ? "・取得済" : "・未取得: 起動時にダウンロード"})
-                      </button>
-                    );
-                  })}
+                {fetchedIrodori(catalog).map((m) => (
+                  <button
+                    key={m.value}
+                    className={prof.model === m.value ? "on small" : "small"}
+                    onClick={() => save({ ...prof, model: m.value })}
+                    title={m.path}
+                  >
+                    {m.label}
+                  </button>
+                ))}
+                <button className="small" onClick={() => app().openDialog("catalog")}>
+                  ⤓ ほかの Irodori モデルを入手…
+                </button>
+              </div>
+            )}
+            {missing && (
+              <div className="warn-text">
+                ⚠ 「{prof.model}」はまだダウンロードされていません。
+                <button className="small primary" onClick={() => app().openDialog("catalog")}>
+                  カタログから入手…
+                </button>
               </div>
             )}
             <div className="grid2">
@@ -249,8 +287,13 @@ export function ModelManager() {
               {running ? (
                 <button onClick={() => app().stopEngine()}>停止</button>
               ) : (
-                <button className="primary" onClick={() => app().startEngine(prof.id)}>
-                  このモデルで起動（切替）
+                <button
+                  className="primary"
+                  disabled={!!starting || missing}
+                  title={missing ? "先にモデルをダウンロードしてください" : undefined}
+                  onClick={() => app().startEngine(prof.id)}
+                >
+                  {starting === prof.id ? "準備中…" : "このモデルで起動（切替）"}
                 </button>
               )}
               <button

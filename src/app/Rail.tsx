@@ -94,6 +94,7 @@ export function engineAction(
 function EnginePanel({ close }: { close: () => void }) {
   const settings = useApp((s) => s.settings);
   const engine = useApp((s) => s.engine);
+  const starting = useApp((s) => s.engineStarting);
   const app = useApp.getState;
   const chosen = chosenProfile(settings);
   const action = engineAction(engine, chosen);
@@ -110,7 +111,7 @@ function EnginePanel({ close }: { close: () => void }) {
           className={`menu-item${p.id === chosen?.id ? " chosen" : ""}`}
           role="menuitemradio"
           aria-checked={p.id === chosen?.id}
-          disabled={engine.state === "loading"}
+          disabled={engine.state === "loading" || !!starting}
           onClick={() => void app().saveSettings({ ...settings, activeProfileId: p.id })}
         >
           <span className={`dot ${"profileId" in engine && engine.profileId === p.id ? engine.state : "stopped"}`} />
@@ -132,8 +133,8 @@ function EnginePanel({ close }: { close: () => void }) {
           </button>
         )}
         {chosen && (action === "start" || action === "switch") && (
-          <button className="primary" onClick={() => void app().startEngine(chosen.id)}>
-            {chosen.name} {action === "start" ? "を起動" : "に切替"}
+          <button className="primary" disabled={!!starting} onClick={() => void app().startEngine(chosen.id)}>
+            {starting ? "準備中…" : `${chosen.name} ${action === "start" ? "を起動" : "に切替"}`}
           </button>
         )}
         {running && (
