@@ -13,6 +13,10 @@ updates:
       default-days: 7
     open-pull-requests-limit: 5
     groups:
+      # React and React DOM (and their types) must move together, majors included: a lone react or
+      # react-dom bump fails `npm ci` on the peer range (D-56).
+      react:
+        patterns: [react, react-dom, "@types/react", "@types/react-dom"]
       npm-minor-patch:
         update-types: [minor, patch]
         # Oxfmt is 0.x: a minor update can change the output, so it comes on its own (D-45).
