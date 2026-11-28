@@ -72,6 +72,9 @@ pub struct Variant {
     pub unsupported_reason: String,
     pub vram_bytes: u64,
     pub files: Vec<CatalogFile>,
+    /// Already in speech.cpp's model folder (`speechPull` models only; filled in by [`Catalog::merge_speech`]).
+    #[serde(default)]
+    pub fetched: bool,
 }
 
 fn yes() -> bool {
@@ -115,6 +118,47 @@ impl Catalog {
             .ok()
             .and_then(|s| Catalog::parse(&s).ok())
             .unwrap_or_else(|| Catalog::parse(BUILTIN_CATALOG).expect("built-in catalog"))
+    }
+
+    /// Fills each `speechPull` model's variants from `speech models --json`: every quantization speech.cpp
+    /// offers, with its real size and whether it is already fetched (D-59). A model speech.cpp does not list
+    /// keeps the variants of catalog.json.
+    pub fn merge_speech(&mut self, speech: &serde_json::Value) {
+        use serde_json::Value;
+        let Some(list) = speech.get("models").and_then(Value::as_array) else { return };
+        for m in &mut self.models {
+            let Source::SpeechPull { name } = &m.source else { continue };
+            let Some(sm) = list.iter().find(|x| x.get("name").and_then(Value::as_str) == Some(name)) else { continue };
+            let files = sm.get("files").and_then(Value::as_array).cloned().unwrap_or_default();
+            let variants: Vec<Variant> = files
+                .iter()
+                .filter_map(|f| {
+                    let ty = f.get("type")?.as_str()?.to_string();
+                    let size = f.get("size")?.as_u64()?;
+                    Some(Variant {
+                        label: ty.to_uppercase(),
+                        supported: true,
+                        unsupported_reason: String::new(),
+                        vram_bytes: crate::memguard::estimate(size),
+                        files: vec![CatalogFile {
+                            name: f.get("file").and_then(Value::as_str).unwrap_or_default().to_string(),
+                            size,
+                            sha256: f.get("sha256").and_then(Value::as_str).unwrap_or_default().to_string(),
+                            role: "model".into(),
+                        }],
+                        fetched: f.get("fetched").and_then(Value::as_bool) == Some(true),
+                        id: ty,
+                    })
+                })
+                .collect();
+            if variants.is_empty() {
+                continue;
+            }
+            if !variants.iter().any(|v| v.id == m.default_variant) {
+                m.default_variant = sm.get("type").and_then(Value::as_str).unwrap_or(&variants[0].id).to_string();
+            }
+            m.variants = variants;
+        }
     }
 
     pub fn find(&self, model: &str, variant: &str) -> Option<(&CatalogModel, &Variant)> {
@@ -534,6 +578,30 @@ mod tests {
     }
 
     #[test]
+    fn merges_speech_cpp_quantizations_and_fetched_state() {
+        let mut c = Catalog::parse(BUILTIN_CATALOG).unwrap();
+        let speech = serde_json::json!({"models": [{
+            "name": "irodori-tts-large", "type": "q8_0",
+            "files": [
+                {"type": "q8_0", "file": "L-Q8_0.gguf", "size": 3_875_154_272u64, "sha256": "ab", "fetched": true},
+                {"type": "q4_k", "file": "L-Q4_K.gguf", "size": 2_616_961_376u64, "sha256": "cd", "fetched": false}
+            ]
+        }]});
+        let before = c.find("drama3-ja", "q4_k").unwrap().1.clone();
+        c.merge_speech(&speech);
+        let (m, q8) = c.find("irodori-tts-large", "q8_0").unwrap();
+        assert_eq!(m.default_variant, "q8_0");
+        assert!(q8.fetched);
+        assert_eq!(q8.files[0].name, "L-Q8_0.gguf");
+        assert_eq!(q8.vram_bytes, crate::memguard::estimate(3_875_154_272));
+        assert!(!c.find("irodori-tts-large", "q4_k").unwrap().1.fetched);
+        assert_eq!(c.find("irodori-tts-large", "q4_k").unwrap().1.label, "Q4_K");
+        // Hugging Face models and models speech.cpp does not list are left as they are.
+        assert_eq!(c.find("drama3-ja", "q4_k").unwrap().1, &before);
+        assert!(c.find("irodori-tts-mf", "f16").is_some());
+    }
+
+    #[test]
     fn recommends_by_free_vram() {
         let c = Catalog::parse(BUILTIN_CATALOG).unwrap();
         let m = &c.models[0];
@@ -654,6 +722,7 @@ mod tests {
             supported: true,
             unsupported_reason: String::new(),
             vram_bytes: 0,
+            fetched: false,
             files: vec![CatalogFile {
                 name: "huge.gguf".into(),
                 size: u64::MAX / 4,

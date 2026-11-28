@@ -1,4 +1,4 @@
-//! Short-lived `speech` subcommands: devices, info, pull, asr, voice.
+//! Short-lived `speech` subcommands: devices, info, models, asr, voice.
 
 use std::collections::BTreeMap;
 use std::process::Stdio;
@@ -18,6 +18,12 @@ pub enum ToolError {
     Failed(String, i32, String),
     #[error("speech の出力を読めません: {0}")]
     Output(String),
+    #[error(
+        "モデル「{0}」はまだダウンロードされていません。モデル画面の「カタログから入手」でダウンロードしてください"
+    )]
+    NotFetched(String),
+    #[error("speech.cpp のカタログに「{0}」がありません")]
+    Unknown(String),
 }
 
 pub struct Speech<'a> {
@@ -76,19 +82,13 @@ impl Speech<'_> {
         self.json(&["models", "--json"]).await
     }
 
-    /// A `.gguf` path as it is; a catalog name becomes the path `speech pull` prints
-    /// (fetching it first when it is not in the model folder).
+    /// A `.gguf` path as it is; a catalog name (`NAME` or `NAME:TYPE`) becomes its file's path in the model
+    /// folder. A model that is not there is an error: downloads are started by the user (D-59), never here.
     pub async fn resolve_model(&self, model: &str) -> Result<String, ToolError> {
         if is_path(model) {
             return Ok(model.to_string());
         }
-        let out = self.run(&["pull".into(), model.into()]).await?;
-        out.lines()
-            .rev()
-            .map(str::trim)
-            .find(|l| !l.is_empty())
-            .map(str::to_owned)
-            .ok_or_else(|| ToolError::Output("speech pull printed no path".into()))
+        catalog_path(&self.catalog().await?, model)
     }
 
     /// The text of a recording, with the recognition model given (its path or catalog name).
@@ -113,6 +113,26 @@ pub fn is_path(model: &str) -> bool {
     model.to_ascii_lowercase().ends_with(".gguf") || model.contains('/') || model.contains('\\')
 }
 
+/// The file of `NAME[:TYPE]` in `speech models --json` output; TYPE defaults to the model's own `type`.
+pub fn catalog_file<'a>(catalog: &'a Value, model: &str) -> Option<&'a Value> {
+    let (name, ty) = match model.split_once(':') {
+        Some((n, t)) => (n, Some(t)),
+        None => (model, None),
+    };
+    let m = catalog.get("models")?.as_array()?.iter().find(|m| m.get("name").and_then(Value::as_str) == Some(name))?;
+    let ty = ty.or_else(|| m.get("type").and_then(Value::as_str))?;
+    m.get("files")?.as_array()?.iter().find(|f| f.get("type").and_then(Value::as_str) == Some(ty))
+}
+
+/// The path of a fetched catalog model, or why there is none.
+pub fn catalog_path(catalog: &Value, model: &str) -> Result<String, ToolError> {
+    let f = catalog_file(catalog, model).ok_or_else(|| ToolError::Unknown(model.into()))?;
+    if f.get("fetched").and_then(Value::as_bool) != Some(true) {
+        return Err(ToolError::NotFetched(model.into()));
+    }
+    f.get("path").and_then(Value::as_str).map(str::to_owned).ok_or_else(|| ToolError::Output("models: no path".into()))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -132,5 +152,25 @@ mod tests {
         assert!(matches!(s.devices().await, Err(ToolError::NoExe)));
         let s = Speech { exe: "Z:/does/not/exist/speech.exe", env: &env };
         assert!(matches!(s.devices().await, Err(ToolError::Spawn(..))));
+    }
+
+    fn catalog() -> Value {
+        serde_json::json!({"models": [{
+            "name": "irodori-tts-large", "type": "q8_0",
+            "files": [
+                {"type": "q8_0", "fetched": true, "path": "C:\\m\\large-q8.gguf"},
+                {"type": "q4_k", "fetched": false, "path": "C:\\m\\large-q4.gguf"}
+            ]
+        }]})
+    }
+
+    #[test]
+    fn resolves_fetched_catalog_models_without_fetching() {
+        let c = catalog();
+        assert_eq!(catalog_path(&c, "irodori-tts-large").unwrap(), r"C:\m\large-q8.gguf");
+        assert_eq!(catalog_path(&c, "irodori-tts-large:q8_0").unwrap(), r"C:\m\large-q8.gguf");
+        assert!(matches!(catalog_path(&c, "irodori-tts-large:q4_k"), Err(ToolError::NotFetched(_))));
+        assert!(matches!(catalog_path(&c, "irodori-tts-large:f16"), Err(ToolError::Unknown(_))));
+        assert!(matches!(catalog_path(&c, "nope"), Err(ToolError::Unknown(_))));
     }
 }

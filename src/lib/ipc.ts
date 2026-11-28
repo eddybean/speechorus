@@ -36,6 +36,8 @@ export const ipc = {
       models: {
         name: string;
         task: string;
+        /** The default quantization: what the bare name stands for. */
+        type: string;
         languages: string[];
         files: { type: string; size: number; fetched: boolean; path: string }[];
       }[];

@@ -21,7 +21,7 @@ They are listed under "Decisions pending" at the end.
 ### D-02 Model catalog names are resolved to file paths with `speech pull` before use 【変更】
 - **What**: The profile's `irodori-tts-mf` and the ASR's `qwen3-asr-0.6b` are converted to a path with `speech pull NAME`, and every subcommand receives that path.
 - **Why**: When speech.exe was started from another program, passing a model name sometimes downloaded the existing model again.
-- **Workaround / user impact**: None. On first use of a model that has not been fetched yet, the download runs (the model management dialog shows "not fetched").
+- **Workaround / user impact**: None. On first use of a model that has not been fetched yet, the download runs (the model management dialog shows "not fetched"). *Superseded by D-59: the path now comes from `speech models --json`, and a model that is not fetched is an error that points to the catalog dialog.*
 
 ### D-03 Irodori voices are also always turned into a `.voice.gguf` 【変更】
 - **What**: The plan says Irodori can use a reference WAV directly. The implementation always makes a voice file first with `speech voice irodori-tts-mf ref.wav`.
@@ -444,3 +444,18 @@ Requests: (1) a way to stop playback, (2) choosing a Drama-3 voice by text promp
   - Memory another program takes after the check is not seen. With the check off, nothing is measured, so after turning it on, the running engine's memory counts as used until the next start.
   - Not tried against a GPU that is really short of memory: the judgement is covered by unit tests (`memguard.rs`, `src/store/app.test.ts`).
 - **User impact**: Starting or switching a model when the device looks short of memory asks first (標準), or is refused (強). A start that fits is unchanged apart from the extra 0.15 s `speech devices` call.
+
+### D-59 Model downloads are explicit, with progress; starting never downloads 【変更（ユーザー要望）】
+- **What**:
+  - **No implicit download.** `tools::Speech::resolve_model` no longer runs `speech pull`: it looks the name (`NAME` or `NAME:TYPE`; TYPE defaults to the model's own `type`) up in `speech models --json` and returns the file's path when it is fetched, else the error "モデル「…」はまだダウンロードされていません。モデル画面の「カタログから入手」でダウンロードしてください". This covers the engine start, モデルを確認 and the ASR transcription.
+  - **One place to download.** The catalog dialog (カタログから入手) also lists Irodori-TTS v4.1 Small and v4 Large (`assets/models/catalog.json`; Large is under the Gemma Terms of Use and asks for consent). For `speechPull` models the variants are filled from `speech models --json` (`Catalog::merge_speech`): every quantization speech.cpp offers, its real size, a VRAM estimate by `memguard::estimate`, and whether it is already fetched (✓ 取得済). The download runs `speech pull NAME:TYPE` with the progress, cancel and free-space check it already had; `catalog_download` is now async.
+  - **The モデル screen** lists only the fetched Irodori files as quick picks (a non-default quantization as `NAME:TYPE`) and a "ほかの Irodori モデルを入手…" button. A profile whose catalog name is not fetched shows a warning with a button to the catalog, and its start button is disabled. The list is read again after a download finishes.
+  - **Progress everywhere.** The status bar shows the running download (`irodori-tts-large:q8_0 42%・残り 3分…`, plus how many more); clicking it opens the catalog dialog.
+  - **Preparing state.** `startEngine` sets `engineStarting` from the click until `engine_start` returns (path lookup, memory check, the confirmation); a second start meanwhile is ignored, the start buttons say 準備中… and are disabled, and the status bar says "… の起動を準備中…".
+- **Why**: The user tried to get Irodori-TTS Large from the モデル screen: its button only set the name, and the download ran inside the engine start with no progress, no cancel and the engine still shown as stopped, so it looked frozen. Large was not in the catalog dialog at all.
+- **Not done / limits**:
+  - The status bar names a download by its id (`model:variant`), not the display name.
+  - A typed catalog name that speech.cpp does not list fails with "speech.cpp のカタログに「…」がありません".
+  - Only the catalog's `speechPull` models get their variants from speech.cpp; other speech.cpp models (Qwen3-TTS and so on) are not offered, as no adapter uses them.
+- **Checked** in the app (`npm run tauri dev`, driven over the WebView2 DevTools protocol, speech.cpp 0.11.2): the モデル screen lists the fetched `irodori-tts-mf` and `irodori-tts-large`; a profile set to the unfetched `irodori-tts` shows the warning with its start button disabled, and a start from the store fails in 44 ms with the message and no download. Starting `irodori-tts-mf` shows 準備中… (button disabled, a second start ignored), then 読み込み中…, then ready in 1.6 s. The catalog dialog lists every speech.cpp quantization of the three Irodori models and Qwen3-ASR with ✓ 取得済 where fetched; downloading Qwen3-ASR Q4_K (0.5 GB) showed its progress in the card and the status bar, ended with the ASR model set and the variant marked fetched; cancelling Irodori Small Q4_K at 10% left 中断 and a 再開 button. The fetched-recognition button read "プロファイルを作成", which was wrong: it now says 書き起こしモデルに設定.
+- **User impact**: Picking or starting a model never starts a download. Downloads are started in the catalog dialog and their progress is visible from any screen. Profiles that name a model that was never fetched (for example a new Irodori profile on a fresh install) show a warning and need a download first.

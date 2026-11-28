@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
-import { StatusBar, formatEta } from "./StatusBar";
+import { StatusBar, downloadSummary, formatEta } from "./StatusBar";
 import { useApp } from "../store/app";
-import type { AppSettings } from "../lib/types";
+import type { AppSettings, DownloadProgress } from "../lib/types";
 
 const cancelAll = vi.fn(async () => {});
 const settings: AppSettings = {
@@ -51,6 +51,8 @@ describe("StatusBar", () => {
       jobDurations: [],
       runningSince: null,
       engine: { state: "ready", profileId: "p1", model: {}, sampleRate: 48000 },
+      downloads: {},
+      engineStarting: null,
     });
   });
 
@@ -91,5 +93,40 @@ describe("StatusBar", () => {
     render(<StatusBar />);
     expect(screen.getByText(/エンジン停止中/)).toBeTruthy();
     expect(screen.queryByRole("button", { name: /モデルを入手/ })).toBeNull();
+  });
+
+  it("shows a running download anywhere in the app and opens its dialog (D-59)", () => {
+    useApp.setState({ dialog: null, downloads: { [dl.id]: dl } });
+    render(<StatusBar />);
+    fireEvent.click(screen.getByRole("button", { name: /irodori-tts-large:q8_0 25%・残り 3分0秒/ }));
+    expect(useApp.getState().dialog).toBe("catalog");
+  });
+
+  it("says the start is being prepared before the engine reports loading", () => {
+    useApp.setState({ engine: { state: "stopped" }, engineStarting: "p1" });
+    render(<StatusBar />);
+    expect(screen.getByText("Irodori Small の起動を準備中…")).toBeTruthy();
+  });
+});
+
+const dl: DownloadProgress = {
+  id: "irodori-tts-large:q8_0",
+  phase: "downloading",
+  file: "",
+  done: 1e9,
+  total: 4e9,
+  bytesPerSec: 1e7,
+  etaSecs: 180,
+  message: "",
+  profileId: null,
+};
+
+describe("downloadSummary", () => {
+  it("names the first running download and counts the rest; finished ones are left out", () => {
+    expect(downloadSummary({})).toBeNull();
+    expect(downloadSummary({ a: { ...dl, phase: "done" } })).toBeNull();
+    const two = { a: dl, b: { ...dl, id: "qwen3-asr-0.6b:q8_0", phase: "verifying" as const } };
+    expect(downloadSummary(two)).toBe("irodori-tts-large:q8_0 25%・残り 3分0秒（ほか 1 件）");
+    expect(downloadSummary({ b: two.b })).toBe("qwen3-asr-0.6b:q8_0 検証中");
   });
 });

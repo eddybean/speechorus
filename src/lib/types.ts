@@ -268,6 +268,8 @@ export interface CatalogVariant {
   unsupportedReason?: string;
   vramBytes: number;
   files: CatalogFile[];
+  /** Already in speech.cpp's model folder (`speechPull` models only, D-59). */
+  fetched?: boolean;
 }
 
 export interface CatalogModel {
