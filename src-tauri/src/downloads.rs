@@ -318,7 +318,9 @@ pub fn fetch_file(
         .timeout_per_read(Some(Duration::from_secs(60)))
         .build()
         .into();
-    let mut req = agent.get(url).header("User-Agent", "speechorus-downloader");
+    // Ask for the bytes as stored: the size and hash checks cover the file itself, and ureq 3
+    // fails to decode a gzip-encoded 206 (a resumed download).
+    let mut req = agent.get(url).header("User-Agent", "speechorus-downloader").header("Accept-Encoding", "identity");
     if have > 0 && have < size {
         req = req.header("Range", format!("bytes={have}-"));
     }
