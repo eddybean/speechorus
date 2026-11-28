@@ -65,6 +65,7 @@ VS_SPEECH_EXE=.engine/speech.exe VS_DRAMA_MODEL=path/to/Drama-35B-A3B-Japanese-v
 **Persistence.**
 - A project is a `.vsproj` JSON file plus a `<project>.takes/` folder of WAVs. The `.vsproj` records the folder name (`takesDir`) and an `id` that the folder's `.speechorus-project` marker repeats, so a hand-renamed `.vsproj` still finds its takes and the next save renames the folder (D-49). `project_prune` removes WAVs that are no longer referenced.
 - App settings (model profiles: adapter, GGUF, speech.exe, device, env; the playback volume, D-46) are stored in the app config dir as `settings.json`. A `catalog.json` there overrides the bundled catalog.
+- `.vsproj`, `settings.json` and `voices.json` carry a format `version`, upgraded on load by each file's `migrate`; members a newer version added are kept (`extra`). An unreadable or newer `settings.json`/`voices.json` is moved or copied aside (`stored.rs`) instead of being overwritten, and the user is told at start (D-61). Raise the version, with a migrate step, for any change that would read an older file wrongly.
 - The voice library (`.voice.gguf` files) lives in the app data dir under `voices/`.
 - Scratch audio lives in `work/<uuid>/` in the local app data dir, one per running instance and locked by its `.lock` (`work.rs`, D-39): untitled projects' takes, `design/` candidates and `trimmed/` references. At start, folders that no running instance holds are swept.
 

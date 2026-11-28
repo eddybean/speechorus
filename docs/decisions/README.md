@@ -83,8 +83,9 @@ Sections that have nothing to say may be left out. Mention the user only for dec
 | [D-58](D-58-memory-guard.md) | A free-memory check before the engine starts | engine |
 | [D-59](D-59-explicit-downloads.md) | Models are resolved from `speech models`; only the catalog downloads | engine, models |
 | [D-60](D-60-bump-app-token.md) | The release PR is opened with a GitHub App token, not `GITHUB_TOKEN` | CI, release |
+| [D-61](D-61-file-format-versions.md) | Saved files carry a format version; unreadable or newer app files are set aside | project, settings, voices |
 
-Next free ID: D-61.
+Next free ID: D-62.
 
 ## Retired
 

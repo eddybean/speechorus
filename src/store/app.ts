@@ -150,6 +150,8 @@ export const useApp = create<AppStore>()((set, get) => ({
       p.load(p.project, null, workDir);
       document.documentElement.dataset.theme = settings.theme;
       set({ settings, adapters, engine, voices, ready: true });
+      // Shown as errors so they stay up long enough to read the path of the file that was moved aside.
+      for (const n of await ipc.takeStartupNotices().catch(() => [])) get().notify("error", n);
       unlisten?.();
       unlisten = await onAppEvent((ev) => {
         if (ev.kind === "engine") {

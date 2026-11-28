@@ -12,6 +12,7 @@ mod memory;
 pub mod models;
 pub mod project;
 pub mod settings;
+pub mod stored;
 pub mod tools;
 pub mod voices;
 pub mod work;
@@ -69,7 +70,11 @@ pub fn run() {
             let data = app.path().app_data_dir()?;
             let local = app.path().app_local_data_dir()?;
             let settings_path = cfg.join("settings.json");
-            let settings = settings::AppSettings::load(&settings_path)
+            let mut notices = Vec::new();
+            let loaded = settings::AppSettings::load(&settings_path);
+            notices.extend(loaded.notice);
+            let settings = loaded
+                .value
                 .map(|mut s| {
                     s.speech_exe = strip_verbatim(&s.speech_exe);
                     for p in &mut s.profiles {
@@ -82,7 +87,8 @@ pub fn run() {
                     let _ = s.save(&settings_path);
                     s
                 });
-            let voices = voices::VoiceLibrary::open(&data.join("voices"));
+            let (voices, notice) = voices::VoiceLibrary::open(&data.join("voices"));
+            notices.extend(notice);
             let _ = app.asset_protocol_scope().allow_directory(&voices.dir, true);
             // Trimmed references used to be kept here (before D-39); they now live in the work folder.
             let _ = std::fs::remove_dir_all(voices.dir.join(work::TRIMMED));
@@ -100,11 +106,13 @@ pub fn run() {
                 downloads: Default::default(),
                 catalog_override: cfg.join("catalog.json"),
                 engine_memory: Default::default(),
+                startup_notices: Mutex::new(notices),
             });
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
             commands::get_settings,
+            commands::take_startup_notices,
             commands::save_settings,
             commands::new_profile,
             commands::list_adapters,
