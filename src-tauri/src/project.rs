@@ -132,6 +132,15 @@ pub enum ProjectError {
     Json(#[from] serde_json::Error),
     #[error("このプロジェクトは新しいバージョン ({0}) で保存されています")]
     TooNew(u32),
+    #[error("プロジェクトを今の形式に変換できません: {0}")]
+    Migrate(String),
+}
+
+/// Upgrades a `.vsproj` from version `from` to `from + 1` (D-61). Raise [`PROJECT_VERSION`] with a step here when a
+/// change would read an older project wrongly; adding a member with a default needs neither. There is no older
+/// format yet.
+fn migrate(_v: &mut Value, from: u32) -> Result<(), String> {
+    Err(format!("v{from} からの変換方法がありません"))
 }
 
 /// `dir/name.vsproj` → `dir/name.takes`.
@@ -259,10 +268,15 @@ pub fn save_project(
 
 pub fn load_project(path: &Path) -> Result<(Project, PathBuf), ProjectError> {
     let s = std::fs::read_to_string(path).map_err(|e| ProjectError::Io(path.display().to_string(), e))?;
-    let p: Project = serde_json::from_str(&s)?;
-    if p.version > PROJECT_VERSION {
-        return Err(ProjectError::TooNew(p.version));
+    let mut v: Value = serde_json::from_str(&s)?;
+    let version = crate::stored::version_member(&v, PROJECT_VERSION);
+    if version > PROJECT_VERSION {
+        return Err(ProjectError::TooNew(version));
     }
+    for from in version..PROJECT_VERSION {
+        migrate(&mut v, from).map_err(ProjectError::Migrate)?;
+    }
+    let p: Project = serde_json::from_value(v)?;
     let dir = find_takes_dir(path, &p);
     Ok((p, dir))
 }

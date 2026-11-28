@@ -4,8 +4,15 @@ use std::collections::BTreeMap;
 use std::path::Path;
 
 use serde::{Deserialize, Serialize};
+use serde_json::{Map, Value};
 
 use crate::memguard::GuardLevel;
+use crate::stored;
+
+/// The format of `settings.json` this version writes (D-61). Raise it with a step in [`migrate`] when a change
+/// would read an older file wrongly (a member renamed, moved or given another meaning); adding a member with a
+/// default needs neither.
+pub const SETTINGS_VERSION: u32 = 1;
 use crate::models::adapter_for;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -74,12 +81,15 @@ pub struct AppSettings {
     pub playback_muted: bool,
     /// System protection: how hard the free-memory check before an engine start is (D-58).
     pub memory_guard: GuardLevel,
+    /// Members a later version added; kept as they are.
+    #[serde(flatten)]
+    pub extra: Map<String, Value>,
 }
 
 impl Default for AppSettings {
     fn default() -> Self {
         AppSettings {
-            version: 1,
+            version: SETTINGS_VERSION,
             profiles: Vec::new(),
             active_profile_id: None,
             speech_exe: String::new(),
@@ -92,6 +102,7 @@ impl Default for AppSettings {
             playback_volume: 1.0,
             playback_muted: false,
             memory_guard: GuardLevel::default(),
+            extra: Map::new(),
         }
     }
 }
@@ -116,16 +127,30 @@ impl AppSettings {
         self.profiles.iter().find(|p| p.id == id)
     }
 
-    pub fn load(path: &Path) -> Option<Self> {
-        let s = std::fs::read_to_string(path).ok()?;
-        serde_json::from_str(&s).ok()
+    /// Reads `settings.json`, upgrading an older format. A file that cannot be read is moved aside (value None), so
+    /// the first-run settings saved in its place do not destroy it; the notice says where it went.
+    pub fn load(path: &Path) -> stored::Loaded<Self> {
+        let mut l: stored::Loaded<Self> = stored::load(
+            path,
+            SETTINGS_VERSION,
+            |v| stored::version_member(v, 1),
+            migrate,
+            "アプリ設定 (settings.json)",
+        );
+        if let Some(s) = &mut l.value {
+            // Saved from now on in this version's format.
+            s.version = SETTINGS_VERSION;
+        }
+        l
     }
 
     pub fn save(&self, path: &Path) -> std::io::Result<()> {
         if let Some(d) = path.parent() {
             std::fs::create_dir_all(d)?;
         }
-        crate::project::write_atomic(path, serde_json::to_string_pretty(self)?.as_bytes())
+        let mut s = self.clone();
+        s.version = SETTINGS_VERSION;
+        crate::project::write_atomic(path, serde_json::to_string_pretty(&s)?.as_bytes())
     }
 
     pub fn push_recent_project(&mut self, p: &str) {
@@ -133,6 +158,12 @@ impl AppSettings {
         self.recent_projects.insert(0, p.into());
         self.recent_projects.truncate(10);
     }
+}
+
+/// Upgrades `settings.json` from version `from` to `from + 1`. There is no older format yet: the first step goes here
+/// as `1 => { … }`, followed by setting `version`.
+fn migrate(_v: &mut Value, from: u32) -> Result<(), String> {
+    Err(format!("v{from} からの変換方法がありません"))
 }
 
 #[cfg(test)]
@@ -157,7 +188,7 @@ mod tests {
         s.push_recent_project("b.vsproj");
         s.push_recent_project("a.vsproj");
         s.save(&p).unwrap();
-        assert_eq!(AppSettings::load(&p).unwrap(), s);
+        assert_eq!(AppSettings::load(&p).value.unwrap(), s);
         assert_eq!(s.recent_projects, ["a.vsproj", "b.vsproj"]);
         let partial: AppSettings = serde_json::from_str(r#"{"showNsfwTags":true}"#).unwrap();
         assert!(partial.show_nsfw_tags);
@@ -165,5 +196,32 @@ mod tests {
         assert_eq!(partial.playback_volume, 1.0);
         assert!(!partial.playback_muted);
         assert_eq!(partial.memory_guard, GuardLevel::Standard);
+    }
+
+    #[test]
+    fn unreadable_settings_are_moved_aside_not_overwritten() {
+        let dir = tempfile::tempdir().unwrap();
+        let p = dir.path().join("settings.json");
+        std::fs::write(&p, r#"{"profiles":"not a list"}"#).unwrap();
+        let l = AppSettings::load(&p);
+        assert!(l.value.is_none());
+        assert!(l.notice.unwrap().contains("settings.json.broken-"));
+        assert!(!p.exists());
+    }
+
+    #[test]
+    fn newer_settings_keep_unknown_members() {
+        let dir = tempfile::tempdir().unwrap();
+        let p = dir.path().join("settings.json");
+        std::fs::write(&p, r#"{"version":9,"theme":"light","futureThing":{"a":1}}"#).unwrap();
+        let l = AppSettings::load(&p);
+        assert!(l.notice.unwrap().contains("v9"));
+        let s = l.value.unwrap();
+        assert_eq!(s.theme, "light");
+        assert_eq!(s.version, SETTINGS_VERSION);
+        s.save(&p).unwrap();
+        let back: Value = serde_json::from_str(&std::fs::read_to_string(&p).unwrap()).unwrap();
+        assert_eq!(back["futureThing"]["a"], 1);
+        assert_eq!(back["version"], SETTINGS_VERSION);
     }
 }

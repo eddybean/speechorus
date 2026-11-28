@@ -30,6 +30,8 @@ pub struct AppState {
     pub catalog_override: PathBuf,
     /// What the running engine holds on its device, to count as free when another start stops it (D-58).
     pub engine_memory: Arc<Mutex<Option<crate::memguard::Held>>>,
+    /// What loading the app's own files found that the user should know (a file moved aside, D-61).
+    pub startup_notices: Mutex<Vec<String>>,
 }
 
 type R<T> = Result<T, String>;
@@ -59,6 +61,12 @@ impl AppState {
 #[tauri::command]
 pub fn get_settings(st: State<'_, AppState>) -> AppSettings {
     st.settings.lock().unwrap().clone()
+}
+
+/// The startup notices, once: a second call returns none.
+#[tauri::command]
+pub fn take_startup_notices(st: State<'_, AppState>) -> Vec<String> {
+    std::mem::take(&mut *st.startup_notices.lock().unwrap())
 }
 
 #[tauri::command]

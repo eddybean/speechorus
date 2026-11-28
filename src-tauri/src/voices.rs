@@ -3,8 +3,13 @@
 use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
+use serde_json::{Map, Value};
 
 use crate::models::{ModelAdapter, VoiceBuild, VoiceInput};
+use crate::stored;
+
+/// The format of `voices.json` this version writes (D-61). Version 0 was the bare list of voices.
+pub const VOICES_VERSION: u32 = 1;
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase", default)]
@@ -24,6 +29,9 @@ pub struct Voice {
     /// A voice described in words only (no file): Drama-3 writes it as a leading cue with `voice none`,
     /// Irodori sends it as `instructions`.
     pub prompt: String,
+    /// Members a later version added; kept as they are.
+    #[serde(flatten)]
+    pub extra: Map<String, Value>,
 }
 
 impl Voice {
@@ -36,23 +44,51 @@ impl Voice {
 pub struct VoiceLibrary {
     pub dir: PathBuf,
     pub voices: Vec<Voice>,
+    /// Top-level members of `voices.json` a later version added; kept as they are.
+    extra: Map<String, Value>,
+}
+
+/// `voices.json`.
+#[derive(Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
+struct VoicesFile {
+    version: u32,
+    voices: Vec<Voice>,
+    #[serde(flatten)]
+    extra: Map<String, Value>,
+}
+
+/// Upgrades `voices.json` from version `from` to `from + 1`.
+fn migrate(v: &mut Value, from: u32) -> Result<(), String> {
+    match from {
+        // The bare list becomes `{version, voices}`.
+        0 => *v = serde_json::json!({ "version": 1, "voices": v.take() }),
+        _ => return Err(format!("v{from} からの変換方法がありません")),
+    }
+    Ok(())
+}
+
+fn version_of(v: &Value) -> u32 {
+    if v.is_array() {
+        0
+    } else {
+        stored::version_member(v, VOICES_VERSION)
+    }
 }
 
 impl VoiceLibrary {
-    pub fn open(dir: &Path) -> Self {
-        let voices = std::fs::read_to_string(dir.join("voices.json"))
-            .ok()
-            .and_then(|s| serde_json::from_str(&s).ok())
-            .unwrap_or_default();
-        VoiceLibrary { dir: dir.to_path_buf(), voices }
+    /// Opens the library, with a notice for the user when `voices.json` was unreadable (and moved aside) or newer.
+    pub fn open(dir: &Path) -> (Self, Option<String>) {
+        let l: stored::Loaded<VoicesFile> =
+            stored::load(&dir.join("voices.json"), VOICES_VERSION, version_of, migrate, "声ライブラリ (voices.json)");
+        let f = l.value.unwrap_or_default();
+        (VoiceLibrary { dir: dir.to_path_buf(), voices: f.voices, extra: f.extra }, l.notice)
     }
 
     pub fn save(&self) -> std::io::Result<()> {
         std::fs::create_dir_all(&self.dir)?;
-        crate::project::write_atomic(
-            &self.dir.join("voices.json"),
-            serde_json::to_string_pretty(&self.voices)?.as_bytes(),
-        )
+        let f = VoicesFile { version: VOICES_VERSION, voices: self.voices.clone(), extra: self.extra.clone() };
+        crate::project::write_atomic(&self.dir.join("voices.json"), serde_json::to_string_pretty(&f)?.as_bytes())
     }
 
     pub fn get(&self, id: &str) -> Option<&Voice> {
@@ -195,7 +231,7 @@ mod tests {
         let d = tempfile::tempdir().unwrap();
         let wav = d.path().join("me.wav");
         std::fs::write(&wav, b"RIFF").unwrap();
-        let mut lib = VoiceLibrary::open(&d.path().join("lib"));
+        let mut lib = VoiceLibrary::open(&d.path().join("lib")).0;
         let (b, v) = lib
             .plan(
                 &Drama3Adapter,
@@ -212,7 +248,7 @@ mod tests {
         std::fs::write(&v.file, b"GGUF").unwrap();
         let vid = v.id.clone();
         lib.insert(v).unwrap();
-        assert!(VoiceLibrary::open(&lib.dir).get(&vid).is_some());
+        assert!(VoiceLibrary::open(&lib.dir).0.get(&vid).is_some());
 
         let plan = lib.plan_combined("m.gguf", &[None, Some(vid.clone())]).unwrap();
         let CombinePlan::Build(b, cv) = plan else { panic!() };
@@ -232,6 +268,46 @@ mod tests {
         assert_eq!(pv.prompt, "落ち着いた25歳の女性。");
         assert!(pv.file.is_empty());
         assert!(matches!(lib.plan_combined("m.gguf", &[Some(pv.id.clone())]).unwrap(), CombinePlan::NoneNeeded));
-        assert_eq!(VoiceLibrary::open(&lib.dir).get(&pv.id).unwrap().prompt, "落ち着いた25歳の女性。");
+        assert_eq!(VoiceLibrary::open(&lib.dir).0.get(&pv.id).unwrap().prompt, "落ち着いた25歳の女性。");
+    }
+
+    #[test]
+    fn reads_the_old_bare_list_and_saves_the_versioned_form() {
+        let d = tempfile::tempdir().unwrap();
+        std::fs::write(d.path().join("voices.json"), r#"[{"id":"a","name":"私","family":"drama3","speakers":1}]"#)
+            .unwrap();
+        let (lib, notice) = VoiceLibrary::open(d.path());
+        assert!(notice.is_none());
+        assert_eq!(lib.get("a").unwrap().name, "私");
+        lib.save().unwrap();
+        let v: Value = serde_json::from_str(&std::fs::read_to_string(d.path().join("voices.json")).unwrap()).unwrap();
+        assert_eq!(v["version"], VOICES_VERSION);
+        assert_eq!(v["voices"][0]["id"], "a");
+    }
+
+    #[test]
+    fn an_unreadable_list_is_moved_aside() {
+        let d = tempfile::tempdir().unwrap();
+        std::fs::write(d.path().join("voices.json"), "[{").unwrap();
+        let (lib, notice) = VoiceLibrary::open(d.path());
+        assert!(lib.voices.is_empty());
+        assert!(notice.unwrap().contains("voices.json.broken-"));
+        assert!(!d.path().join("voices.json").exists());
+    }
+
+    #[test]
+    fn newer_members_survive_a_save() {
+        let d = tempfile::tempdir().unwrap();
+        std::fs::write(
+            d.path().join("voices.json"),
+            r#"{"version":5,"folders":["x"],"voices":[{"id":"a","name":"n","tags":["t"]}]}"#,
+        )
+        .unwrap();
+        let (lib, notice) = VoiceLibrary::open(d.path());
+        assert!(notice.unwrap().contains("v5"));
+        lib.save().unwrap();
+        let v: Value = serde_json::from_str(&std::fs::read_to_string(d.path().join("voices.json")).unwrap()).unwrap();
+        assert_eq!(v["folders"][0], "x");
+        assert_eq!(v["voices"][0]["tags"][0], "t");
     }
 }

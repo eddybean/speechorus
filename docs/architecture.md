@@ -85,7 +85,10 @@ bracket cues and speaker tokens (D-04). Tag palettes: `assets/tags/*.json`; cata
   saves keep the WAVs the history can bring back (D-40, D-41).
 - **App settings** (`settings.json` in the app config dir): profiles, the active profile, speech.exe, the ASR model,
   theme, tags, recent projects, volume, memory guard. A `catalog.json` there overrides the bundled catalog.
-- **Voice library**: app data dir, `voices/` (D-06).
+- **Voice library**: app data dir, `voices/` (D-06); `voices.json` lists the voices.
+- **Format versions** (D-61): `.vsproj`, `settings.json` and `voices.json` carry a `version`, upgraded on load by
+  each file's `migrate`, and keep members a newer version added. A newer project is refused; an unreadable or newer
+  `settings.json` / `voices.json` is moved or copied aside (`stored.rs`) and the user is told at start.
 - **Scratch audio**: `work/<uuid>/` in the local app data dir, one per running instance (D-39).
 
 ## Front end

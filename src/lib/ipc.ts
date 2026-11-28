@@ -22,6 +22,8 @@ export const inTauri = typeof window !== "undefined" && "__TAURI_INTERNALS__" in
 
 export const ipc = {
   getSettings: () => invoke<AppSettings>("get_settings"),
+  /** What loading settings.json / voices.json found, once (a file moved aside; D-61). */
+  takeStartupNotices: () => invoke<string[]>("take_startup_notices"),
   saveSettings: (settings: AppSettings) => invoke<void>("save_settings", { settings }),
   newProfile: (adapter: string, id: string, name: string, model: string, speechExe: string) =>
     invoke<ModelProfile>("new_profile", { adapter, id, name, model, speechExe }),
