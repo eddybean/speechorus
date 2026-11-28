@@ -10,9 +10,8 @@ all-features = false
 yanked = "deny"
 # Each ignore needs a reason and is dropped once the crate that pulls it in moves on.
 ignore = [
-  # Both come in through Tauri and are fixed in versions still inside the 7-day release-age window (D-43, D-45).
-  # Take them with `cargo update -p url -p cookie` once they are old enough, then drop these lines.
-  { id = "RUSTSEC-2026-0592", reason = "url 2.5.9 fixes it; old enough from 2026-11-27 23:03 UTC" },
+  # Comes in through Tauri and is fixed in a version still inside the 7-day release-age window (D-43).
+  # Take it with `cargo update -p cookie` once it is old enough, then drop this line.
   { id = "RUSTSEC-2026-0594", reason = "cookie 0.18.3 fixes it; old enough from 2026-11-30 07:45 UTC; Windows does not fork" },
 ]
 
