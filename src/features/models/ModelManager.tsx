@@ -102,7 +102,9 @@ export function ModelManager() {
           ))}
         </div>
         {prof && adapter && (
-          <div className="profile-form">
+          // Keyed by profile: the env and extra-args fields are uncontrolled (saved on blur), so without a
+          // remount they would keep the previous profile's text, and leaving them would save it here.
+          <div className="profile-form" key={prof.id}>
             <label className="block">
               名前
               <input value={prof.name} onChange={(e) => save({ ...prof, name: e.target.value })} />

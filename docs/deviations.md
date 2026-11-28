@@ -420,3 +420,10 @@ Requests: (1) a way to stop playback, (2) choosing a Drama-3 voice by text promp
   - Dependabot updates only the SHA, not the `# vX.Y.Z` comment, when another comment follows it on the line (`# zizmor: ignore[...]`); fix the comment by hand in such PRs (done in #30).
 - **User impact**: None expected. The app starts slightly slower to parse (+79 kB of JavaScript).
 
+### D-57 Esc closes 書き出し, and the モデル screen shows each profile's own env 【修正】
+- **What**: Two bugs found while trying React 19 (D-56); both were there on React 18.3 too.
+  - **書き出し did not close on Esc.** The app's Esc handler clears the line selection first; the export dialog reads the selection, so it re-rendered during that keydown, and `Dialog` (`src/app/Dialog.tsx`) removed and re-added its window listener because `onClose` is a new function on every render. A listener added during a dispatch is not called for it. `Dialog` now adds one listener for its life and calls the latest `onClose` through a ref. 設定 was not affected because it does not read the selection.
+  - **The env and extra-args fields of the モデル screen kept the first profile's text** when another profile was picked (when the first one had any): they are uncontrolled (`defaultValue`, saved on blur), and the form was not remounted. Leaving the field then saved that text into the other profile, e.g. the Drama-3 Vulkan variables into Irodori. The form is now keyed by the profile id.
+- **Checked**: `src/app/Dialog.test.tsx` and `src/features/models/ModelManager.test.tsx` fail without the fixes and pass with them. In the app (over the WebView2 DevTools protocol, real key and mouse input): Esc closes 書き出し and 設定, and switching between the Drama-3 and Irodori profiles shows each one's own env.
+- **User impact**: Esc closes the export dialog. Picking a profile on the モデル screen no longer shows, or on leaving the field saves, another profile's environment variables.
+
