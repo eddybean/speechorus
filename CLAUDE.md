@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-Speechorus (repo folder `voice-studio`; renamed in D-36) is a Windows desktop Japanese TTS studio: Tauri 2 + React 18 + TypeScript on the front, Rust core behind it, and the external [speech.cpp](https://github.com/nyosegawa/speech.cpp) `speech.exe` (v0.11.2+, Vulkan build) as the engine. Main model: Drama-3-Japanese (Q4_K/Q5_K, Vulkan only, needs `GGML_VK_DISABLE_F16/COOPMAT/COOPMAT2=1`, and its `.gguf.json` sidecar next to the GGUF). Second model: Irodori-TTS. The app ships no GGUF files. The UI text is Japanese.
+Speechorus (repo folder `voice-studio`; renamed in D-36) is a Windows desktop Japanese TTS studio: Tauri 2 + React 19 + TypeScript on the front, Rust core behind it, and the external [speech.cpp](https://github.com/nyosegawa/speech.cpp) `speech.exe` (v0.11.2+, Vulkan build) as the engine. Main model: Drama-3-Japanese (Q4_K/Q5_K, Vulkan only, needs `GGML_VK_DISABLE_F16/COOPMAT/COOPMAT2=1`, and its `.gguf.json` sidecar next to the GGUF). Second model: Irodori-TTS. The app ships no GGUF files. The UI text is Japanese.
 
 ## Commands
 
