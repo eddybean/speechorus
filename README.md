@@ -63,7 +63,7 @@ npx tauri build --no-bundle
 
 CI (`.github/workflows/ci.yml`) runs the same checks on every pull request into `main` and every push to `main`. Run `npm run check` before you push anyway. The pre-commit hook formats and lints only the staged files (Oxlint `--fix`, Oxfmt, rustfmt); skip it with `git commit --no-verify` when you need to.
 
-Dependencies are held to versions published at least 7 days ago, and install scripts run only for packages approved in `package.json` `allowScripts` (`.npmrc`; needs npm 11.19+). Crates in `Cargo.lock` are checked the same way by `scripts/cargo-release-age.mjs`. See D-43 in `docs/deviations.md`.
+Dependencies are held to versions published at least 7 days ago, and install scripts run only for packages approved in `package.json` `allowScripts` (`.npmrc`; needs npm 11.19+). Crates in `Cargo.lock` are checked the same way by `scripts/cargo-release-age.mjs`. See [D-43](docs/decisions/D-43-supply-chain.md).
 
 `speech.exe` is looked up in this order: the `SPEECHORUS_SPEECH` environment variable, next to the executable (`speech/speech.exe`, `speech.exe`), then `.engine/speech.exe` (for development).
 
@@ -76,7 +76,9 @@ VS_SPEECH_EXE=.engine/speech.exe VS_DRAMA_MODEL=path/to/Drama-35B-A3B-Japanese-v
 
 ## Documentation
 
-- [docs/architecture.md](docs/architecture.md): design (the approved plan)
+- [docs/architecture.md](docs/architecture.md): how the app is built
+- [docs/decisions/](docs/decisions/README.md): decision records (why things are the way they are, and what was tried and rejected)
+- [Issues](https://github.com/eddybean/speechorus/issues): known gaps, deferred features and planned work
 - [docs/engine-protocol.md](docs/engine-protocol.md): speech.cpp worker protocol and measurements (memory, time, known limitations)
 
 ## License

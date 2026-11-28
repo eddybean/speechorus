@@ -1,5 +1,5 @@
 //! Installs the official speech.cpp Windows Vulkan release: download the zip, check it against the
-//! release's SHA256SUMS, extract it under the app's data folder. (deviations.md D-10, option c)
+//! release's SHA256SUMS, extract it under the app's data folder. (D-10)
 
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
