@@ -30,6 +30,7 @@ const settings: AppSettings = {
   recentProjects: [],
   playbackVolume: 1,
   playbackMuted: false,
+  memoryGuard: "standard",
 };
 
 describe("formatEta", () => {

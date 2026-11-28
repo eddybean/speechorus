@@ -8,6 +8,7 @@ import type {
   AppSettings,
   EngineState,
   JobSpec,
+  MemoryCheck,
   ModelProfile,
   Voice,
 } from "../lib/types";
@@ -263,7 +264,9 @@ export const useApp = create<AppStore>()((set, get) => ({
     const s = get().settings;
     if (s && s.activeProfileId !== profileId) await get().saveSettings({ ...s, activeProfileId: profileId });
     try {
-      await ipc.engineStart(profileId);
+      const r = await ipc.engineStart(profileId);
+      if (r.status === "blocked") get().notify("error", memoryBlockedText(r.check));
+      else if (r.status === "confirm" && confirm(memoryConfirmText(r.check))) await ipc.engineStart(profileId, true);
     } catch (e) {
       // A failure after the process started is reported by the engine's "failed" event.
       if (get().engine.state !== "failed") get().notify("error", String(e));
@@ -299,6 +302,27 @@ export const useApp = create<AppStore>()((set, get) => ({
   dismiss: (id) => set((s) => ({ notices: s.notices.filter((n) => n.id !== id) })),
   openDialog: (d) => set({ dialog: d }),
 }));
+
+const gib = (b: number) => (b / 2 ** 30).toFixed(1) + " GiB";
+const memName = (c: MemoryCheck) => (c.gpu ? `${c.device}（${c.description || "GPU"}）の VRAM` : "メインメモリ");
+
+/** The question asked when the model may not fit (D-58). */
+export function memoryConfirmText(c: MemoryCheck): string {
+  return [
+    `${memName(c)}の空きが足りない可能性があります。`,
+    `必要 ${gib(c.need)}${c.level === "low" ? "（モデルファイル）" : "（目安）"} / 空き ${gib(c.free)}`,
+    "ほかのアプリがメモリを使っている状態で読み込むと、PC が固まったり極端に遅くなったりすることがあります。",
+    "それでも起動しますか？（確認の強さは 設定 → システム保護 で変えられます）",
+  ].join("\n");
+}
+
+/** The notice when the check refuses to start (D-58). */
+export function memoryBlockedText(c: MemoryCheck): string {
+  return (
+    `起動を中止しました: ${memName(c)}の空き ${gib(c.free)} が、必要量 ${gib(c.need)}（余裕 1.5 GiB を含む）に足りません。` +
+    "ほかのアプリを閉じるか、設定 → システム保護 を緩めてください。"
+  );
+}
 
 /** The profile chosen in the engine panel (the first one if none is set); the engine may still run another. */
 export function chosenProfile(settings: AppSettings | null | undefined): ModelProfile | undefined {

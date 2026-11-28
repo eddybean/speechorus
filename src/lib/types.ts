@@ -93,7 +93,32 @@ export interface AppSettings {
   /** 0 to 2 (200%), as the slider shows it; the player applies a loudness curve. */
   playbackVolume: number;
   playbackMuted: boolean;
+  /** System protection: how hard the free-memory check before an engine start is (D-58). */
+  memoryGuard: MemoryGuard;
 }
+
+export type MemoryGuard = "off" | "low" | "standard" | "strict";
+
+/** The free-memory check of an engine start (`memguard::MemoryCheck`). */
+export interface MemoryCheck {
+  level: MemoryGuard;
+  device: string;
+  description: string;
+  gpu: boolean;
+  /** Free now plus what the running engine frees when it stops. */
+  free: number;
+  reclaim: number;
+  total: number;
+  fileBytes: number;
+  /** What the level asks to be free. */
+  need: number;
+  verdict: "fits" | "confirm" | "block";
+}
+
+export type StartResult =
+  | { status: "started" }
+  | { status: "confirm"; check: MemoryCheck }
+  | { status: "blocked"; check: MemoryCheck };
 
 export interface OptionSpec {
   name: string;

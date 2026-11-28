@@ -427,3 +427,20 @@ Requests: (1) a way to stop playback, (2) choosing a Drama-3 voice by text promp
 - **Checked**: `src/app/Dialog.test.tsx` and `src/features/models/ModelManager.test.tsx` fail without the fixes and pass with them. In the app (over the WebView2 DevTools protocol, real key and mouse input): Esc closes 書き出し and 設定, and switching between the Drama-3 and Irodori profiles shows each one's own env.
 - **User impact**: Esc closes the export dialog. Picking a profile on the モデル screen no longer shows, or on leaving the field saves, another profile's environment variables.
 
+
+### D-58 System protection: a free-memory check before the engine starts 【追加（ユーザー要望）】
+- **What**: `engine_start` (`commands.rs`, `src-tauri/src/memguard.rs`) checks, before it stops the running worker and starts the new one, that the model will fit in the free memory of the device it loads on. Free memory comes from `speech devices --json` (0.15 s) with the profile's speech.exe; the device is the profile's (`auto`/empty: the first GPU, else the CPU; `gpu`; `cpu`; or a name), so a CPU profile is checked against main memory. The need is estimated from the model file's size: file × 1.1 + 512 MiB (Drama-3 Q4_K: 20.8 GiB file → 23.4 GiB, measured about 23.5 GiB). What the running engine holds on the same device counts as free, since it stops first: it is measured after each start as the free memory before minus after (the estimate until then, or when the figure looks wrong).
+  - **設定 → システム保護** (`memoryGuard` in settings.json; an unknown value reads as 標準):
+    - **オフ**: no check.
+    - **弱**: asks when the model file alone is larger than the free memory.
+    - **標準** (default): asks when the estimate is larger than the free memory.
+    - **強**: does not start unless the estimate plus 1.5 GiB (for the desktop and other programs) is free.
+  - "Asks" is a `confirm()` with the device, the need and the free memory; on yes the UI calls `engine_start` again with `confirmed`. 強 returns `blocked` whatever `confirmed` says, and the UI shows a notice pointing to the setting. `engine_start` now returns `{status: "started" | "confirm" | "blocked", check}`.
+  - The モデル screen's "必要VRAM 目安" uses the same estimate (it was file × 1.1).
+- **Why**: The user asked to keep a model from being loaded over VRAM another program is using, which can freeze the PC, without refusing loads that would fit; hence an estimate close to the measured figure, a confirmation instead of a refusal below 強, and a setting for the strength.
+- **Not done / limits**:
+  - The estimate is from the file size only. Drama-3 with `experts_on_cpu` (on by default) may still run when the estimate does not fit, by computing some experts on the CPU; 標準 then asks, and yes starts it as before. The context length and other options are not taken into account.
+  - The check is skipped, and the engine starts, when `speech devices` fails, the device is not listed or the model file cannot be read.
+  - Memory another program takes after the check is not seen. With the check off, nothing is measured, so after turning it on, the running engine's memory counts as used until the next start.
+  - Not tried against a GPU that is really short of memory: the judgement is covered by unit tests (`memguard.rs`, `src/store/app.test.ts`).
+- **User impact**: Starting or switching a model when the device looks short of memory asks first (標準), or is refused (強). A start that fits is unchanged apart from the extra 0.15 s `speech devices` call.

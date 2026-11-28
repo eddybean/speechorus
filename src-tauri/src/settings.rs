@@ -5,6 +5,7 @@ use std::path::Path;
 
 use serde::{Deserialize, Serialize};
 
+use crate::memguard::GuardLevel;
 use crate::models::adapter_for;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -71,6 +72,8 @@ pub struct AppSettings {
     /// Playback volume, 0.0 to 2.0 (200%), as the slider shows it (the GUI applies a loudness curve).
     pub playback_volume: f64,
     pub playback_muted: bool,
+    /// System protection: how hard the free-memory check before an engine start is (D-58).
+    pub memory_guard: GuardLevel,
 }
 
 impl Default for AppSettings {
@@ -88,6 +91,7 @@ impl Default for AppSettings {
             recent_projects: Vec::new(),
             playback_volume: 1.0,
             playback_muted: false,
+            memory_guard: GuardLevel::default(),
         }
     }
 }
@@ -160,5 +164,6 @@ mod tests {
         assert_eq!(partial.asr_model, "qwen3-asr-0.6b");
         assert_eq!(partial.playback_volume, 1.0);
         assert!(!partial.playback_muted);
+        assert_eq!(partial.memory_guard, GuardLevel::Standard);
     }
 }

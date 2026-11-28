@@ -11,6 +11,7 @@ use tauri::{AppHandle, Manager, State};
 use crate::audio::{self, Cue, ExportItem};
 use crate::engine::{EngineState, EngineSupervisor};
 use crate::jobs::{GenerationQueue, JobSpec, QueueSnapshot};
+use crate::memguard::{self, GuardLevel, Held, MemoryCheck, Verdict};
 use crate::models::{adapter_for, all_adapters, describe, AdapterDescriptor, VoiceInput};
 use crate::project::{self, Project};
 use crate::settings::{AppSettings, ModelProfile};
@@ -27,6 +28,8 @@ pub struct AppState {
     pub downloads: crate::downloads::Downloads,
     /// A catalog.json here replaces the built-in model catalog.
     pub catalog_override: PathBuf,
+    /// What the running engine holds on its device, to count as free when another start stops it (D-58).
+    pub engine_memory: Arc<Mutex<Option<crate::memguard::Held>>>,
 }
 
 type R<T> = Result<T, String>;
@@ -120,14 +123,77 @@ pub fn engine_state(st: State<'_, AppState>) -> EngineState {
     st.supervisor.state()
 }
 
+/// What `engine_start` did: started, or held back by the memory check (D-58).
+#[derive(Serialize)]
+#[serde(tag = "status", rename_all = "camelCase")]
+pub enum StartResult {
+    Started,
+    /// Not started: asks the user first. `engine_start` again with `confirmed` starts it.
+    Confirm {
+        check: MemoryCheck,
+    },
+    /// Not started, and `confirmed` does not change that.
+    Blocked {
+        check: MemoryCheck,
+    },
+}
+
+/// The free-memory check for loading `model_path` with `p`, or `None` when it is off or cannot be
+/// made (devices not listed, device or file unknown): then the engine starts as before.
+async fn memory_check(st: &AppState, p: &ModelProfile, model_path: &str, level: GuardLevel) -> Option<MemoryCheck> {
+    if level == GuardLevel::Off {
+        return None;
+    }
+    let file_bytes = std::fs::metadata(model_path).ok()?.len();
+    let devices = Speech { exe: &p.speech_exe, env: &p.env }.devices().await.ok()?;
+    let dev = memguard::pick_device(&devices, &p.device)?;
+    // The running engine stops before the new one loads, so what it holds there counts as free.
+    let reclaim = match (st.supervisor.live(), st.engine_memory.lock().unwrap().as_ref()) {
+        (Ok(_), Some(h)) if h.device == dev.name => h.bytes,
+        _ => 0,
+    };
+    memguard::check(level, &dev, reclaim, file_bytes)
+}
+
 #[tauri::command]
-pub async fn engine_start(st: State<'_, AppState>, profile_id: String) -> R<()> {
+pub async fn engine_start(st: State<'_, AppState>, profile_id: String, confirmed: Option<bool>) -> R<StartResult> {
     let p = st.profile(&profile_id)?;
     if p.model.trim().is_empty() {
         return Err("モデル (GGUF) のパスが設定されていません".into());
     }
     let path = Speech { exe: &p.speech_exe, env: &p.env }.resolve_model(&p.model).await.map_err(e)?;
-    st.supervisor.start(&p, path).await.map_err(e)
+    let level = st.settings.lock().unwrap().memory_guard;
+    let check = memory_check(&st, &p, &path, level).await;
+    match &check {
+        Some(c) if c.verdict == Verdict::Block => return Ok(StartResult::Blocked { check: c.clone() }),
+        Some(c) if c.verdict == Verdict::Confirm && confirmed != Some(true) => {
+            return Ok(StartResult::Confirm { check: c.clone() })
+        }
+        _ => {}
+    }
+    *st.engine_memory.lock().unwrap() = None;
+    st.supervisor.start(&p, path).await.map_err(e)?;
+    if let Some(c) = check {
+        // Until it is measured, the engine is taken to hold the estimate.
+        let held = st.engine_memory.clone();
+        let bytes = memguard::estimate(c.file_bytes);
+        *held.lock().unwrap() = Some(Held { profile_id: p.id.clone(), device: c.device.clone(), bytes });
+        // Measure what loading took: free before (without what the old engine freed) minus free now.
+        let before = c.free - c.reclaim;
+        tokio::spawn(async move {
+            let devices = Speech { exe: &p.speech_exe, env: &p.env }.devices().await.ok();
+            let Some(now) = devices.and_then(|d| memguard::pick_device(&d, &c.device)) else { return };
+            let used = before.saturating_sub(now.free);
+            let mut g = held.lock().unwrap();
+            // Only for this start, and only a plausible figure (another program may have freed memory meanwhile).
+            if let Some(h) = g.as_mut().filter(|h| h.profile_id == p.id && h.device == c.device) {
+                if used > bytes / 4 {
+                    h.bytes = used;
+                }
+            }
+        });
+    }
+    Ok(StartResult::Started)
 }
 
 #[tauri::command]

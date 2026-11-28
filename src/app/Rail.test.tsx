@@ -28,6 +28,7 @@ const settings = (active: string, p1Model = "/m.gguf"): AppSettings => ({
   recentProjects: [],
   playbackVolume: 1,
   playbackMuted: false,
+  memoryGuard: "standard",
 });
 
 const startEngine = vi.fn(async () => {});

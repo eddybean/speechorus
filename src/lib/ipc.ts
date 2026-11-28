@@ -10,6 +10,7 @@ import type {
   EngineState,
   ExportItem,
   JobSpec,
+  StartResult,
   ModelProfile,
   Project,
   Voice,
@@ -42,7 +43,7 @@ export const ipc = {
   modelInfo: (profileId: string) =>
     invoke<{ path: string; info: Record<string, Json>; sidecar: boolean }>("model_info", { profileId }),
   engineState: () => invoke<EngineState>("engine_state"),
-  engineStart: (profileId: string) => invoke<void>("engine_start", { profileId }),
+  engineStart: (profileId: string, confirmed = false) => invoke<StartResult>("engine_start", { profileId, confirmed }),
   engineStop: () => invoke<void>("engine_stop"),
   enqueue: (jobs: JobSpec[]) => invoke<void>("enqueue", { jobs }),
   cancelJob: (jobId: string) => invoke<void>("cancel_job", { jobId }),
