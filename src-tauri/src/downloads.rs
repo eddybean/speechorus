@@ -311,13 +311,16 @@ pub fn fetch_file(
         hasher = h;
         have = n;
     }
-    let agent = ureq::AgentBuilder::new()
-        .timeout_connect(Duration::from_secs(20))
-        .timeout_read(Duration::from_secs(60))
-        .build();
-    let mut req = agent.get(url).set("User-Agent", "speechorus-downloader");
+    // `timeout_per_read` restarts on every read, like ureq 2's `timeout_read`: a stalled
+    // download fails, a slow one does not.
+    let agent: ureq::Agent = ureq::Agent::config_builder()
+        .timeout_connect(Some(Duration::from_secs(20)))
+        .timeout_per_read(Some(Duration::from_secs(60)))
+        .build()
+        .into();
+    let mut req = agent.get(url).header("User-Agent", "speechorus-downloader");
     if have > 0 && have < size {
-        req = req.set("Range", &format!("bytes={have}-"));
+        req = req.header("Range", format!("bytes={have}-"));
     }
     let resp =
         if have == size { None } else { Some(req.call().map_err(|e| DownloadError::Other(format!("{url}: {e}")))?) };
@@ -338,7 +341,7 @@ pub fn fetch_file(
             file.set_len(0).map_err(other)?;
             file.seek(SeekFrom::Start(0)).map_err(other)?;
         }
-        let mut reader = resp.into_reader();
+        let mut reader = resp.into_body().into_reader();
         let mut buf = vec![0u8; 1 << 18];
         let mut meter = Meter::new(have);
         report("downloading", have, 0.0);

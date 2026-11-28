@@ -82,27 +82,29 @@ pub fn extract(zip: &Path, dest: &Path) -> Result<PathBuf, String> {
     exe.ok_or_else(|| "the zip holds no speech.exe".into())
 }
 
-fn get(url: &str) -> Result<ureq::Response, String> {
-    ureq::get(url).set("User-Agent", UA).call().map_err(|e| format!("{url}: {e}"))
+fn get(url: &str) -> Result<ureq::http::Response<ureq::Body>, String> {
+    ureq::get(url).header("User-Agent", UA).call().map_err(|e| format!("{url}: {e}"))
 }
 
 /// Downloads, verifies and extracts the latest release into `root/<tag>/`.
 pub fn install_latest(root: &Path, log: &dyn Fn(String)) -> Result<Installed, String> {
     log(format!("fetching the latest release of {REPO}"));
     let body = get(&format!("https://api.github.com/repos/{REPO}/releases/latest"))?
-        .into_string()
+        .into_body()
+        .read_to_string()
         .map_err(|e| e.to_string())?;
     let release: Value = serde_json::from_str(&body).map_err(|e| e.to_string())?;
     let a = pick_assets(&release)?;
-    let sums = get(&a.sums_url)?.into_string().map_err(|e| e.to_string())?;
+    let sums = get(&a.sums_url)?.into_body().read_to_string().map_err(|e| e.to_string())?;
     let expected = parse_sums(&sums, &a.zip_name).ok_or_else(|| format!("SHA256SUMS does not list {}", a.zip_name))?;
     let dl = root.join("dl");
     std::fs::create_dir_all(&dl).map_err(|e| e.to_string())?;
     let zip_path = dl.join(&a.zip_name);
     log(format!("downloading {} ({})", a.zip_name, a.tag));
     let resp = get(&a.zip_url)?;
-    let total: u64 = resp.header("Content-Length").and_then(|s| s.parse().ok()).unwrap_or(0);
-    let mut reader = resp.into_reader();
+    let total: u64 =
+        resp.headers().get("Content-Length").and_then(|v| v.to_str().ok()).and_then(|s| s.parse().ok()).unwrap_or(0);
+    let mut reader = resp.into_body().into_reader();
     let mut file = std::fs::File::create(&zip_path).map_err(|e| e.to_string())?;
     let mut hasher = Sha256::new();
     let mut buf = vec![0u8; 1 << 16];
