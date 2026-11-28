@@ -1,6 +1,6 @@
 # D-52 CI is required to merge into `main`
 
-- **Status**: Accepted (2026-11-28)
+- **Status**: Accepted (2026-11-28); partly superseded by D-60 (how the release PR gets the checks)
 - **Code**: the repository ruleset "Require CI" (GitHub settings), `.github/workflows/bump.yml`
 
 ## Decision
@@ -9,8 +9,8 @@
   `Frontend (format, typecheck, Oxlint, Vitest)` and `Rust (rustfmt, clippy, cargo test)` from GitHub Actions. The
   branch need not be up to date with `main`. Repository admins may bypass it (for a broken CI). The disabled ruleset
   "main" is left as it was.
-- The release PR from `bump.yml` must get these checks too. A PR opened with `GITHUB_TOKEN` triggers no
-  `pull_request` workflow, so `bump.yml` starts `ci.yml` on the release branch with `workflow_dispatch`.
+- The release PR from `bump.yml` must get these checks too. It is opened with a GitHub App token, so it runs
+  `ci.yml` like any other PR (D-60).
 
 ## Consequences
 
