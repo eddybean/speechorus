@@ -1,7 +1,7 @@
 # D-60 The release PR is opened with a GitHub App token, not `GITHUB_TOKEN`
 
 - **Status**: Accepted (2026-11-28)
-- **Code**: `.github/workflows/bump.yml`; the repository's GitHub App (Actions variable `RELEASE_APP_ID`, secret
+- **Code**: `.github/workflows/bump.yml`; the repository's GitHub App (Actions variable `RELEASE_APP_CLIENT_ID`, secret
   `RELEASE_APP_PRIVATE_KEY`)
 
 ## Context
@@ -34,5 +34,3 @@ ruleset.
 - "Allow GitHub Actions to create and approve pull requests" (D-42) is no longer needed.
 - If the App is uninstalled or its key is revoked, `bump.yml` fails at the token step; a new key goes into
   `RELEASE_APP_PRIVATE_KEY`.
-- `app-id` is deprecated in `create-github-app-token` v3.4.0 in favour of `client-id`. It still works; switching
-  means storing the App's Client ID and passing `client-id`.
