@@ -82,8 +82,9 @@ Sections that have nothing to say may be left out. Mention the user only for dec
 | [D-56](D-56-react-19-ureq-3.md) | React 19 and ureq 3, and what each needed | dependencies |
 | [D-58](D-58-memory-guard.md) | A free-memory check before the engine starts | engine |
 | [D-59](D-59-explicit-downloads.md) | Models are resolved from `speech models`; only the catalog downloads | engine, models |
+| [D-60](D-60-bump-app-token.md) | The release PR is opened with a GitHub App token, not `GITHUB_TOKEN` | CI, release |
 
-Next free ID: D-61 (D-60 is taken by the `bump.yml` GitHub App token change).
+Next free ID: D-61.
 
 ## Retired
 

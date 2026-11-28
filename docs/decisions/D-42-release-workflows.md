@@ -1,7 +1,8 @@
 # D-42 Releases: a bump PR, then a draft release on merge
 
 - **Status**: Accepted (2026-11-27); CI and required checks added by D-50/D-52, toolchain pin moved to
-  `rust-toolchain.toml` by D-53, time limit and cache by D-55
+  `rust-toolchain.toml` by D-53, time limit and cache by D-55,
+  release PR opened with a GitHub App token by D-60
 - **Code**: `.github/workflows/bump.yml`, `.github/workflows/release.yml`
 
 ## Context
@@ -31,7 +32,6 @@ Neither workflow pushes to `main`.
 
 ## Consequences
 
-- "Allow GitHub Actions to create and approve pull requests" must be on. A tag ruleset on `v*` would block the tag
-  push.
+- The release PR is opened by the repository's GitHub App (D-60). A tag ruleset on `v*` would block the tag push.
 - Releases are published by hand from the draft. The installer is not code-signed and there is no updater
   ([#55](https://github.com/eddybean/speechorus/issues/55)).
