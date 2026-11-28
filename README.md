@@ -23,6 +23,48 @@ The main model is **Drama-3-Japanese** (`StudioYebisu-ship-it/Drama-3-Japanese-s
 - Model profiles: speech.exe (can be downloaded from the official release), GGUF (or a catalog name), device, environment variables; checks for the sidecar and the VRAM needed
 - System protection: before a model is loaded, checks that it fits in the free VRAM (or memory) and asks, or refuses at the strictest level (設定 → システム保護)
 
+## Voice samples
+
+Made with Drama-3-Japanese (Q4_K, speech.cpp 0.11.2, Vulkan) from a voice design prompt alone: no reference audio, `voice none`. The text sent is the prompt as a leading `[...]` cue, then the line. Each was picked from three seeds, then trimmed and loudness-normalized. The players are short videos of the same audio; the MP3 files are in [docs/samples/](docs/samples/).
+
+### Female, calm
+
+`[落ち着いた25歳の女性。]` こんにちは。今日はいいお天気ですね。午後から少し、散歩に出かけてみませんか？ (seed 1, [MP3](docs/samples/female-calm.mp3))
+
+https://github.com/user-attachments/assets/b9244a82-b5ed-42e3-b30e-b7e876fb8f12
+
+### Female, bright
+
+`[明るく元気な10代後半の女の子。]` おはよう！ねえ聞いて、駅前に新しいパン屋さんができたんだって。帰りに寄っていこうよ！ (seed 1, [MP3](docs/samples/female-bright.mp3))
+
+https://github.com/user-attachments/assets/ec2cad42-5c78-443a-b796-976b1a80770c
+
+### Female, narrator
+
+`[穏やかで優しい声の30代の女性ナレーター。]` むかしむかし、ある山のふもとに、小さな村がありました。村の人たちは、毎朝早くから畑に出て働いていました。 (seed 2, [MP3](docs/samples/female-narrator.mp3))
+
+https://github.com/user-attachments/assets/3ff76005-7c61-43f1-b03e-50bac805b1a8
+
+### Male, calm
+
+`[落ち着いた低い声の40代の男性。]` 本日の打ち合わせは以上です。資料は後ほど共有しますので、お時間のあるときにご確認ください。 (seed 3, [MP3](docs/samples/male-calm.mp3))
+
+https://github.com/user-attachments/assets/cb90d8f4-d506-4473-a5e6-5358e8245c06
+
+### Male, bright
+
+`[爽やかで快活な20代の男性。]` お待たせ！ごめん、電車が少し遅れちゃってさ。じゃあ、さっそく行こうか。 (seed 2, [MP3](docs/samples/male-bright.mp3))
+
+https://github.com/user-attachments/assets/c5b2c0d3-ca1f-41c1-86c7-f016f41f1c33
+
+### Male, older
+
+`[渋く穏やかな60代の男性。]` 焦ることはない。ゆっくりでいいから、自分の足で一歩ずつ進んでいけばいいんだ。 (seed 2, [MP3](docs/samples/male-elder.mp3))
+
+https://github.com/user-attachments/assets/164e6190-dff6-4798-bc6b-a0987122e47b
+
+The samples are output of the Drama-3-Japanese weights, which are under the [Fish Audio Community License 1.0](https://huggingface.co/StudioYebisu-ship-it/Drama-3-Japanese-speech-cpp-gguf/blob/main/LICENSE) (non-commercial research and personal use). Built with Fish Audio.
+
 ## Installation
 
 1. Open the [Releases page](https://github.com/eddybean/speechorus/releases) and download `Speechorus_X.Y.Z_x64-setup.exe` from the latest release.
