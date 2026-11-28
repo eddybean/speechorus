@@ -78,6 +78,8 @@ export function ModelManager() {
   const running = engine.state !== "stopped" && "profileId" in engine && engine.profileId === sel;
   const free = devices.find((d) => d.name === prof?.device)?.memory_free;
   const need = check && typeof check !== "string" ? Number(check.info.file_bytes ?? 0) : 0;
+  // The same estimate as the check before an engine start (memguard::estimate, D-58).
+  const est = need * 1.1 + 512 * 2 ** 20;
 
   return (
     <Page title="モデル管理">
@@ -280,9 +282,9 @@ export function ModelManager() {
                   </div>
                 )}
                 {need > 0 && free !== undefined && (
-                  <div className={free > need * 1.1 ? "ok-text" : "warn-text"}>
-                    必要VRAM 目安 {gib(need * 1.1)}（ファイル {gib(need)} + 作業領域） / 空き {gib(free)}
-                    {free <= need * 1.1 && " — 一部のエキスパートが CPU で計算され遅くなります"}
+                  <div className={free > est ? "ok-text" : "warn-text"}>
+                    必要VRAM 目安 {gib(est)}（ファイル {gib(need)} + 作業領域） / 空き {gib(free)}
+                    {free <= est && " — 一部のエキスパートが CPU で計算され遅くなります"}
                   </div>
                 )}
               </div>

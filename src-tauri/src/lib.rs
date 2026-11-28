@@ -7,6 +7,7 @@ pub mod engine;
 pub mod events;
 pub mod installer;
 pub mod jobs;
+pub mod memguard;
 mod memory;
 pub mod models;
 pub mod project;
@@ -98,6 +99,7 @@ pub fn run() {
                 work,
                 downloads: Default::default(),
                 catalog_override: cfg.join("catalog.json"),
+                engine_memory: Default::default(),
             });
             Ok(())
         })

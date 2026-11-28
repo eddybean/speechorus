@@ -36,6 +36,7 @@ const settings: AppSettings = {
   recentProjects: [],
   playbackVolume: 1,
   playbackMuted: false,
+  memoryGuard: "standard",
 };
 const adapter: AdapterDescriptor = {
   id: "irodori",

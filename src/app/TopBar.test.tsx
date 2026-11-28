@@ -83,6 +83,7 @@ describe("TopBar", () => {
       recentProjects: [],
       playbackVolume: 0.8,
       playbackMuted: false,
+      memoryGuard: "standard",
     } as unknown as AppSettings;
     const st = () => useApp.getState().settings!;
 
